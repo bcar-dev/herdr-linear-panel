@@ -21,9 +21,9 @@ This project is not affiliated with or endorsed by Linear.
 
 Ask the agent in your Herdr window to add the mod from this repository. It copies `mods/linear-panel` into your Herdr
 folder and adds two blocks to your layout: the panel, and its button in the top bar. The "Layout" paragraph of the
-recipe lists both.
+[recipe](RECIPE.md) lists both.
 
-It is written for macOS, Linux and Windows. Although only macOS has been actively tested.
+It is written for macOS, Linux and Windows, although only macOS has been actively tested.
 
 ## API key
 
