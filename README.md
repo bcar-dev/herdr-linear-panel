@@ -25,6 +25,19 @@ folder and adds two blocks to your layout: the panel, and its button in the top 
 
 It is written for macOS, Linux and Windows, although only macOS has been actively tested.
 
+### A ready-made layout
+
+The mod carries an example, `mods/linear-panel/examples/main-linear.json`: Herdr's `main` layout with the two blocks
+already in place. With the mod installed, copy it into your layouts and switch to it:
+
+```sh
+cp ~/.config/herdr-app/mods/linear-panel/examples/main-linear.json ~/.config/herdr-app/layouts/
+herdr-app do layout.switch '{"name":"main-linear"}'
+```
+
+`ctrl-shift-l` switches back to your own layout. The example is `main` as it was in Herdr 0.1.16: on a later Herdr,
+prefer a clone of your own `main` with the two blocks added.
+
 ## API key
 
 The panel shows these steps until it finds a key.
@@ -120,6 +133,7 @@ mods/linear-panel/
   popups.js     every popup's size, place and props
   types.d.ts    the shapes the files pass around, for the type check
   icons/        the mod's own icons, and a few from Lucide
+  examples/     a layout with the panel and its button in place
   brand/        Linear's logo, with its notice
 tests/
   host/         the stand-in for Herdr
