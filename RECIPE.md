@@ -312,8 +312,9 @@ places:
 - The `panel-body` stack gains a child block with id `linear` and content `{ "mod": "linear-panel" }`. That block's
   `props`, if any, are the person's settings.
 
-`examples/main-linear.json`, in the mod's folder, is that layout whole, made from `main` at version 0.1.16 and with no
-`props` on the panel's block: a person copies it into `layouts/` to get the window in one step.
+`examples/main-linear.json`, in the mod's folder, is that layout whole, made from `main` at version 0.1.16. Its panel
+block has one setting, a `start_prompt` whose lines say what it is for and ask to be replaced. A person copies the file
+into `layouts/` to get the window in one step.
 
 The id `linear` matters (`SLOT` in `tracker.js`): the code tests `panel-body`'s active child against it, and adds
 `"linear"` to the shared list `workspace.panels` so the shipped tab bar restores the panel per space.

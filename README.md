@@ -38,6 +38,9 @@ herdr-app do layout.switch '{"name":"main-linear"}'
 `ctrl-shift-l` switches back to your own layout. The example is `main` as it was in Herdr 0.1.16: on a later Herdr,
 prefer a clone of your own `main` with the two blocks added.
 
+The panel's block in the example carries a `start_prompt` whose lines say what it is for. Replace them with your own,
+or remove the setting: left as it is, that text is what your agent receives first when you start an issue.
+
 ## API key
 
 The panel shows these steps until it finds a key.

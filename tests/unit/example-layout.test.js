@@ -1,4 +1,4 @@
-// The example layout a person can copy: it must hold the two blocks the mod needs, and none of anyone's settings.
+// The example layout a person can copy: it must hold the two blocks the mod needs, and no one's own settings.
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { it } from "node:test";
@@ -14,10 +14,17 @@ function* nodes(node) {
 }
 const byId = (id) => [...nodes(layout)].find((node) => node.id === id);
 
-it("has the panel in the right panel's stack, under the id the mod looks for, with no settings", () => {
+it("has the panel in the right panel's stack, under the id the mod looks for", () => {
   const stack = byId("panel-body");
   assert.equal(stack.type, "stack");
-  assert.deepEqual(stack.children.find((child) => child.id === SLOT).content, { mod: MOD });
+  assert.equal(stack.children.find((child) => child.id === SLOT).content.mod, MOD);
+});
+
+it("gives the panel one setting, a start prompt that says it is an example to replace", () => {
+  const { props } = byId(SLOT).content;
+  assert.deepEqual(Object.keys(props), ["start_prompt"]);
+  assert.match(props.start_prompt[0], /example start prompt\. Replace these lines with your own/);
+  assert.ok(props.start_prompt.every((line) => typeof line === "string"));
 });
 
 it("has the panel's button in the top bar, beside the tab bar", () => {
