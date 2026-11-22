@@ -1,0 +1,116 @@
+// The tracker's GraphQL API: the queries this mod makes, and nothing about how their answers are shown.
+import { API, NAME, apiKey } from "./tracker.js";
+
+const ISSUE = `fragment I on Issue {
+  id identifier title url priority estimate branchName completedAt canceledAt
+  state { id name type color position }
+  cycle { number name endsAt }
+  team { id }
+}`;
+
+// shortcut: first 100 issues per view, paginate with pageInfo.endCursor if a view ever fills up.
+// Most recently updated first, so a view cut at 100 keeps the live issues.
+const ISSUES = `query($cycle: IssueFilter, $mine: IssueFilter) {
+  viewer {
+    id
+    teams(first: 50) { nodes { key name } }
+    cycle: assignedIssues(first: 100, orderBy: updatedAt, filter: $cycle) { nodes { ...I } pageInfo { hasNextPage } }
+    all: assignedIssues(first: 100, orderBy: updatedAt, filter: $mine) { nodes { ...I } pageInfo { hasNextPage } }
+  }
+}
+${ISSUE}`;
+
+// Explicit page sizes: the API scores a query's complexity by them (for its rate limit), and the defaults (50 x 50)
+// exceed the limit of one query.
+const TEAMS = `query($ids: [ID!]) {
+  teams(first: 10, filter: { id: { in: $ids } }) {
+    nodes {
+      id issueEstimationType issueEstimationAllowZero issueEstimationExtended defaultIssueEstimate
+      states(first: 50) { nodes { id name type color position } }
+      members(first: 100) { nodes { id name displayName initials avatarBackgroundColor } }
+    }
+  }
+}`;
+
+const DESCRIPTION = "query($id: String!) { issue(id: $id) { description } }";
+const DETAILS = "query($id: String!) { issue(id: $id) { description "
+  + "comments(first: 50) { nodes { body createdAt user { name } } } } }";
+const HISTORY = "query($id: String!) { issue(id: $id) { stateHistory(first: 100) { nodes { "
+  + "startedAt endedAt state { id name type color position } } } } }";
+const UPDATE = "mutation($ids: [UUID!]!, $input: IssueUpdateInput!) "
+  + "{ issueBatchUpdate(ids: $ids, input: $input) { success } }";
+
+// Where requests go: the tracker's API, or the address the person's settings name instead (`api`), a stand-in for
+// a demo or a test.
+let endpoint = API;
+/** @param {string | undefined} address */
+export const use = (address) => { endpoint = address ?? API; };
+
+// Thrown when no API key is set up: the panel then shows how to add one.
+export class NoKey extends Error {
+  constructor() { super("No API key"); }
+}
+
+/**
+ * @param {string} query
+ * @param {Record<string, unknown>} variables
+ */
+async function request(query, variables) {
+  const key = await apiKey();
+  if (!key) throw new NoKey();
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: key },
+    body: JSON.stringify({ query, variables }),
+  });
+  // A gateway in front of the API can answer an error page: say which HTTP status, not that the page failed to parse.
+  /** @type {ApiAnswer | null} */
+  let body = null;
+  try {
+    body = /** @type {ApiAnswer} */ (await response.json());
+  } catch {
+    // Not JSON: the status below is all there is to say.
+  }
+  if (body?.errors?.length) throw new Error(body.errors[0].message);
+  if (!body?.data) throw new Error(`${NAME} answered ${response.status} with no data`);
+  return body.data;
+}
+
+// Me, my teams and my issues for the filters { cycle, mine }: { id, teams, cycle, all }, where the views `cycle` and
+// `all` are each { nodes, pageInfo }.
+/** @param {IssueFilters} filters */
+export const issues = async (filters) => (await request(ISSUES, filters)).viewer;
+
+/** @param {string[]} ids */
+export async function teams(ids) {
+  const found = (await request(TEAMS, { ids })).teams.nodes;
+  return found.map((team) => ({ ...team, states: team.states.nodes, members: team.members.nodes }));
+}
+
+/** @param {string} id */
+export const description = async (id) => (await request(DESCRIPTION, { id })).issue.description;
+
+// Comments come oldest first.
+/** @param {string} id */
+export async function details(id) {
+  const { issue } = await request(DETAILS, { id });
+  return { description: issue.description,
+    comments: issue.comments.nodes.sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1)) };
+}
+
+// An issue's stays in each status it has been in, oldest first.
+/** @param {string} id */
+export async function stateHistory(id) {
+  const { issue } = await request(HISTORY, { id });
+  return issue.stateHistory.nodes.sort((a, b) => (a.startedAt < b.startedAt ? -1 : 1));
+}
+
+// The same change on every issue, in one request (the API takes up to 50 ids).
+/**
+ * @param {string[]} ids
+ * @param {IssueUpdate} input
+ */
+export async function update(ids, input) {
+  const data = await request(UPDATE, { ids, input });
+  if (!data.issueBatchUpdate.success) throw new Error(`${NAME} refused the update`);
+}

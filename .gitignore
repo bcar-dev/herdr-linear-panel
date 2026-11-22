@@ -1,0 +1,21 @@
+# Written by Herdr into a mod folder
+gpui-kit.d.ts
+*.error
+
+# Dependencies and what tools leave behind
+node_modules/
+coverage/
+*.log
+.scratch/
+
+# Secrets
+.env
+.env.*
+
+# The system, editors and agents
+.DS_Store
+.idea/
+.vscode/
+.claude/
+.serena/
+.superpowers/

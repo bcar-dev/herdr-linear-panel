@@ -1,0 +1,25 @@
+{
+  "name": "herdr-linear-panel",
+  "version": "0.1.0",
+  "description": "A Herdr mod: your Linear issues in a side panel.",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=26"
+  },
+  "packageManager": "pnpm@11.6.0+sha512.9a36518224080c6fe5165afdcfe79bfa118c29be703f3f462b1e32efe1e98e47e8750b148e08286250aad4113cc7993ca413c4e2cd447752708c2ee5751bc95f",
+  "scripts": {
+    "test": "node --import ./tests/host/register.js --test \"tests/**/*.test.js\"",
+    "check": "herdr-app check mods/linear-panel",
+    "typecheck": "tsc -p mods/linear-panel/jsconfig.json",
+    "lint": "eslint .",
+    "link": "ln -s \"$PWD/mods/linear-panel\" \"${HERDR_APP_HOME:-$HOME/.config/herdr-app}/mods/linear-panel\"",
+    "reload": "touch -h \"${HERDR_APP_HOME:-$HOME/.config/herdr-app}/mods/linear-panel\""
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.14.0",
+    "typescript": "5.9.3"
+  }
+}

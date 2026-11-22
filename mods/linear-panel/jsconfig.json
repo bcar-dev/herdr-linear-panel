@@ -1,0 +1,34 @@
+{
+  "// why": [
+    "This file is the project's. Herdr wrote a first version and never replaces",
+    "one that exists. `npm run typecheck` and the editor both read it.",
+    "gpui-kit.d.ts beside it is Herdr's: generated, never edited, not in git.",
+    "",
+    "`target` and `module`: the files are ES2022 modules, and Herdr loads them",
+    "as they are.",
+    "`moduleResolution`: left out, an ES module project gets the legacy",
+    "resolution, which never looks in node_modules.",
+    "`lib`: ES2022 without the browser's globals. This runtime is not a",
+    "browser, and gpui-kit.d.ts declares the globals it does have (`console`,",
+    "`fetch`, `localStorage`): the browser's declarations collide with them.",
+    "`checkJs`: the mod is plain JavaScript, typed through JSDoc comments and",
+    "types.d.ts. Without it nothing here is checked.",
+    "`strict`: all of it, null checks included. A value that can be null or",
+    "undefined is typed so, and handled where it is used.",
+    "`strictPropertyInitialization` is the one strict check left off, for the",
+    "view in main.js. Herdr builds a view through `init`, not a constructor, so",
+    "its field (`part`) cannot be assigned where this check looks. Every other",
+    "class assigns its fields in its constructor and passes with the check on.",
+    "`noEmit`: the check only reads, nothing is built."
+  ],
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ES2022",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022"],
+    "checkJs": true,
+    "strict": true,
+    "strictPropertyInitialization": false,
+    "noEmit": true
+  }
+}
