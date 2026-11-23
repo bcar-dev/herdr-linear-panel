@@ -3,7 +3,7 @@ import { describe, it } from "node:test";
 import { click, find, focuses, hover, icons, press, send, text, texts, walk } from "../host/elements.js";
 import { host } from "../host/herdr.js";
 import { mountOverlay } from "../host/mount.js";
-import { BACK, FRAME, WEB, at, sampleIssues, settled, startPanel } from "../fixtures.js";
+import { BACK, CYCLE, FRAME, NEXT, WEB, at, sampleIssues, settled, startPanel } from "../fixtures.js";
 
 const REQUEST = "linear-panel.request";
 const row = (root, id) => find(root, `issue-${id}`);
@@ -71,7 +71,7 @@ describe("loading", () => {
     assert.deepEqual(texts(find(root, "issues")).filter((piece) => ["In Progress", "Todo", "Done"].includes(piece)),
       ["In Progress", "Todo", "Done"]);
     assert.match(text(root), /3 issues/);
-    assert.match(text(root), /Cycle 12 · ends 2026-11-27/);
+    assert.match(text(root), new RegExp(`Cycle 12 · ends ${CYCLE.endsAt.slice(0, 10)}`));
   });
 
   it("shows a spinner for the first load, for at least a moment after the answer", async () => {
@@ -380,7 +380,7 @@ describe("rows", () => {
     // It draws its own box: Herdr's frame is left out.
     assert.deepEqual({ mod: menu.mod, kind: menu.kind, frame: menu.frame, width: menu.width, height: menu.height,
       at: menu.at },
-      { mod: "linear-panel", kind: "popup", frame: "none", width: 228, height: 273, at: { x: 1072, y: 467 } });
+      { mod: "linear-panel", kind: "popup", frame: "none", width: 228, height: 304, at: { x: 1072, y: 436 } });
     assert.equal(menu.props.part, "issue-menu");
     assert.deepEqual(menu.props.issues.map((issue) => issue.identifier), ["BACK-1"]);
     assert.deepEqual(menu.props.teams.map((team) => team.id), [BACK.id]);
@@ -402,7 +402,7 @@ describe("rows", () => {
     assert.equal((await menuOf({ settings: { agent: "codex" } })).props.agent, "Codex");
     // No agent: no Start, and a menu shorter by that entry and its rule.
     const bare = await menuOf({ app: { agents: [] } });
-    assert.deepEqual([bare.props.agent, bare.height], [null, 273 - 31 - 9]);
+    assert.deepEqual([bare.props.agent, bare.height], [null, 304 - 31 - 9]);
   });
 
   it("opens the menu on every ticked issue when one of them is right-clicked, in the order of the list", async () => {
@@ -1014,10 +1014,10 @@ describe("header", () => {
     // 8 window pixels under the panel's top, 26 high, 6 of a style under it: (8 + 26) / 2 + 6.
     const tooltip = find(panel.draw(), "tooltip");
     assert.deepEqual([tooltip.$.style.right, tooltip.$.style.top], [4, 23]);
-    // The issue menu takes 456 by 546 window pixels: pulled back to the panel's left edge, and up from its bottom.
+    // The issue menu takes 456 by 608 window pixels: pulled back to the panel's left edge, and up from its bottom.
     const drawn = panel.draw();
     send(drawn, row(drawn, "back-1"), "on_mouse_down:right", at(1250, 700), panel.cx);
-    assert.deepEqual(host.overlays[0].at, { x: 900, y: 194 });
+    assert.deepEqual(host.overlays[0].at, { x: 900, y: 132 });
     // The display options: 92 window pixels under the panel's top for the 42 of the header and the 4 kept.
     press(panel.draw(), "v", panel.cx, { shift: true });
     assert.deepEqual(host.overlays[1].at, { x: 900, y: 132 });
@@ -1059,6 +1059,53 @@ describe("header", () => {
       { ...at(1280, 200), bounds: { x: 1262, y: 190, width: 30, height: 20 } }, panel.cx);
     panel.cx.elapse();
     assert.equal(text(find(panel.draw(), "tooltip")), "Change estimate ⇧ E");
+  });
+
+  it("shows the cycle of an issue that has one, and opens its choices on a click or a right-click", async () => {
+    const panel = await startPanel({ app: { stored: { view: "all" } } });
+    enter(panel);
+    const root = panel.draw();
+    assert.equal(text(find(root, "cycle-back-1")), "12");
+    // The current cycle's icon is indigo.
+    assert.equal(iconOf(find(root, "cycle-back-1"), "view-cycle").$.style.text_color, "#5e6ad2");
+    assert.equal(find(root, "cycle-web-7"), null);
+    // A right-click on it opens the cycle's choices, not the issue's menu.
+    send(root, find(root, "cycle-back-1"), "on_mouse_down:right", at(1250, 200), panel.cx);
+    clickOn(panel, "cycle-back-2");
+    assert.deepEqual(host.overlays.map(({ props }) => [props.part, props.page, props.bare, props.targets[0].id]),
+      [["commands", "cycle", true, "back-1"], ["commands", "cycle", true, "back-2"]]);
+    assert.equal(host.overlays[0].height, 48 + 5 * 32);
+  });
+
+  it("tells on a row's cycle its capacity, how much is done, the weekdays left", async () => {
+    const panel = await startPanel();
+    enter(panel);
+    const root = panel.draw();
+    send(root, find(root, "cycle-back-1"), "on_mouse_move",
+      { ...at(1240, 200), bounds: { x: 1225, y: 190, width: 34, height: 20 } }, panel.cx);
+    panel.cx.elapse();
+    const tooltip = find(panel.draw(), "tooltip");
+    // The card alone: no label, no keys, no rule under it.
+    assert.match(text(tooltip), /^Cycle 12 Capacity: 20 pts 70% of 10 Current \d+ weekdays? left$/);
+    assert.deepEqual(icons(tooltip), ["view-cycle", "status-started-6"]);
+  });
+
+  it("tells on a cycle to come the points planned in it, asked of the tracker, and its days", async () => {
+    const issues = sampleIssues();
+    // BACK-2 has no estimate: it counts for the team's default, 1.
+    for (const id of ["back-2", "back-10"]) issues.find((issue) => issue.id === id).cycle = NEXT;
+    const panel = await startPanel({ issues, app: { stored: { view: "all" } } });
+    enter(panel);
+    const root = panel.draw(), mark = find(root, "cycle-back-2");
+    hover(mark, true, panel.cx);
+    send(root, mark, "on_mouse_move", { ...at(1240, 200), bounds: { x: 1225, y: 190, width: 34, height: 20 } },
+      panel.cx);
+    await panel.cx.idle();
+    panel.cx.elapse();
+    const tooltip = find(panel.draw(), "tooltip");
+    assert.match(text(tooltip), /^Cycle 13 3 Upcoming \w{3} \d+ - \w{3} \d+$/);
+    assert.deepEqual(icons(tooltip), ["cycle", "estimate"]);
+    assert.deepEqual(panel.server.kinds().filter((kind) => kind === "planned"), ["planned"]);
   });
 
   it("names what a click on a row's priority does, and its key", async () => {

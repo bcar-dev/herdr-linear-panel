@@ -4,7 +4,7 @@ import { API, NAME, apiKey } from "./tracker.js";
 const ISSUE = `fragment I on Issue {
   id identifier title url priority estimate branchName completedAt canceledAt
   state { id name type color position }
-  cycle { number name endsAt }
+  cycle { id number name description startsAt endsAt progress scopeHistory }
   team { id }
 }`;
 
@@ -21,13 +21,17 @@ const ISSUES = `query($cycle: IssueFilter, $mine: IssueFilter) {
 ${ISSUE}`;
 
 // Explicit page sizes: the API scores a query's complexity by them (for its rate limit), and the defaults (50 x 50)
-// exceed the limit of one query.
+// exceed the limit of one query. A team's cycles are those an issue can be moved to: the current one, those to come
+// and the previous one.
 const TEAMS = `query($ids: [ID!]) {
   teams(first: 10, filter: { id: { in: $ids } }) {
     nodes {
       id issueEstimationType issueEstimationAllowZero issueEstimationExtended defaultIssueEstimate
       states(first: 50) { nodes { id name type color position } }
       members(first: 100) { nodes { id name displayName initials avatarBackgroundColor } }
+      cycles(first: 20, filter: { or: [{ isPast: { eq: false } }, { isPrevious: { eq: true } }] }) {
+        nodes { id number name startsAt endsAt }
+      }
     }
   }
 }`;
@@ -37,6 +41,10 @@ const DETAILS = "query($id: String!) { issue(id: $id) { description "
   + "comments(first: 50) { nodes { body createdAt user { name } } } } }";
 const HISTORY = "query($id: String!) { issue(id: $id) { stateHistory(first: 100) { nodes { "
   + "startedAt endedAt state { id name type color position } } } } }";
+// shortcut: the first 250 issues of a cycle, paginate if a team ever plans more.
+// The issues a cycle's scope counts: triage, canceled and duplicate ones are left out.
+const PLANNED = "query($id: String!) { cycle(id: $id) { issues(first: 250, filter: { state: { type: "
+  + '{ nin: ["triage", "canceled", "duplicate"] } } }) { nodes { estimate team { id } } } } }';
 const UPDATE = "mutation($ids: [UUID!]!, $input: IssueUpdateInput!) "
   + "{ issueBatchUpdate(ids: $ids, input: $input) { success } }";
 
@@ -84,7 +92,8 @@ export const issues = async (filters) => (await request(ISSUES, filters)).viewer
 /** @param {string[]} ids */
 export async function teams(ids) {
   const found = (await request(TEAMS, { ids })).teams.nodes;
-  return found.map((team) => ({ ...team, states: team.states.nodes, members: team.members.nodes }));
+  return found.map((team) => ({ ...team, states: team.states.nodes, members: team.members.nodes,
+    cycles: team.cycles.nodes }));
 }
 
 /** @param {string} id */
@@ -104,6 +113,10 @@ export async function stateHistory(id) {
   const { issue } = await request(HISTORY, { id });
   return issue.stateHistory.nodes.sort((a, b) => (a.startedAt < b.startedAt ? -1 : 1));
 }
+
+// The issues of a cycle, each with its estimate and its team: the points planned in it.
+/** @param {string} id */
+export const planned = async (id) => (await request(PLANNED, { id })).cycle.issues.nodes;
 
 // The same change on every issue, in one request (the API takes up to 50 ids).
 /**

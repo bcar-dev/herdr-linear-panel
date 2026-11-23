@@ -1,9 +1,9 @@
 # Linear issues
 
 Not affiliated with or endorsed by Linear. A side panel that lists the Linear issues assigned to you, grouped by status,
-with the current cycle first. From a row you open the issue, change its status, priority, assignee or estimate, or start
-work on it: a git worktree on the issue's branch, a new space there, and the person's agent briefed with the issue. A
-button in the top bar shows and hides the panel.
+with the current cycle first. From a row you open the issue, change its status, priority, assignee, estimate or cycle,
+or start work on it: a git worktree on the issue's branch, a new space there, and the person's agent briefed with the
+issue. A button in the top bar shows and hides the panel.
 
 ![Linear issues](preview.png)
 
@@ -33,9 +33,10 @@ by the lightness of the theme's `chrome` color.
   the panel is narrow: "Showing issues completed in the past week · Recent first". A row is 28 px high and shows, left
   to right: a 14 px checkbox, drawn only under the pointer or when ticked (its place is kept, so the row never shifts),
   the priority mark, the identifier in a column as wide as the longest one listed (so the status icons line up), the
-  status's icon, the title (truncated), and, when the issue has an estimate, a 13 px triangle with it, the triangle and
-  the figure each centered in a column of their own, the figure's as wide as the longest estimate listed, so both line
-  up down the list.
+  status's icon, the title (truncated), when the issue is in a cycle a 20 px box with round ends and a thin border
+  holding the cycle's 13 px icon and its number, and, when the issue has an estimate, a 13 px triangle with it, the
+  triangle and the figure each centered in a column of their own, the figure's as wide as the longest estimate listed,
+  so both line up down the list.
 - While issues are ticked, a pill in its own 58 px strip under the list, as Linear shows one, which rises from below
   when the first issue is ticked (the strip's height goes from 0 to 58 px in 180 ms, `transition("height", ...)`, with
   the pill hung 8 px under its top): "2 selected", a dot, the triangle with their estimate points, an "Actions" button
@@ -54,16 +55,20 @@ steps for more.
 **Popups**, at the pointer, rows 31 px high. Each draws its own box: the popover color, a 1 px border, corners rounded
 by 10 px and a shadow. Each is as narrow as its content allows:
 
-- Issue menu, 228 px wide, after Linear's: the identifier and title, then "Status" `S`, "Priority" `P`, "Assignee" `A`
-  and "Estimate" `⇧` `E`, each with an icon like Linear's, its key drawn as small key boxes, and an arrow; a rule;
-  "Copy" with an arrow and "Open in Linear"; a rule; "Start with Claude Code…", which names the agent Start will run and
-  is left out with its rule while there is none.
+- Issue menu, 228 px wide, after Linear's: the identifier and title, then "Status" `S`, "Priority" `P`, "Assignee" `A`,
+  "Estimate" `⇧` `E` and "Cycle" `⇧` `C`, each with an icon like Linear's, its key drawn as small key boxes, and an
+  arrow; a rule; "Copy" with an arrow and "Open in Linear"; a rule; "Start with Claude Code…", which names the agent
+  Start will run and is left out with its rule while there is none.
 - A property's choices, as wide as their longest label needs, between 208 and 300 px: a chip naming the issue ("BACK-12
   · its title", cut to fit; left out beside the issue menu, which names it, and when the row's own status icon or
   estimate opened the choices), a title ("Change status…", "Change priority to…"), then 32 px rows as in the command
   window, with the keys `1` to `9` (`0` to `4` for priorities), each status with its icon, and the current value ticked.
   The assignee's title is a field that filters the team's members, each shown by username with their initials on their
-  Linear color. "No estimate" has a triangle reduced to its three corners, as in Linear. More than sixteen rows scroll.
+  Linear color. "No estimate" has a triangle reduced to its three corners, as in Linear. The cycle's title is a field,
+  "Move to cycle…", that filters by name, days and standing; its rows are "No cycle" (a dashed ring), then the team's
+  current cycle and those to come in order, then the previous one, each "Cycle 88" followed, dimmed, by its days and,
+  when Linear words it, where it stands: "Nov 10 - Nov 23 · Current", "Nov 24 - Dec 7 · Upcoming", "Oct 27 - Nov 9 ·
+  Previous". Older cycles are left out. More than sixteen rows scroll.
 - Copy, as wide as its longest entry needs, between 220 and 340 px, Linear's eight entries, each with an icon like
   Linear's and its shortcut as key boxes: "Copy ID" `⌘` `.`, "Copy URL" `⌘` `⇧` `,`, "Copy title" `⌘` `⇧` `'`, "Copy
   title as link" `⌘` `C`, "Copy issue as Markdown", "Copy everything as Markdown" `⌘` `⌥` `C`, "Copy git branch name"
@@ -76,7 +81,8 @@ by 10 px and a shadow. Each is as narrow as its content allows:
 - The command window, a centered 460 × 380 px dialog, after Linear's: a chip ("2 issues", or the identifier and title of
   a single one), a title line, then rows of 32 px, each an icon, a label and its key in a small bordered box. Its first
   page lists, with Linear's wording and keys and icons like its own, "Assign to…" `A`, "Un-assign from me" `I`, "Change
-  status…" `S`, "Change priority…" `P` and "Change estimate…" `⇧` `E` (when the issues' teams have estimates in common).
+  status…" `S`, "Change priority…" `P`, "Change estimate…" `⇧` `E` (when the issues' teams have estimates in common)
+  and "Move to cycle…" `⇧` `C` (when the issues are all of one team, which has cycles).
   "Change" reads "Set" where no issue has a priority or an estimate yet. A key with a modifier shows as one box per key.
   The row under the keyboard cursor is highlighted. A choice all the issues already have is ticked; one only some have
   shows a dash.
@@ -147,6 +153,9 @@ remembered.
   background, as do the estimate and a header's arrow and figure; an urgent mark keeps its orange, and a row's status
   icon turns a brighter shade of its own color (every channel 32 % stronger, as measured in Linear: a brighter green,
   not a paler one).
+- Click or right-click on the cycle opens its choices, at the pointer, in place of the issue menu a right-click
+  elsewhere on the row opens. Picking one moves the issue there; "No cycle" takes it out. An issue in no cycle shows no
+  box: the menu's "Cycle" gives it one. Teams without cycles offer neither.
 - Click on the estimate opens its choices. Picking a value sets it; "No estimate" clears it. An issue without an
   estimate shows no triangle: the menu's "Estimate" gives it one. Teams that do not estimate offer neither.
 - The checkbox shows while the pointer is on the row, its outline in the theme's accent while the pointer is on the
@@ -192,16 +201,16 @@ choice: `p` then Escape leaves the keys with the panel, not with the terminal. A
 leaves the keyboard where that click puts it. Then `c` opens New issue, `r` reloads, Shift+`v` opens the display
 options, and a digit shows the view in that place: `1` "Current cycle", `2` "My issues". The digits follow the views'
 list, so a view added there answers to the next one. With issues ticked, Cmd+K (Ctrl+K off macOS) opens the command
-window, `a`, `s`, `p` and Shift+`e` open its assign, status, priority and estimate pages, `i` un-assigns them from you,
-and Escape unticks them. With none ticked, the same four keys open those choices for the issue under the pointer, at the
-pointer, and `i` un-assigns it. `x` ticks or unticks the issue under the pointer, and Shift+`x` ticks the range to it,
-as a Shift+click on its checkbox does. A control's tooltip shows once the pointer has rested on it for a second, or at
-once when the pointer comes from a control whose tooltip was showing less than half a second before, so that two issues
-can be compared without a second wait; it names the control and draws its shortcut as key boxes, as Linear does: "Create
-new issue" `C`, "Show display options" `⇧` `V`, "Reload" `R`, "My issues" `2`, "Open command menu" `⌘` `K`, "Clear
-selected" `Esc`, and on a row "Change priority" `P`, "Change estimate" `⇧` `E` and "Change status" `S`. A tooltip is
-centered under its control, or pushed back inside the panel near an edge, and sits above a control the panel has no room
-under.
+window, `a`, `s`, `p`, Shift+`e` and Shift+`c` open its assign, status, priority, estimate and cycle pages, `i`
+un-assigns them from you, and Escape unticks them. With none ticked, the same five keys open those choices for the issue
+under the pointer, at the pointer, and `i` un-assigns it. `x` ticks or unticks the issue under the pointer, and
+Shift+`x` ticks the range to it, as a Shift+click on its checkbox does. A control's tooltip shows once the pointer has
+rested on it for a second, or at once when the pointer comes from a control whose tooltip was showing less than half a
+second before, so that two issues can be compared without a second wait; it names the control and draws its shortcut as
+key boxes, as Linear does: "Create new issue" `C`, "Show display options" `⇧` `V`, "Reload" `R`, "My issues" `2`, "Open
+command menu" `⌘` `K`, "Clear selected" `Esc`, and on a row "Change priority" `P`, "Change estimate" `⇧` `E` and "Change
+status" `S`; a row's cycle has the cycle card instead. A tooltip is centered under its control, or pushed back inside
+the panel near an edge, and sits above a control the panel has no room under.
 
 **Time in status.** The tooltip of a row's status says more, as Linear's does: the line "Time in status", then a line
 for each status the issue has been in, in the order it first entered them, with the status's icon, its name and the time
@@ -210,6 +219,22 @@ The status the issue is in now is in the foreground color, the others muted. A r
 ends of the last line. The stays are asked from the API when the pointer comes on the status (`issue.stateHistory`),
 once an issue, and again after its status has changed. Until the answer comes, or if it fails, the tooltip shows its
 last line alone.
+
+**The cycle card.** The tooltip of a row's cycle is Linear's card on a cycle alone, with no label or keys under it, laid
+out as Linear's (22 px lines, 20 for the description, 15 px from each side): the cycle's icon and name; the first line
+of its description, muted, where a team writes its capacity ("Capacity: 40 pts"); a rule; then,
+for a cycle under way or ended, the share of its scope done (`progress`, as an indigo pie filled by eighths and a
+percentage) "of" its scope in points (the last of `scopeHistory`), "of" muted and the figures not, and for a cycle to
+come, which has no history, the estimate triangle and the points planned in it: the estimates of its issues, an issue
+without one counting for its team's default as in a header, triage, canceled and duplicate issues left out. Those are
+asked of Linear when the pointer comes on the cycle, and again after a load. Then, 16 px further each, in the text's
+color: where it stands with, for the current cycle, the weekdays left ("1 weekday left": today counts, weekends do not),
+or else its days ("Upcoming Nov 24 - Dec 7"). The card is as wide as its widest line, reckoned at 6 px a character, 320
+px at most. Where a cycle stands is told by its dates and its team's cycles, not by the API's flags, so it stays right
+between loads: current while it runs, "Upcoming" for the first to come, "Previous" for the last ended. Its icon follows,
+after Linear's: a ring open at its top left around a play triangle, in Linear's indigo (`#5e6ad2`), for the current one;
+a closed ring for the next; a dashed ring for later ones; a ring open at its bottom right, where a check sits, for those
+ended.
 
 **Start** ("Start with …" in the issue menu, then the button or Enter), in order, stopping at the first failure:
 
@@ -267,10 +292,11 @@ them.
   through (a request, the lit row, the open popups, the keyboard given back). `popups.js`: every popup's size, place and
   props. `dock.js`: showing and hiding the panel in the layout. `actions.js`: Copy and Start. `config.js`: the mod's
   name, the paths of its icons and of the logo, the views, the option lists. `ui.js`: key boxes, priority and status
-  marks, the zoom.
+  marks, the cycle's icon, the zoom.
 - `lib/`: the rules, with no call to Herdr, so node can test them: `color.js` (a brighter shade of a color, whether a
   color is dark), `listing.js` (filters, grouping and order, totals), `teams.js` (workflow order, estimate scales, what
-  several teams share, status icons), `keys.js` (what a key press asks for), `copy.js`, `start.js` (the Start status
+  several teams share, status icons), `cycles.js` (where a cycle stands, which ones the picker offers, its days and
+  the weekdays left), `keys.js` (what a key press asks for), `copy.js`, `start.js` (the Start status
   rule, the agent picked, the prompt, the folder name, parsing `git worktree list`), `placement.js` (where popups and
   tooltips go, how wide a popup is), `history.js` (the time in each status), `selection.js` and `drag.js` (the ticks and
   the drag as plain state).
@@ -286,7 +312,9 @@ them.
   - Drawn for this mod from plain shapes (circles, bars, strokes of 1.5 in a 16 px box, round ends), to look like
     Linear's: `create.svg`, `command.svg`, `assign.svg`, `unassign.svg`, `estimate.svg`, `estimate-none.svg`, the eight
     `copy-*.svg`, `priority-0.svg` to `priority-4.svg`, `view-all.svg`, `view-cycle.svg`, `display.svg`, `close.svg`,
-    `caret-down.svg`, `caret-right.svg`.
+    `caret-down.svg`, `caret-right.svg`, and the cycles' `cycle.svg`, `cycle-future.svg`, `cycle-past.svg` and
+    `cycle-none.svg` (a ring of radius 6.25, dashed `1.45 1.8225` for the last two), with `view-cycle.svg` for the
+    current one.
   - The status icons, in a 14 px box: a ring of radius 6 and width 1.5 (dashed `1.4 1.74` for backlog), a pie drawn as a
     4 px stroke of radius 2 (`status-started-1.svg` to `-7.svg`: exactly one to seven eighths of the circle, from the
     top, clockwise; `status.svg`, the menus' icon for a status, is the same drawing as the half-filled one), and a disc
@@ -332,15 +360,20 @@ mod.
   as `IssueFilter` variables. `filters` in `lib/listing.js` builds them from the "Completed issues" choice: `cycle: {
   isActive: { eq: true } }` for the cycle view, combined through `and` / `or` with `state: { type: { nin: [...] } }`,
   `completedAt: { gte }` and `canceledAt: { gte }`. Fields: id, identifier, title, url, priority, estimate, branchName,
-  completedAt, canceledAt, state, cycle, team id.
+  completedAt, canceledAt, state, team id, and the cycle: id, number, name, description, startsAt, endsAt, progress,
+  scopeHistory.
 - `teams(first: 10, filter: { id: { in: $ids } })` with `states(first: 50)`, the three `issueEstimation*` fields
-  `defaultIssueEstimate` and `members(first: 100)` (name, username, initials and color), asked once per team.
+  `defaultIssueEstimate`, `members(first: 100)` (name, username, initials and color) and `cycles(first: 20)` filtered
+  by `or: [{ isPast: { eq: false } }, { isPrevious: { eq: true } }]` (id, number, name, startsAt, endsAt), asked once
+  per team.
 - `issue(id).description`, at Start and for the Copy entries that carry it; with `comments(first: 50)` (body, date,
   author) for "Copy everything as Markdown".
 - `issue(id).stateHistory(first: 100)` (startedAt, endedAt, state), when the pointer comes on a row's status, for the
   time in each status.
-- `issueBatchUpdate(ids, input)` for every change, with `stateId`, `estimate`, `priority` or `assigneeId` (null
-  un-assigns).
+- `cycle(id).issues(first: 250)` without triage, canceled and duplicate states (estimate, team id), when the pointer
+  comes on a row's cycle that has not started, for the points planned in it.
+- `issueBatchUpdate(ids, input)` for every change, with `stateId`, `estimate`, `priority`, `assigneeId` (null
+  un-assigns) or `cycleId` (null takes the issue out of its cycle).
 
 **From `herdr`:** `exec`, `run`, `layout`, `props`, `shared`, `setShared`, `theme`, `settings` (the zoom), `window`,
 `notify`, `spaces`, `panes`, `focused`, `home`, `appHome`, `readTextFile`, `knownAgents`, `openOverlay`, `closeOverlay`.

@@ -9,9 +9,10 @@ This project is not affiliated with or endorsed by Linear.
 | ![The panel on the current cycle](screenshots/current-cycle.png) | ![The panel on all my issues](screenshots/my-issues.png) |
 
 - Two views, the current cycle and all your issues, grouped by status and ordered as Linear orders them.
-- Change an issue's status, priority, assignee or estimate from its row, its menu, or the keyboard. Drag a row to
+- Change an issue's status, priority, assignee, estimate or cycle from its row, its menu, or the keyboard. Drag a row to
   another status.
-- Rest the pointer on an issue's status to see how long the issue has been in each status.
+- Rest the pointer on an issue's status to see how long the issue has been in each status, and on its cycle to see the
+  cycle's capacity, how much of it is done and the weekdays it has left.
 - Tick several issues and change them together from a command window (`Cmd+K`).
 - Copy one issue or several as IDs, links, Markdown or a prompt.
 - Start work on an issue: a git worktree on its branch, a new space there, and your agent briefed with the issue.
@@ -73,7 +74,7 @@ Click in the panel first: it then has the keyboard.
 | `R` | Reload |
 | `Shift+V` | Display options |
 | `X` | Tick the issue under the pointer; with `Shift`, every issue from the last one ticked to it |
-| `S`, `P`, `A`, `Shift+E` | Status, priority, assignee, estimate of the ticked issues, else of the issue under the pointer |
+| `S`, `P`, `A`, `Shift+E`, `Shift+C` | Status, priority, assignee, estimate, cycle of the ticked issues, else of the issue under the pointer |
 | `I` | Un-assign from me |
 | `Cmd+K` | Command window on the ticked issues |
 | `Esc` | Untick everything |

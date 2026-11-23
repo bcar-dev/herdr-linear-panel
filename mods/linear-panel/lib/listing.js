@@ -96,7 +96,7 @@ export const completedNote = (completed, recency) =>
 
 // A group's estimate points, totalled as the tracker does: an issue without an estimate counts for its team's default.
 /**
- * @param {Issue[]} issues
+ * @param {Pick<Issue, "estimate" | "team">[]} issues
  * @param {Map<string, Team>} teams
  */
 export const points = (issues, teams) =>

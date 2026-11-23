@@ -86,6 +86,10 @@ export const commonMembers = (teams) =>
 export const commonEstimates = (teams) =>
   estimates(teams[0]).filter((value) => teams.every((team) => estimates(team).includes(value)));
 
+// A cycle belongs to one team: only issues of a single team share any.
+/** @param {Team[]} teams */
+export const commonCycles = (teams) => (teams.length === 1 ? teams[0].cycles ?? [] : []);
+
 // The properties that can be changed on issues of these teams together, in the order menus list them. Without a
 // team (none is loaded yet), only the priority, which every issue has.
 /** @param {Team[]} teams */
@@ -94,12 +98,14 @@ export const changeable = (teams) => [
   "priority",
   commonMembers(teams).length > 0 && "assign",
   commonEstimates(teams).length > 0 && "estimate",
+  commonCycles(teams).length > 0 && "cycle",
 ].filter(Boolean);
 
 // Whether `value` is the value of all of them ("all"), of part of them ("some") or of none (null).
 /**
  * @param {unknown[]} values
  * @param {unknown} value
+ * @returns {Choice["mark"]}
  */
 export function share(values, value) {
   const count = values.filter((other) => other === value).length;

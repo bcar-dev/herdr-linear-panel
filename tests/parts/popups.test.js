@@ -34,8 +34,8 @@ describe("issue menu", () => {
 
   it("names its issue and lists what can be done to it", () => {
     assert.deepEqual(texts(open().draw()), [
-      "BACK-1 · Fix login", "Status", "S", "Priority", "P", "Assignee", "A", "Estimate", "⇧", "E", "Copy",
-        "Open in Linear", "Start with Codex…",
+      "BACK-1 · Fix login", "Status", "S", "Priority", "P", "Assignee", "A", "Estimate", "⇧", "E", "Cycle", "⇧", "C",
+        "Copy", "Open in Linear", "Start with Codex…",
     ]);
   });
 
@@ -320,13 +320,14 @@ describe("command window", () => {
   it("lists the actions on the issues it names", () => {
     const commands = open();
     assert.deepEqual(labels(commands),
-      ["Assign to…", "Un-assign from me", "Change status…", "Change priority…", "Change estimate…"]);
+      ["Assign to…", "Un-assign from me", "Change status…", "Change priority…", "Change estimate…",
+        "Move to cycle…"]);
     assert.match(text(commands.draw()), /^2 issues Actions/);
   });
 
   it("says Set where no issue has a value yet, and names a single issue", () => {
     const commands = open({ targets: [{ ...auditLog, priority: 0 }] });
-    assert.deepEqual(labels(commands).slice(3), ["Set priority…", "Set estimate…"]);
+    assert.deepEqual(labels(commands).slice(3), ["Set priority…", "Set estimate…", "Move to cycle…"]);
     assert.match(text(commands.draw()), /^BACK-2 · Add audit log Actions/);
   });
 
@@ -412,7 +413,7 @@ describe("command window", () => {
     const other = open({ page: "priority", compact: true, bare: true });
     pressKey(other, "up");
     assert.deepEqual(lit(other), [false, false, false, false, true]);
-    assert.deepEqual(lit(open()), [true, false, false, false, false]);
+    assert.deepEqual(lit(open()), [true, false, false, false, false, false]);
   });
 
   it("filters the people by what is typed, and assigns the first on Enter", () => {
@@ -432,6 +433,34 @@ describe("command window", () => {
     assert.deepEqual(labels(commands), ["ada", "me"]);
     field(commands.draw()).type("nobody", commands.cx);
     assert.match(text(commands.draw()), /No one matches/);
+  });
+
+  it("moves the issues to their team's current cycle or one to come, else the previous one, from its key", () => {
+    const commands = open();
+    pressKey(commands, "c", { shift: true });
+    assert.equal(field(commands.draw()).focused > 0, true);
+    const names = labels(commands).map((label) => label.split(" ").slice(0, 2).join(" "));
+    assert.deepEqual(names, ["No cycle", "Cycle 12", "Cycle 13", "Cycle 14", "Cycle 11"]);
+    // Each cycle's days follow its name, then where it stands, when it has a word.
+    assert.deepEqual(labels(commands).map((label) => label.match(/ · (\w+)$/)?.[1] ?? null),
+      [null, "Current", "Upcoming", null, "Previous"]);
+    assert.deepEqual(marks(commands), [null, "all", null, null, null]);
+    assert.deepEqual(icons(find(commands.draw(), "commands-list")),
+      ["cycle-none", "view-cycle", "check", "cycle", "cycle-future", "cycle-past"]);
+    clickOn(commands, "command-2");
+    assert.deepEqual(asked(), { ids: ["back-1", "back-2"], kind: "update", input: { cycleId: "cycle-13" } });
+    clickOn(open({ page: "cycle" }), "command-0");
+    assert.deepEqual(asked().input, { cycleId: null });
+  });
+
+  it("filters the cycles by what is typed", () => {
+    const commands = open({ page: "cycle" });
+    field(commands.draw()).type("cycle 13", commands.cx);
+    assert.deepEqual(labels(commands).map((label) => label.split(" ").slice(0, 2).join(" ")), ["Cycle 13"]);
+    field(commands.draw()).type("previous", commands.cx);
+    assert.deepEqual(labels(commands).map((label) => label.split(" ").slice(0, 2).join(" ")), ["Cycle 11"]);
+    field(commands.draw()).type("nothing", commands.cx);
+    assert.match(text(commands.draw()), /No cycle matches/);
   });
 
   it("is as tall as its rows as a popup, and leaves out the issue's name when bare", () => {

@@ -6,7 +6,19 @@ const state = (id, name, type, position) => ({ id, name, type, position, color: 
 const ME = { id: "me", name: "Me Myself", displayName: "me", initials: "MM", avatarBackgroundColor: "#123456" };
 const ADA = { id: "ada", name: "Ada Lovelace", displayName: "ada", initials: "AL", avatarBackgroundColor: null };
 
-// A team that estimates in Fibonacci points, and one that does not estimate.
+// Two-week cycles around the time the tests run: 12 is the current one, 11 the previous, 13 and 14 to come.
+const WEEK = 7 * 86_400_000, NOW = Date.now();
+const cycle = (number, starts) => ({ id: `cycle-${number}`, number, name: null,
+  startsAt: new Date(NOW + starts * WEEK).toISOString(), endsAt: new Date(NOW + (starts + 2) * WEEK).toISOString() });
+const CYCLES = [cycle(11, -3), cycle(12, -1), cycle(13, 1), cycle(14, 3)];
+// The current cycle as an issue in it carries it.
+export const CYCLE = {
+  ...CYCLES[1], description: "Capacity: 20 pts\nMore below", progress: 0.7, scopeHistory: [8, 10],
+};
+// The next one, which has no history yet.
+export const NEXT = { ...CYCLES[2], description: null, progress: 0, scopeHistory: [] };
+
+// A team that estimates in Fibonacci points and has cycles, and one that does neither.
 export const BACK = {
   id: "team-back", key: "BACK", name: "Backend",
   issueEstimationType: "fibonacci", issueEstimationAllowZero: false, issueEstimationExtended: false,
@@ -17,6 +29,7 @@ export const BACK = {
     state("back-done", "Done", "completed", 4),
   ],
   members: [ME, ADA],
+  cycles: CYCLES,
 };
 export const WEB = {
   id: "team-web", key: "WEB", name: "Website",
@@ -25,9 +38,8 @@ export const WEB = {
   states: [state("web-todo", "Todo", "unstarted", 1), state("web-doing", "In Progress", "started", 2),
     state("web-done", "Done", "completed", 3)],
   members: [ME],
+  cycles: [],
 };
-
-const CYCLE = { number: 12, name: null, endsAt: "2026-11-27T00:00:00.000Z" };
 
 export function issue(identifier, title, team, stateName, more = {}) {
   const id = identifier.toLowerCase();
@@ -66,7 +78,8 @@ export function tracker({ issues = sampleIssues(), teams = [BACK, WEB], myTeams 
     }),
     teams: ({ ids }) => ({
       teams: { nodes: teams.filter((team) => ids.includes(team.id))
-        .map((team) => ({ ...team, states: { nodes: team.states }, members: { nodes: team.members } })) },
+        .map((team) => ({ ...team, states: { nodes: team.states }, members: { nodes: team.members },
+          cycles: { nodes: team.cycles } })) },
     }),
     description: () => ({ issue: { description: "Steps to reproduce" } }),
     details: () => ({
@@ -74,6 +87,8 @@ export function tracker({ issues = sampleIssues(), teams = [BACK, WEB], myTeams 
         comments: { nodes: [{ body: "Seen it too", createdAt: "2026-11-21T10:00:00.000Z", user: { name: "Ada" } }] } },
     }),
     history: () => ({ issue: { stateHistory: { nodes: server.history } } }),
+    planned: ({ id }) => ({ cycle: { issues: { nodes: server.issues.filter((i) => i.cycle?.id === id)
+      .map(({ estimate, team }) => ({ estimate, team })) } } }),
     update: ({ ids, input }) => {
       for (const found of server.issues.filter((i) => ids.includes(i.id))) {
         const { stateId, ...fields } = input;
@@ -84,7 +99,8 @@ export function tracker({ issues = sampleIssues(), teams = [BACK, WEB], myTeams 
     },
   };
   const kindOf = (query) =>
-    query.includes("issueBatchUpdate") ? "update" : query.includes("viewer") ? "issues" : query.includes("teams(")
+    query.includes("issueBatchUpdate") ? "update" : query.includes("cycle(id") ? "planned"
+      : query.includes("viewer") ? "issues" : query.includes("teams(")
       ? "teams" : query.includes("stateHistory") ? "history" : query.includes("comments") ? "details" : "description";
   // The key as each system's shell answers it: cmd echoes the variable's name back when it is not set.
   server.exec = (command) =>

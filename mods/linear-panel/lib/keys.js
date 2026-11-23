@@ -19,6 +19,7 @@ export const PROPERTIES = [
   ["priority", "Priority", "p", ["P"]],
   ["assign", "Assignee", "a", ["A"]],
   ["estimate", "Estimate", "E", ["⇧", "E"]],
+  ["cycle", "Cycle", "C", ["⇧", "C"]],
 ];
 /** @type {Record<string, Property>} */
 const PROPERTY_OF_KEY = Object.fromEntries(PROPERTIES.map(([page, , key]) => [key, page]));
@@ -74,7 +75,8 @@ export function panelKey(e, { mac, views, ticked, pointed, aimed }) {
   if (commandHeld(m, mac) && !m.alt && !m.shift && e.key === "k") return { do: "commands" };
   if (what && aimed) return { do: "copy", what };
   if (m.control || m.alt || m.platform) return null;
-  if (e.key === "c") return { do: "compose" };
+  // Shift+c is the cycle's key, not this one.
+  if (spelled(e) === "c") return { do: "compose" };
   if (e.key === "r") return { do: "reload" };
   if (spelled(e) === "V") return { do: "display" };
   if (Number.isInteger(nth) && nth >= 0 && nth < views) return { do: "view", nth };
