@@ -33,7 +33,8 @@ export class Hints {
 
   // Gives an element a tooltip, shown under it (or with side "above", over it) once the pointer has rested on it: its
   // `label`, then the keys of its shortcut (`caps`). The element needs an id. `key` tells the controls apart: give
-  // one when several share a label. `body(t)` draws more above the label, or answers null for nothing.
+  // one when several share a label. `body(t)` draws more above the label, or answers null for nothing. Under a body, an
+  // empty label leaves the tooltip to the body alone.
   // An element takes one hover handler, and the tooltip needs it: `hover` is run from it, for the element's own use.
   /**
    * @param {NativeElement} el
@@ -86,7 +87,7 @@ export class Hints {
   draw(t, frame) {
     // There is one: the panel draws it only when `showing` answered it.
     const { label, caps, side, bounds, body } = /** @type {Tip} */ (this.tip);
-    const card = body?.(t) ?? null;
+    const card = body?.(t) ?? null, lined = !card || label !== "";
     // Under a body, the label and its keys take the two ends of their line.
     const line = h_flex().h(26).flex_none().gap(8).items_center()
       .child(div().flex_none().child(label))
@@ -94,13 +95,14 @@ export class Hints {
       .when(caps.length > 0, (el) => el.child(keycaps(t, caps)));
     const box = v_flex().px(9).flex_none().rounded(8)
       .bg(t.popover).border_1().border_color(t.border).shadow_md().text_size(12).text_color(t.foreground)
-      .children(card ? [card.el, div().h(1).flex_none().bg(t.border)] : [])
-      .child(line);
+      .children(card ? [card.el] : [])
+      .children(lined ? [...(card ? [div().h(1).flex_none().bg(t.border)] : []), line] : []);
     // A mod cannot measure text: the label's line is reckoned at 6.3 px a character, a key at 20 px or more.
     const lineWidth = 6.3 * label.length +
       caps.reduce((sum, cap) => sum + 3 + Math.max(20, 10 + 7 * cap.length), caps.length ? 5 : 0);
     // With the padding and the border; under a body, with its rule too.
-    const size = { width: Math.max(lineWidth, card?.width ?? 0) + 20, height: (card ? card.height + 1 : 0) + 28 };
+    const size = { width: Math.max(lineWidth, card?.width ?? 0) + 20,
+      height: (card ? card.height + (lined ? 1 : 0) : 0) + (lined ? 28 : 2) };
     // The control and the panel are known in window pixels; the tooltip is placed in the pixels of a style.
     const scale = zoom(), within = unzoomed(frame, scale);
     const { left, right, center, top, bottom } = tipSpot(unzoomed(bounds, scale), within, side, size);

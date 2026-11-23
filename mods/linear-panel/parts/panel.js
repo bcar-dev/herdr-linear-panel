@@ -101,6 +101,10 @@ export class Panel {
     // An issue's stays in each status, by issue id, once its status mark was pointed at: null until the API answers.
     /** @type {Map<string, StatusSpan[] | null>} */
     this.history = new Map();
+    // The points planned in a cycle to come, by cycle id, once its row's cycle was pointed at: null until the API
+    // answers. `at` is when they were asked.
+    /** @type {Map<string, { points: number | null, at: number }>} */
+    this.planned = new Map();
     this.selection = new Selection();
     this.drag = new Drag();
     this.hints = new Hints();
@@ -206,7 +210,8 @@ export class Panel {
       spans] of this.history) if (spans?.at(-1)?.state?.id !== loaded.get(id)?.state.id) this.history.delete(id);
     // A tick stays only on an issue the view still shows: nothing is done to an issue that cannot be seen.
     this.selection.keep(new Set(this.issues[this.view].map((issue) => issue.id)));
-    // shortcut: a team's states and estimate scale are read once, reload the mod after changing them in the tracker.
+    // shortcut: a team's states, estimate scale and cycles are read once, reload the mod after changing them in the
+    // tracker. A cycle created since is missing from the cycle choices until then.
     const missing = [...new Set([...loaded.values()].map((issue) => issue.team.id))]
       .filter((id) => !this.teams.has(id));
     if (missing.length) for (const team of await api.teams(missing)) this.teams.set(team.id, team);
@@ -351,13 +356,14 @@ export class Panel {
     this.offer(issue, page, this.pointer, false);
   }
 
-  // One property's choices from a control of the issue's own row, where it was pressed.
+  // One property's choices from a control of the issue's own row, where it was pressed (`at`, for a right-click).
   /**
    * @param {Issue} issue
    * @param {Property} page
+   * @param {Point | undefined} [at]
    */
-  pick(issue, page) {
-    this.offer(issue, page, this.pressedAt, true);
+  pick(issue, page, at = this.pressedAt) {
+    this.offer(issue, page, at, true);
   }
 
   // `bare` leaves out the chip naming the issue.
@@ -483,6 +489,28 @@ export class Panel {
       } catch {
         // The tooltip goes without them, and they are asked for again the next time.
         this.history.delete(issue.id);
+      }
+      cx.notify();
+    });
+  }
+
+  // Asks the tracker for the points planned in a cycle to come: the tooltip of a row's cycle tells them. Asked again
+  // after a load, since issues come and go; meanwhile the tooltip keeps the last answer.
+  /**
+   * @param {Cycle} cycle
+   * @param {Context} cx
+   */
+  plan(cycle, cx) {
+    const known = this.planned.get(cycle.id);
+    if (known && known.at >= this.loadedAt) return;
+    const at = Date.now();
+    this.planned.set(cycle.id, { points: known?.points ?? null, at });
+    cx.spawn(async (cx) => {
+      try {
+        this.planned.set(cycle.id, { points: points(await api.planned(cycle.id), this.teams), at });
+      } catch {
+        // The tooltip goes without them, and they are asked for again the next time.
+        this.planned.delete(cycle.id);
       }
       cx.notify();
     });

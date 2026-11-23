@@ -58,7 +58,17 @@ type TipSpot = (
 
 type WorkflowState = { id: string; name: string; type: string; color: Color; position: number };
 
-type Cycle = { number: number; name: string | null; endsAt: string };
+/** A cycle of a team, as its picker lists it. */
+type Cycle = { id: string; number: number; name: string | null; startsAt: string; endsAt: string };
+
+/**
+ * An issue's cycle, with what its tooltip says: its description (where a team writes its capacity), the share done
+ * (`progress`, from 0 to 1) and its scope in points by day, the last being today's.
+ */
+type IssueCycle = Cycle & { description: string | null; progress: number; scopeHistory: number[] };
+
+/** Where a cycle stands among its team's (lib/cycles.js): "next" is the first to come, "previous" the last ended. */
+type CycleTense = "current" | "next" | "future" | "previous" | "past";
 
 type Issue = {
   id: string;
@@ -71,7 +81,7 @@ type Issue = {
   completedAt: string | null;
   canceledAt: string | null;
   state: WorkflowState;
-  cycle: Cycle | null;
+  cycle: IssueCycle | null;
   team: { id: string };
 };
 
@@ -83,7 +93,7 @@ type Member = {
   avatarBackgroundColor: Color | null;
 };
 
-/** A team of the loaded issues: what it offers them. */
+/** A team of the loaded issues: what it offers them. `cycles` are its cycles to come, current and previous. */
 type Team = {
   id: string;
   issueEstimationType: string;
@@ -92,6 +102,7 @@ type Team = {
   defaultIssueEstimate: number;
   states: WorkflowState[];
   members: Member[];
+  cycles: Cycle[];
 };
 
 /** A team I belong to, as the composer of a new issue needs it. */
@@ -109,7 +120,9 @@ type StatusTime = { state: WorkflowState; ms: number; current: boolean };
 type IssueDetails = { description?: string | null; comments?: IssueComment[] };
 
 /** The same change on several issues, as the API's update takes it. */
-type IssueUpdate = { stateId?: string; priority?: number; estimate?: number | null; assigneeId?: string | null };
+type IssueUpdate = {
+  stateId?: string; priority?: number; estimate?: number | null; assigneeId?: string | null; cycleId?: string | null;
+};
 
 /** The two views as API issue filters (lib/listing.js). A filter is the API's own object, or null for none. */
 type IssueFilters = { cycle: object; mine: object | null };
@@ -119,9 +132,10 @@ type IssuePage = { nodes: Issue[]; pageInfo: { hasNextPage: boolean } };
 type Viewer = { id: string; teams: { nodes: MyTeam[] }; cycle: IssuePage; all: IssuePage };
 
 /** A team as the API answers it: its states and its members each come in a page. */
-type TeamAnswer = Omit<Team, "states" | "members"> & {
+type TeamAnswer = Omit<Team, "states" | "members" | "cycles"> & {
   states: { nodes: WorkflowState[] };
   members: { nodes: Member[] };
+  cycles: { nodes: Cycle[] };
 };
 
 /** The body of an API answer. `data` holds the fields of the query that was made. */
@@ -130,6 +144,7 @@ type ApiAnswer = {
     viewer: Viewer;
     teams: { nodes: TeamAnswer[] };
     issue: { description: string | null; comments: { nodes: IssueComment[] }; stateHistory: { nodes: StatusSpan[] } };
+    cycle: { issues: { nodes: Pick<Issue, "estimate" | "team">[] } };
     issueBatchUpdate: { success: boolean };
   };
   errors?: { message: string }[];
@@ -151,7 +166,7 @@ type Display = {
 type Look = { t: Theme; identifierWidth: number; estimateWidth: number; lit: string | null };
 
 /** A property of an issue a menu can change, which is also the page of its choices. */
-type Property = "status" | "priority" | "estimate" | "assign";
+type Property = "status" | "priority" | "estimate" | "assign" | "cycle";
 
 /** A page of the command window: its list of actions, or the choices of one property. */
 type Page = "actions" | Property;
@@ -170,8 +185,10 @@ type KeyAsk =
   | { do: "tick"; extend: boolean }
   | { do: "compose" | "reload" | "display" | "unassign" | "untick" };
 
+/** A row of the command window. `note` follows its label, dimmed. */
 type Choice = {
   label: string;
+  note?: string;
   icon: NativeElement;
   key?: string | null;
   caps?: string[];

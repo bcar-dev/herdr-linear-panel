@@ -4,9 +4,10 @@ import { div, svg } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
 import { icon, shipped } from "../config.js";
 import { drawnColor } from "../tracker.js";
-import { priorityColor, priorityMark, statusMark, zoom } from "../ui.js";
+import { CYCLE_BLUE, cycleMark, priorityColor, priorityMark, statusMark, zoom } from "../ui.js";
 import { completedNote, isFinished, points } from "../lib/listing.js";
 import { brighten } from "../lib/color.js";
+import { TENSES, cycleName, progressIcon, span, tense, weekdaysLeft } from "../lib/cycles.js";
 import { timeInStatuses, timeLabel } from "../lib/history.js";
 import { propertyKey } from "../lib/keys.js";
 import { fitWidth } from "../lib/placement.js";
@@ -60,6 +61,50 @@ function timeInStatus(panel, issue, t) {
       .child(div().flex_1().min_w(0).truncate().child(state.name))
       .child(div().flex_none().child(timeLabel(ms)))));
   return { el, width, height: 36 + 24 * times.length };
+}
+
+// The tooltip of a row's cycle: its name, the first line of its description (where a team writes its capacity), then
+// the share of its scope done, where it stands, and the weekdays it has left, or its days when it is not the current
+// one.
+/**
+ * @param {Panel} panel
+ * @param {Issue} issue
+ * @param {IssueCycle} cycle
+ * @param {Theme} t
+ * @returns {TipBody}
+ */
+function cycleCard(panel, issue, cycle, t) {
+  const now = Date.now(), when = tense(cycle, panel.teams.get(issue.team.id)?.cycles ?? [], now),
+    left = weekdaysLeft(cycle, now);
+  const facts = [TENSES[when] ?? "", when === "current" ? `${left} ${left === 1 ? "weekday" : "weekdays"} left`
+    : span(cycle)].filter(Boolean);
+  // A cycle to come has nothing done yet: it tells the points planned in it, once the tracker has answered. "of" is
+  // muted, the figures are not.
+  const ahead = Date.parse(cycle.startsAt) > now;
+  const figures = ahead ? [String(panel.planned.get(cycle.id)?.points ?? "…")]
+    : [`${Math.round(cycle.progress * 100)}%`, "of", String(cycle.scopeHistory.at(-1) ?? 0)];
+  const about = cycle.description?.split("\n")[0].trim() ?? "";
+  // As wide as its widest line, with its padding: the name beside its icon, the description, or the last line, its
+  // facts following each other. A mod cannot measure text: 6 px a character, as measured at this size.
+  /** @param {string} text */
+  const reckoned = (text) => 6 * text.length;
+  const last = 14 + figures.reduce((sum, figure) => sum + 4 + reckoned(figure), 0)
+    + facts.reduce((sum, fact) => sum + 16 + reckoned(fact), 0);
+  const width = Math.ceil(Math.min(320, 12 + Math.max(22 + reckoned(cycleName(cycle)), reckoned(about), last)));
+  const el = v_flex().w(width).px(6).pt(9).pb(8)
+    .child(h_flex().h(22).flex_none().gap(8).items_center()
+      .child(cycleMark(when, 14, t.muted))
+      .child(div().flex_1().min_w(0).truncate().child(cycleName(cycle))))
+    .children(about ? [div().h(20).flex_none().truncate().text_color(t.muted).child(about)] : [])
+    .child(div().h(1).my(7).flex_none().bg(t.border))
+    .child(h_flex().h(22).flex_none().gap(16).items_center()
+      .child(h_flex().flex_none().gap(4).items_center()
+        .child(ahead ? svg(icon("estimate")).size(14).flex_none().text_color(t.muted)
+          : svg(icon(progressIcon(cycle.progress))).size(14).flex_none().text_color(CYCLE_BLUE))
+        .children(figures.map((figure) => div().flex_none().when(figure === "of", (el) => el.text_color(t.muted))
+          .child(figure))))
+      .children(facts.map((fact) => div().flex_none().child(fact))));
+  return { el, width, height: 76 + (about ? 20 : 0) };
 }
 
 // While a drag is over the group, the theme's accent outlines it. The border is always there, in the background's
@@ -164,6 +209,16 @@ function row(panel, issue, group, { t, identifierWidth, estimateWidth, lit }, jo
   const size = warming(panel, h_flex().h(20).px(4).gap(3).flex_none().items_center().rounded(5).text_size(11),
     `estimate-${issue.id}`, t.muted, t.foreground,
       { still, tip: { label: "Change estimate", caps: propertyKey("estimate").caps } });
+  // The cycle: its icon and number in a box with round ends.
+  const { cycle } = issue;
+  const term = cycle && warming(panel, h_flex().h(20).px(6).gap(4).flex_none().items_center().rounded(10).border_1()
+    .border_color(t.border).text_size(11),
+  `cycle-${issue.id}`, t.muted, t.foreground, {
+    still,
+    // The card alone: no label, no keys.
+    tip: { label: "", caps: [], body: (t) => cycleCard(panel, issue, cycle, t) },
+    entered: (cx) => { if (Date.parse(cycle.startsAt) > Date.now()) panel.plan(cycle, cx); },
+  });
   return h_flex().id(`issue-${issue.id}`).h(28).flex_none().px(8).gap(8).items_center().cursor_pointer()
     .rounded_t(joined.above ? 0 : 7).rounded_b(joined.below ? 0 : 7)
     .when(ticked, (el) => el.bg(/** @type {Color} */ (tint + "33")))
@@ -183,6 +238,15 @@ function row(panel, issue, group, { t, identifierWidth, estimateWidth, lit }, jo
     .child(panel.control(status, () => panel.pick(issue, "status"))
       .child(svg(icon(statusIcon(issue.state, team?.states))).size(14)))
     .child(div().flex_1().min_w(0).truncate().child(issue.title))
+    // A right-click on the cycle opens its choices, not the issue's menu.
+    .children(term && cycle ? [panel.control(term, () => panel.pick(issue, "cycle"))
+      .on_mouse_down("right", (e, cx) => {
+        cx.stop_propagation();
+        panel.handle.focus();
+        panel.pick(issue, "cycle", e.position);
+      })
+      .child(cycleMark(tense(cycle, team?.cycles ?? [], Date.now()), 13))
+      .child(String(cycle.number))] : [])
     // An issue without an estimate shows nothing here: its menu's "Estimate" gives it one.
     .children(estimate === null ? [] : [panel.control(size, () => panel.pick(issue, "estimate"))
       .child(div().w(13).flex_none().flex().justify_center().child(svg(icon("estimate")).size(13)))

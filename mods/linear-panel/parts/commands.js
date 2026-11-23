@@ -4,9 +4,10 @@ import { div, svg } from "gpui-kit";
 import { v_flex, h_flex, InputState, Input } from "gpui-base";
 import { MOD, PRIORITIES, shipped } from "../config.js";
 import { dismiss, submit } from "../channel.js";
-import { glyph, keycaps, priorityMark, statusMark, takeKeyboard } from "../ui.js";
+import { cycleMark, glyph, keycaps, priorityMark, statusMark, takeKeyboard } from "../ui.js";
+import { cycleName, cycleNote, pickable, tense } from "../lib/cycles.js";
 import { propertyKey, spelled } from "../lib/keys.js";
-import { commonEstimates, commonMembers, commonStates, estimateLabel, share } from "../lib/teams.js";
+import { commonCycles, commonEstimates, commonMembers, commonStates, estimateLabel, share } from "../lib/teams.js";
 import { boxed } from "./menu.js";
 
 // Herdr closes a popup or a dialog on Escape before the mod sees the key. A binding of the mod's own, in a context
@@ -45,9 +46,9 @@ export class Commands {
     // Escape on a page goes back to the actions when the window opened at them, and closes a window opened at a page.
     this.fromActions = page === "actions";
     this.handle = cx.focus_handle();
-    this.input = InputState.new({ placeholder: "Assign to…" });
-    this.input.on("change", (_e, cx) => { this.at = 0; cx.notify(); });
-    this.input.on("submit", () => this.rows[this.at]?.run());
+    // The pages filtered by typing, each with a field of its own: a field takes its placeholder only when it is made.
+    /** @type {Partial<Record<Page, ReturnType<typeof InputState.new>>>} */
+    this.fields = { assign: this.field("Assign to…"), cycle: this.field("Move to cycle…") };
     // The keymap is Herdr's: each window asks again for its binding.
     try {
       cx.bind_keys([{ keystroke: "escape", action: ESCAPE, context: CONTEXT }]);
@@ -58,9 +59,23 @@ export class Commands {
     takeKeyboard(this, cx);
   }
 
-  // The assign page is filtered by typing, so its field has the keyboard. The other pages take keys themselves.
+  /** @param {string} placeholder */
+  field(placeholder) {
+    const input = InputState.new({ placeholder });
+    input.on("change", (_e, cx) => { this.at = 0; cx.notify(); });
+    input.on("submit", () => this.rows[this.at]?.run());
+    return input;
+  }
+
+  // What is typed in the page's field, or null on a page without one.
+  typed() {
+    return this.fields[this.page]?.value().trim().toLowerCase() ?? null;
+  }
+
+  // A page filtered by typing gives its field the keyboard. The other pages take keys themselves.
   focus() {
-    if (this.page === "assign") this.input.focus();
+    const field = this.fields[this.page];
+    if (field) field.focus();
     else this.handle.focus();
   }
 
@@ -140,7 +155,7 @@ export class Commands {
       /** @param {Member} member */
       const face = (member) => div().size(18).flex().items_center().justify_center().rounded(9)
         .bg(member.avatarBackgroundColor ?? t.raised).text_size(8).text_color("#ffffff").child(member.initials ?? "");
-      const query = this.input.value().trim().toLowerCase();
+      const query = this.typed() ?? "";
       return commonMembers(teams)
         .filter((member) => `${member.name} ${member.displayName}`.toLowerCase().includes(query))
         .map((member) => ({
@@ -149,6 +164,23 @@ export class Commands {
           mark: member.id === this.me ? "all" : null,
           run: update({ assigneeId: member.id }),
         }));
+    }
+    if (this.page === "cycle") {
+      const cycles = commonCycles(teams), now = Date.now(), query = this.typed() ?? "";
+      /** @param {Issue} issue */
+      const inCycle = (issue) => issue.cycle?.id ?? null;
+      /** @type {Choice[]} */
+      const rows = [
+        { label: "No cycle", icon: glyph(t, "cycle-none"), mark: held(null, inCycle), run: update({ cycleId: null }) },
+        ...pickable(cycles, now).map((cycle) => ({
+          label: cycleName(cycle),
+          note: cycleNote(cycle, cycles, now),
+          icon: cycleMark(tense(cycle, cycles, now), 15, t.muted),
+          mark: held(cycle.id, inCycle),
+          run: update({ cycleId: cycle.id }),
+        })),
+      ];
+      return rows.filter((row) => `${row.label} ${row.note ?? ""}`.toLowerCase().includes(query));
     }
     return [
       { label: "Assign to…", icon: glyph(t, "assign"), ...propertyKey("assign"), run: () => this.open("assign") },
@@ -160,6 +192,9 @@ export class Commands {
       ...(commonEstimates(teams).length ? [{
         label: `${this.verb("estimate")} estimate…`, icon: glyph(t, "estimate"), ...propertyKey("estimate"),
         run: () => this.open("estimate"),
+      }] : []),
+      ...(commonCycles(teams).length ? [{
+        label: "Move to cycle…", icon: glyph(t, "cycle"), ...propertyKey("cycle"), run: () => this.open("cycle"),
       }] : []),
     ];
   }
@@ -180,8 +215,8 @@ export class Commands {
     if (e.key === "down") this.at = (this.at + 1) % Math.max(1, rows.length);
     else if (e.key === "up") this.at = (Math.max(this.at, 0) + rows.length - 1) % Math.max(1, rows.length);
     else if (e.key === "enter") rows[this.at]?.run();
-    // Typing in the assign page filters it: its letters are not shortcuts.
-    else if (this.page !== "assign" && !m.control && !m.alt && !m.platform && row) row.run();
+    // Typing in a page with a field filters it: its letters are not shortcuts.
+    else if (this.typed() === null && !m.control && !m.alt && !m.platform && row) row.run();
     else return;
     cx.stop_propagation();
     cx.notify();
@@ -193,8 +228,8 @@ export class Commands {
     if (this.at >= rows.length) this.at = 0;
     const chip = this.targets.length === 1 ? `${this.targets[0].identifier} · ${this.targets[0].title}`
       : `${this.targets.length} issues`;
-    const heading = this.page === "assign"
-      ? Input.new(this.input).flex_1().h_full().text_size(13).text_color(t.foreground)
+    const field = this.fields[this.page];
+    const heading = field ? Input.new(field).flex_1().h_full().text_size(13).text_color(t.foreground)
       : div().child(this.title());
     // A dialog has a height to fill and its list takes what is left. A popup is as tall as its content, where a list
     // that only flexes collapses to nothing: there it gets its own height.
@@ -211,7 +246,9 @@ export class Commands {
       .hover((s) => s.bg(t.hover))
       .on_click((_e, cx) => { row.run(); cx.notify(); })
       .child(div().w(18).flex_none().flex().items_center().justify_center().child(row.icon))
-      .child(div().flex_1().min_w(0).truncate().child(row.label))
+      .child(row.note ? h_flex().flex_1().min_w(0).gap(8).child(div().flex_none().child(row.label))
+        .child(div().min_w(0).truncate().text_color(t.dim).child(row.note))
+        : div().flex_1().min_w(0).truncate().child(row.label))
       .when(row.mark === "all", (el) => el.child(svg(shipped("check")).size(13).flex_none().text_color(t.muted)))
       .when(row.mark === "some", (el) => el.child(div().flex_none().text_color(t.muted).child("–")))
       .children(row.key ? [keycaps(t, row.caps ?? [row.key.toUpperCase()])] : []);
@@ -227,6 +264,7 @@ export class Commands {
       .child(h_flex().h(36).flex_none().px(8).items_center().text_color(t.dim).child(heading))
       .child(sized
         .children(rows.map(line))
-        .when(!rows.length, (el) => el.child(div().p(8).text_color(t.dim).child("No one matches"))));
+        .when(!rows.length, (el) => el.child(div().p(8).text_color(t.dim)
+          .child(this.page === "cycle" ? "No cycle matches" : "No one matches"))));
   }
 }

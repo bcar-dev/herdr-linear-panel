@@ -5,7 +5,8 @@ import { MENU_ROW, MOD, PRIORITIES, copiesFor } from "./config.js";
 import { light, opened } from "./channel.js";
 import { fitWidth, place } from "./lib/placement.js";
 import { zoom } from "./ui.js";
-import { changeable, commonEstimates, commonMembers, commonStates, estimateLabel } from "./lib/teams.js";
+import { cycleName, cycleNote, pickable } from "./lib/cycles.js";
+import { changeable, commonCycles, commonEstimates, commonMembers, commonStates, estimateLabel } from "./lib/teams.js";
 
 // `where` is { point, frame } or { beside, frame }, as lib/placement.js reads it. Without one, at the pointer.
 /**
@@ -113,6 +114,11 @@ export function openChoices(targets, teams, page, me, where, { parent, bare = Bo
     priority: () => PRIORITIES.map(([, label]) => label),
     estimate: () => [null, ...commonEstimates(teams)].map((value) => estimateLabel(teams[0], value) ?? "No estimate"),
     assign: () => commonMembers(teams).map((member) => member.displayName || member.name),
+    cycle: () => {
+      const cycles = commonCycles(teams), now = Date.now();
+      return ["No cycle",
+        ...pickable(cycles, now).map((cycle) => `${cycleName(cycle)} ${cycleNote(cycle, cycles, now)}`)];
+    },
   }[page]();
   const height = 48 + Math.min(labels.length, 16) * 32 + (bare ? 0 : 28);
   // Beside a label: the icon, the mark of the value the issues have, the key and the window's padding.

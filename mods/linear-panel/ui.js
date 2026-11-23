@@ -4,9 +4,11 @@ import { h_flex } from "gpui-base";
 import { settings } from "herdr";
 import { icon } from "./config.js";
 import { drawnColor, isMac } from "./tracker.js";
+import { cycleIcon } from "./lib/cycles.js";
 import { statusIcon } from "./lib/teams.js";
 
 const URGENT = "#f2793a";
+export const CYCLE_BLUE = "#5e6ad2";
 
 // How many window pixels one pixel of a style takes: the person's zoom. Herdr scales every length a mod gives it,
 // and tells where the pointer and an element are in window pixels: a place read from an event is divided by this
@@ -51,6 +53,18 @@ export const priorityMark = (t, priority, finished) =>
  */
 export const statusMark = (state, states) => svg(icon(statusIcon(state, states))).size(14).flex_none()
   .text_color(drawnColor(state.color));
+
+// A cycle's icon where it stands (lib/cycles.js): indigo for the current one, else `color`, or without
+// one the color around it.
+/**
+ * @param {CycleTense} tense
+ * @param {number} size
+ * @param {Color} [color]
+ */
+export function cycleMark(tense, size, color) {
+  const mark = svg(icon(cycleIcon(tense))).size(size).flex_none(), tint = tense === "current" ? CYCLE_BLUE : color;
+  return tint ? mark.text_color(tint) : mark;
+}
 
 // One of the mod's icons at the size menus use.
 /**

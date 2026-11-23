@@ -117,6 +117,12 @@ describe("changeable", () => {
       { ...plain, states: [state("Doing", "started", 2)], members: [{ id: "u9", name: "Zed" }] }]), ["priority"]);
   });
 
+  it("offers a cycle to the issues of one team with cycles only: a cycle belongs to its team", () => {
+    const cycling = { ...plain, cycles: [{ id: "c1" }] };
+    assert.deepEqual(changeable([cycling]), ["status", "priority", "assign", "cycle"]);
+    assert.deepEqual(changeable([cycling, { ...cycling, cycles: [{ id: "c2" }] }]), ["status", "priority", "assign"]);
+  });
+
   it("leaves only the priority when no team is known", () => {
     assert.deepEqual(changeable([]), ["priority"]);
   });

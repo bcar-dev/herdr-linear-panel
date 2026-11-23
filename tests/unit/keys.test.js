@@ -77,6 +77,8 @@ describe("panelKey", () => {
   it("composes on c and reloads on r", () => {
     assert.deepEqual(ask("c"), { do: "compose" });
     assert.deepEqual(ask("r"), { do: "reload" });
+    // Shift+C is the cycle's key.
+    assert.equal(ask("c", { shift: true }), null);
   });
 
   it("shows the display options on Shift+V", () => {
