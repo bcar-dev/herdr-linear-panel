@@ -33,10 +33,12 @@ by the lightness of the theme's `chrome` color.
   the panel is narrow: "Showing issues completed in the past week · Recent first". A row is 28 px high and shows, left
   to right: a 14 px checkbox, drawn only under the pointer or when ticked (its place is kept, so the row never shifts),
   the priority mark, the identifier in a column as wide as the longest one listed (so the status icons line up), the
-  status's icon, the title (truncated), when the issue has merge requests their box (below), when the issue is in a
-  cycle a 20 px box with round ends and a thin border holding the cycle's 13 px icon and its number, and, when the issue
-  has an estimate, a 13 px triangle with it, the triangle and the figure each centered in a column of their own, the
-  figure's as wide as the longest estimate listed, so both line up down the list.
+  status's icon 2 px after it, the title (truncated), when the issue has merge requests their box (below), when the
+  issue is in a cycle a 20 px box with round ends and a thin border holding the cycle's 13 px icon and its number, and,
+  when the issue has an estimate, a 13 px triangle with it, the triangle and the figure each centered in a column of
+  their own, the figure's as wide as the longest estimate listed, so both line up down the list. The parts are 8 px
+  apart, but the merge requests, the cycle and the estimate keep 3 px between them, the triangle 3 px from the cycle's
+  box (its own box has no padding on that side).
 - While issues are ticked, a pill in its own 58 px strip under the list, as Linear shows one, which rises from below
   when the first issue is ticked (the strip's height goes from 0 to 58 px in 180 ms, `transition("height", ...)`, with
   the pill hung 8 px under its top): "2 selected", a dot, the triangle with their estimate points, an "Actions" button
