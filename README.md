@@ -11,6 +11,7 @@ This project is not affiliated with or endorsed by Linear.
 - Two views, the current cycle and all your issues, grouped by status and ordered as Linear orders them.
 - Change an issue's status, priority, assignee, estimate or cycle from its row, its menu, or the keyboard. Drag a row to
   another status.
+- See each issue's merge requests on its row, merged or not, and open them all in one click.
 - Rest the pointer on an issue's status to see how long the issue has been in each status, and on its cycle to see the
   cycle's capacity, how much of it is done and the weekdays it has left.
 - Tick several issues and change them together from a command window (`Cmd+K`).

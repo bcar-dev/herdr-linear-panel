@@ -33,10 +33,10 @@ by the lightness of the theme's `chrome` color.
   the panel is narrow: "Showing issues completed in the past week · Recent first". A row is 28 px high and shows, left
   to right: a 14 px checkbox, drawn only under the pointer or when ticked (its place is kept, so the row never shifts),
   the priority mark, the identifier in a column as wide as the longest one listed (so the status icons line up), the
-  status's icon, the title (truncated), when the issue is in a cycle a 20 px box with round ends and a thin border
-  holding the cycle's 13 px icon and its number, and, when the issue has an estimate, a 13 px triangle with it, the
-  triangle and the figure each centered in a column of their own, the figure's as wide as the longest estimate listed,
-  so both line up down the list.
+  status's icon, the title (truncated), when the issue has merge requests their box (below), when the issue is in a
+  cycle a 20 px box with round ends and a thin border holding the cycle's 13 px icon and its number, and, when the issue
+  has an estimate, a 13 px triangle with it, the triangle and the figure each centered in a column of their own, the
+  figure's as wide as the longest estimate listed, so both line up down the list.
 - While issues are ticked, a pill in its own 58 px strip under the list, as Linear shows one, which rises from below
   when the first issue is ticked (the strip's height goes from 0 to 58 px in 180 ms, `transition("height", ...)`, with
   the pill hung 8 px under its top): "2 selected", a dot, the triangle with their estimate points, an "Actions" button
@@ -153,6 +153,11 @@ remembered.
   background, as do the estimate and a header's arrow and figure; an urgent mark keeps its orange, and a row's status
   icon turns a brighter shade of its own color (every channel 32 % stronger, as measured in Linear: a brighter green,
   not a paler one).
+- When the issue has merge requests (GitLab) or pull requests (GitHub) linked in Linear, a box like the cycle's sits
+  left of it: the pull request icon and, for one, its number (`!3463` on GitLab, `#47` on GitHub), for several, their
+  count (`3 PRs`). The icon is blue (`#5e6ad2`) when they are all merged, green (`#4cb782`) when none is, its left half
+  blue and its right half green when some are; closed ones count only when all are closed, and then it is red
+  (`#eb5757`). Click opens every one of them in the browser, each in its own tab. Right-click does nothing.
 - Click on the cycle opens the cycle's page (`/team/FRONT/cycle/144` under the workspace's address) in the Linear
   desktop app, else in the browser, as a click on the row does for the issue.
 - Right-click on the cycle opens its choices, at the pointer, in place of the issue menu a right-click elsewhere on the
@@ -238,6 +243,19 @@ after Linear's: a ring open at its top left around a play triangle, in Linear's 
 a closed ring for the next; a dashed ring for later ones; a ring open at its bottom right, where a check sits, for those
 ended.
 
+**The merge request card.** The tooltip of a row's merge requests is a card alone, with no label or keys under it. Each
+merge request leads with its icon in its color (Lucide's merge icon when merged, its pull request icon when open, its
+closed pull request icon when closed), its title, and at the right its author's initials (the first two letters of
+their login, uppercased: "BE" for `benjamin.carlier`) in white on a blue round (`#1d8cf0`): a mod cannot show a picture
+from an address. For one merge request, the title takes up to two lines; under it, muted, its repository and number
+("nuxt-frontend!3463"); then "Merged 23h ago", "Closed 2d ago" or "Opened 3h ago" (the time as the status tooltip tells
+it), " · 6 files", "+41" in green and "-4" in red, and at the right the initials of each reviewer who submitted a
+review, followed by a green check when they approved. For several, a block each, eight at most and then "5 more": the
+title on one line, and under it, muted, the repository with its owner ("worklife-io/iam!599"), then " · Reviewed by
+amalchaker" ("a and b", "a, b and c") when someone submitted a review. The files, the lines and the reviewers are asked
+of Linear when the pointer comes on the merge requests, and again after a load: until the answer comes the files read
+"…"; if it fails, the card goes without them.
+
 **Start** ("Start with …" in the issue menu, then the button or Enter), in order, stopping at the first failure:
 
 1. Forgets checkouts deleted by hand (`git worktree prune`) and finds the git repository of the focused pane's folder.
@@ -284,21 +302,31 @@ them.
   (`targets`, `teams`, `page`, `me`; with `compact`, one of its pages as a popup, which is how a property's choices
   show).
 - `parts/`: one class per part, each built from `(props, cx)` with a `render(t, cx)`: `panel.js` (the issues, loading,
-  requests, keys, drag and drop), `issue-list.js` (the groups, headers and rows it draws), `setup.js`, `hints.js` (the
-  tooltips), `button.js`, `issue-menu.js` (the menu and its Copy page), `start-prompt.js`, `display-options.js`,
-  `team-picker.js`, `commands.js`, and `menu.js` (the rows every menu is drawn from).
+  requests, keys, drag and drop), `issue-list.js` (the groups, headers and rows it draws), `merge-card.js` (the
+  tooltip of a row's merge requests), `setup.js`, `hints.js` (the tooltips), `button.js`, `issue-menu.js` (the menu and
+  its Copy page), `start-prompt.js`, `display-options.js`, `team-picker.js`, `commands.js`, and `menu.js` (the rows
+  every menu is drawn from).
 - `tracker.js`: everything that names Linear, and nothing else does but the mod's folder and its title in `mod.json`:
   its name, its addresses, the key's variable and the name it is stored under, the layout id of the panel. Everything
   that differs between macOS, Linux and Windows is there too: how an address is opened, how the key is read, and what
-  the setup screen says. `api.js`: the GraphQL queries. `channel.js`: the four shared keys the popups and the panel talk
-  through (a request, the lit row, the open popups, the keyboard given back). `popups.js`: every popup's size, place and
-  props. `dock.js`: showing and hiding the panel in the layout. `actions.js`: Copy and Start. `config.js`: the mod's
-  name, the paths of its icons and of the logo, the views, the option lists. `ui.js`: key boxes, priority and status
-  marks, the cycle's icon, the zoom.
+  the setup screen says. `api.js`: the GraphQL queries. One is undocumented: `pullRequests`, the records Linear's own
+  app reads for a merge request's files, lines and reviewers. The API answers it but its schema hides it, so Linear can
+  change it without notice; only the merge request card's files, lines and reviewers depend on it, and the card goes
+  without them when it fails. It filters by the issue's numbers and repository names together (a filter on both inside
+  `or` answers unrelated merge requests), so the panel keeps the answers whose `url` is one of the issue's. A merge
+  request it tells without its changes is left out, and a reviewer it cannot name, so the others still show. The rest of
+  what the row and the card show comes from the issue's attachments, documented, whose `metadata` holds a merge
+  request's status, number, title, repository, dates and author. `channel.js`: the four shared keys the popups and the
+  panel talk through (a request, the lit row, the open popups, the keyboard given back). `popups.js`: every popup's
+  size, place and props. `dock.js`: showing and hiding the panel in the layout. `actions.js`: Copy and Start.
+  `config.js`: the mod's name, the paths of its icons and of the logo, the views, the option lists. `ui.js`: key boxes,
+  priority and status marks, the cycle's icon, the merge requests' icon and colors, a person's initials on a round, the
+  zoom.
 - `lib/`: the rules, with no call to Herdr, so node can test them: `color.js` (a brighter shade of a color, whether a
   color is dark), `listing.js` (filters, grouping and order, totals), `teams.js` (workflow order, estimate scales, what
   several teams share, status icons), `cycles.js` (where a cycle stands, which ones the picker offers, its days and
-  the weekdays left), `keys.js` (what a key press asks for), `copy.js`, `start.js` (the Start status
+  the weekdays left), `merges.js` (an issue's merge requests: their color, number, repository, reviewers' sentence,
+  dates), `keys.js` (what a key press asks for), `copy.js`, `start.js` (the Start status
   rule, the agent picked, the prompt, the folder name, parsing `git worktree list`), `placement.js` (where popups and
   tooltips go, how wide a popup is), `history.js` (the time in each status), `selection.js` and `drag.js` (the ticks and
   the drag as plain state).
@@ -323,9 +351,10 @@ them.
     of radius 6.75 for the finished ones. An icon has one color, so the check, cross, slashes and arrows are holes in
     the disc (`fill-rule="evenodd"`), not shapes in the background's color. The same goes for the "!" of
     `priority-1.svg` and the letters and lines of `copy-id.svg`, `copy-markdown.svg` and `copy-everything.svg`.
-  - From Lucide: `refresh.svg`; `clipboard.svg` and `external-link.svg`, with corners rounded
-    further (a radius of 4 where Lucide has 2, the clip a pill, the arrow's head turning on a radius of 2); and
-    `sort-down.svg` and `sort-up.svg`, changed from Lucide's. `LUCIDE-LICENSE.txt` is their ISC license.
+  - From Lucide: `refresh.svg`; `git-pull-request.svg`, `git-merge.svg` and `git-pull-request-closed.svg`, unchanged;
+    `clipboard.svg` and `external-link.svg`, with corners rounded further (a radius of 4 where Lucide has 2, the clip
+    a pill, the arrow's head turning on a radius of 2); and `sort-down.svg` and `sort-up.svg`, changed from Lucide's.
+    `LUCIDE-LICENSE.txt` is their ISC license.
   - The tick, the chevrons, the spinner and the terminal are shipped icons of `mods/workspace-chrome/`.
 
 **Tests**, beside `mods/`, never copied into Herdr: `tests/unit/` checks `lib/` with node's own runner. `tests/parts/`

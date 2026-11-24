@@ -6,8 +6,10 @@ const ISSUE = `fragment I on Issue {
   state { id name type color position }
   cycle { id number name description startsAt endsAt progress scopeHistory }
   team { id }
+  attachments(first: 20, filter: { sourceType: { in: ["github", "gitlab"] } }) { nodes { sourceType metadata } }
 }`;
 
+// The attachments are the issue's merge requests. shortcut: the first 20 an issue, raise it if one ever has more.
 // shortcut: first 100 issues per view, paginate with pageInfo.endCursor if a view ever fills up.
 // Most recently updated first, so a view cut at 100 keeps the live issues.
 const ISSUES = `query($cycle: IssueFilter, $mine: IssueFilter) {
@@ -45,6 +47,15 @@ const HISTORY = "query($id: String!) { issue(id: $id) { stateHistory(first: 100)
 // The issues a cycle's scope counts: triage, canceled and duplicate ones are left out.
 const PLANNED = "query($id: String!) { cycle(id: $id) { issues(first: 250, filter: { state: { type: "
   + '{ nin: ["triage", "canceled", "duplicate"] } } }) { nodes { estimate team { id } } } } }';
+// The changes and reviewers of the merge requests with these numbers. Undocumented: the tracker's app reads these
+// records, which its API answers but its schema hides, so it may change them without notice; a merge request's card
+// then goes without them. Asked by numbers and repository names, each alone matching many other merge requests; a
+// filter on both repository and number inside `or` answers unrelated ones. shortcut: the first 50, enough unless
+// several of the issue's repositories share several of its numbers.
+const MERGES = "query($numbers: [Float!], $repos: [String!]) { pullRequests(first: 50, filter: { "
+  + "number: { in: $numbers }, repository: { name: { in: $repos } } }) { nodes { "
+  + "url diffStats { fileCount additions deletions } reviewerStates { lastSubmittedDecision reviewer { "
+  + "... on User { displayName } ... on ExternalUser { displayName } ... on GithubTeam { name } } } } } }";
 const UPDATE = "mutation($ids: [UUID!]!, $input: IssueUpdateInput!) "
   + "{ issueBatchUpdate(ids: $ids, input: $input) { success } }";
 
@@ -117,6 +128,26 @@ export async function stateHistory(id) {
 // The issues of a cycle, each with its estimate and its team: the points planned in it.
 /** @param {string} id */
 export const planned = async (id) => (await request(PLANNED, { id })).cycle.issues.nodes;
+
+// What the merge requests with these numbers in these repositories changed, and who reviewed them: those who
+// submitted a review. One the tracker tells without its changes is left out, a reviewer it cannot name too, so the
+// others still show.
+/**
+ * @param {number[]} numbers
+ * @param {string[]} repos
+ * @returns {Promise<MergeDetails[]>}
+ */
+export async function mergeDetails(numbers, repos) {
+  const found = (await request(MERGES, { numbers, repos })).pullRequests.nodes;
+  return found.flatMap(({ url, diffStats, reviewerStates }) => (diffStats ? [{
+    url, files: diffStats.fileCount, added: diffStats.additions, removed: diffStats.deletions,
+    reviewers: reviewerStates.flatMap(({ lastSubmittedDecision, reviewer }) => {
+      const name = reviewer?.displayName ?? reviewer?.name;
+      return name && lastSubmittedDecision && lastSubmittedDecision !== "pending"
+        ? [{ name, approved: lastSubmittedDecision === "approved" }] : [];
+    }),
+  }] : []));
+}
 
 // The same change on every issue, in one request (the API takes up to 50 ids).
 /**

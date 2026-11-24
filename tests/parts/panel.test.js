@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { setTimeout as wait } from "node:timers/promises";
 import { click, find, focuses, hover, icons, press, send, text, texts, walk } from "../host/elements.js";
 import { host } from "../host/herdr.js";
 import { mountOverlay } from "../host/mount.js";
-import { BACK, CYCLE, FRAME, NEXT, WEB, at, sampleIssues, settled, startPanel } from "../fixtures.js";
+import { BACK, CYCLE, FRAME, NEXT, WEB, at, detail, mr, sampleIssues, settled, startPanel } from "../fixtures.js";
 
 const REQUEST = "linear-panel.request";
 const row = (root, id) => find(root, `issue-${id}`);
@@ -1110,6 +1111,136 @@ describe("header", () => {
     assert.match(text(tooltip), /^Cycle 13 3 Upcoming \w{3} \d+ - \w{3} \d+$/);
     assert.deepEqual(icons(tooltip), ["cycle", "estimate"]);
     assert.deepEqual(panel.server.kinds().filter((kind) => kind === "planned"), ["planned"]);
+  });
+
+  // BACK-1 has one merged MR, BACK-2 a merged one and an open one.
+  const FRONT = mr("gitlab", "worklife-io/nuxt-frontend", 3463, "merged"),
+    IAM = mr("gitlab", "worklife-io/iam", 599, "merged"), PHOENIX = mr("github", "WorklifeCare/phoenix", 47, "open");
+  function withMerges() {
+    const issues = sampleIssues();
+    issues[0].attachments.nodes = [FRONT];
+    issues[1].attachments.nodes = [IAM, PHOENIX];
+    return issues;
+  }
+  const colors = (el) => [...walk(el)].filter((child) => child.$.kind === "svg")
+    .map((child) => child.$.style.text_color);
+
+  it("shows an issue's MRs left of its cycle, colored by whether they are merged", async () => {
+    const panel = await startPanel({ issues: withMerges(), app: { stored: { view: "all" } } });
+    const root = panel.draw();
+    assert.equal(text(find(root, "merges-back-1")), "!3463");
+    assert.deepEqual(colors(find(root, "merges-back-1")), ["#5e6ad2"]);
+    // Some merged, some not: the icon is half blue, half green.
+    assert.equal(text(find(root, "merges-back-2")), "2 PRs");
+    assert.deepEqual(colors(find(root, "merges-back-2")), ["#5e6ad2", "#4cb782"]);
+    assert.deepEqual(icons(find(root, "merges-back-2")), ["git-pull-request", "git-pull-request"]);
+    const ids = [...walk(row(root, "back-1"))].map((el) => el.$.id);
+    assert.ok(ids.indexOf("merges-back-1") < ids.indexOf("cycle-back-1"));
+    assert.equal(find(root, "merges-web-7"), null);
+  });
+
+  it("opens every MR of an issue in the browser on a click on its chip, and nothing else", async () => {
+    const panel = await startPanel({ issues: withMerges(), app: { stored: { view: "all" } } });
+    clickOn(panel, "merges-back-2");
+    await settled();
+    assert.deepEqual(host.ran.slice(-2), [IAM, PHOENIX]
+      .map(({ metadata }) => ({ command: "open", args: [metadata.url], options: {} })));
+    assert.equal(host.ran.some((ran) => ran.args[0]?.startsWith("linear://")), false);
+    assert.equal(host.overlays.length, 0);
+  });
+
+  it("does nothing on a right-click on an issue's MRs: no issue menu", async () => {
+    const panel = await startPanel({ issues: withMerges() });
+    enter(panel);
+    const root = panel.draw();
+    send(root, find(root, "merges-back-1"), "on_mouse_down:right", at(1200, 200), panel.cx);
+    assert.equal(host.overlays.length, 0);
+  });
+
+  it("asks the tracker for an issue's MR details when the pointer comes on its chip, once per load", async () => {
+    const panel = await startPanel({ issues: withMerges() });
+    const point = () => hover(find(panel.draw(), "merges-back-2"), true, panel.cx);
+    point();
+    await panel.cx.idle();
+    point();
+    await panel.cx.idle();
+    const asked = () => panel.server.asked.filter((request) => request.kind === "merges");
+    // By number and repository: numbers alone match the MRs of many other repositories.
+    assert.deepEqual(asked().map((request) => request.variables), [{ numbers: [599, 47], repos: ["iam", "phoenix"] }]);
+    // A load tells its answers from older ones by the time: let a millisecond pass.
+    await wait(2);
+    press(panel.draw(), "r", panel.cx);
+    await panel.cx.idle();
+    point();
+    await panel.cx.idle();
+    assert.equal(asked().length, 2);
+  });
+
+  // The tooltip of a row's MRs, once the tracker has answered unless `waiting`.
+  async function mergeCard(panel, id, { waiting = false } = {}) {
+    enter(panel);
+    const root = panel.draw(), mark = find(root, `merges-${id}`);
+    hover(mark, true, panel.cx);
+    send(root, mark, "on_mouse_move", { ...at(1200, 200), bounds: { x: 1180, y: 190, width: 50, height: 20 } },
+      panel.cx);
+    if (!waiting) await panel.cx.idle();
+    panel.cx.elapse();
+    return find(panel.draw(), "tooltip");
+  }
+
+  it("tells on one MR its title, author, repository, when it was merged, its changes and its reviewers", async () => {
+    const panel = await startPanel({ issues: withMerges() });
+    panel.server.details = [detail(FRONT.metadata.url)];
+    const card = await mergeCard(panel, "back-1");
+    assert.match(text(card), /^Change 3463 BE nuxt-frontend!3463 Merged \d+\w+ ago · 6 files \+41 -4 KO$/);
+    // The merged icon, then the check of a reviewer who approved.
+    assert.deepEqual(icons(card), ["git-merge", "check"]);
+  });
+
+  it("tells on one MR that its changes are coming while the tracker has not answered, and nothing if it fails",
+    async () => {
+      const panel = await startPanel({ issues: withMerges() });
+      assert.match(text(await mergeCard(panel, "back-1", { waiting: true })), /Merged \d+\w+ ago · …$/);
+      const failing = await startPanel({ issues: withMerges() });
+      failing.server.error = "Cannot query field \"pullRequests\"";
+      assert.match(text(await mergeCard(failing, "back-1")), /Merged \d+\w+ ago$/);
+    });
+
+  it("tells on several MRs each one's title, repository and reviewers, eight at most", async () => {
+    const issues = withMerges();
+    issues[1].attachments.nodes.push(mr("gitlab", "worklife-io/graphql", 1300, "inReview"));
+    const panel = await startPanel({ issues });
+    const decided = (name) => ({ lastSubmittedDecision: "commented", reviewer: { displayName: name } });
+    panel.server.details = [
+      detail(PHOENIX.metadata.url, { reviewerStates: [decided("Codex"), decided("Claude"),
+        { lastSubmittedDecision: null, reviewer: { displayName: "fx" } }] }),
+      detail(IAM.metadata.url, { reviewerStates: [decided("amalchaker")] }),
+      // Another repository's MR with the same number: not this issue's.
+      detail("https://gitlab.com/worklife-io/other/-/merge_requests/47", { reviewerStates: [decided("nobody")] }),
+    ];
+    const card = await mergeCard(panel, "back-2");
+    assert.equal(text(card), "Change 599 BE worklife-io/iam!599 · Reviewed by amalchaker "
+      + "Change 47 BE WorklifeCare/phoenix#47 · Reviewed by Codex and Claude Change 1300 BE worklife-io/graphql!1300");
+    assert.deepEqual(icons(card), ["git-merge", "git-pull-request", "git-pull-request"]);
+    issues[1].attachments.nodes.push(...[1, 2, 3, 4, 5, 6].map((n) => mr("gitlab", "worklife-io/iam", n, "open")));
+    press(panel.draw(), "r", panel.cx);
+    await panel.cx.idle();
+    assert.match(text(await mergeCard(panel, "back-2")), / 1 more$/);
+  });
+
+  it("keeps what the tracker tells of MRs when some of it comes incomplete, and only submitted reviews", async () => {
+    const panel = await startPanel({ issues: withMerges() });
+    panel.server.details = [
+      detail(IAM.metadata.url, { diffStats: null }),
+      detail(PHOENIX.metadata.url, { reviewerStates: [
+        { lastSubmittedDecision: "pending", reviewer: { displayName: "drafting" } },
+        { lastSubmittedDecision: "approved", reviewer: null },
+        { lastSubmittedDecision: "commented", reviewer: { displayName: "Codex" } },
+      ] }),
+    ];
+    const card = await mergeCard(panel, "back-2");
+    assert.equal(text(card),
+      "Change 599 BE worklife-io/iam!599 Change 47 BE WorklifeCare/phoenix#47 · Reviewed by Codex");
   });
 
   it("names what a click on a row's priority does, and its key", async () => {
