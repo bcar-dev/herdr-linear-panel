@@ -208,7 +208,8 @@ function row(panel, issue, group, { t, identifierWidth, estimateWidth, lit }, jo
   const urgency = warming(panel, div().size(14).flex_none().flex().items_center().justify_center(),
     `priority-${issue.id}`, plain, urgent ? plain : t.foreground,
     { still, tip: { label: "Change priority", caps: propertyKey("priority").caps } });
-  const size = warming(panel, h_flex().h(20).px(4).gap(3).flex_none().items_center().rounded(5).text_size(11),
+  // No padding on its left: the triangle sits close to the cycle.
+  const size = warming(panel, h_flex().h(20).pr(4).gap(3).flex_none().items_center().rounded(5).text_size(11),
     `estimate-${issue.id}`, t.muted, t.foreground,
       { still, tip: { label: "Change estimate", caps: propertyKey("estimate").caps } });
   // The cycle: its icon and number in a box with round ends.
@@ -247,28 +248,32 @@ function row(panel, issue, group, { t, identifierWidth, estimateWidth, lit }, jo
       .when(ticked, (el) => el.child(svg(shipped("check")).size(10).text_color(t.accent_foreground))))
     .child(panel.control(urgency, () => panel.pick(issue, "priority"))
       .child(svg(icon(`priority-${issue.priority || 0}`)).size(14)))
-    .child(div().w(identifierWidth).flex_none().text_size(11).text_color(t.dim).child(issue.identifier))
-    .child(panel.control(status, () => panel.pick(issue, "status"))
-      .child(svg(icon(statusIcon(issue.state, team?.states))).size(14)))
+    // The identifier and the status read as one: closer than the row's other parts.
+    .child(h_flex().flex_none().gap(2).items_center()
+      .child(div().w(identifierWidth).flex_none().text_size(11).text_color(t.dim).child(issue.identifier))
+      .child(panel.control(status, () => panel.pick(issue, "status"))
+        .child(svg(icon(statusIcon(issue.state, team?.states))).size(14))))
     .child(div().flex_1().min_w(0).truncate().child(issue.title))
-    // A click opens every merge request in the browser; a right-click does nothing, not even the issue's menu.
-    .children(requests ? [panel.control(requests, () => { for (const merge of linked) browse(merge.url); })
-      .on_mouse_down("right", (_e, cx) => cx.stop_propagation())
-      .child(mergeMark(tinted(linked), 13))
-      .child(chipLabel(linked))] : [])
-    // A click on the cycle opens its page; a right-click opens its choices, not the issue's menu.
-    .children(term && cycle ? [panel.control(term, () => openCycle(issue, cycle))
-      .on_mouse_down("right", (e, cx) => {
-        cx.stop_propagation();
-        panel.handle.focus();
-        panel.pick(issue, "cycle", e.position);
-      })
-      .child(cycleMark(tense(cycle, team?.cycles ?? [], Date.now()), 13))
-      .child(String(cycle.number))] : [])
-    // An issue without an estimate shows nothing here: its menu's "Estimate" gives it one.
-    .children(estimate === null ? [] : [panel.control(size, () => panel.pick(issue, "estimate"))
-      .child(div().w(13).flex_none().flex().justify_center().child(svg(icon("estimate")).size(13)))
-      .child(div().w(estimateWidth).flex_none().text_center().child(estimate))]);
+    // The merge requests, the cycle and the estimate, close together.
+    .child(h_flex().flex_none().gap(3).items_center()
+      // A click opens every merge request in the browser; a right-click does nothing, not even the issue's menu.
+      .children(requests ? [panel.control(requests, () => { for (const merge of linked) browse(merge.url); })
+        .on_mouse_down("right", (_e, cx) => cx.stop_propagation())
+        .child(mergeMark(tinted(linked), 13))
+        .child(chipLabel(linked))] : [])
+      // A click on the cycle opens its page; a right-click opens its choices, not the issue's menu.
+      .children(term && cycle ? [panel.control(term, () => openCycle(issue, cycle))
+        .on_mouse_down("right", (e, cx) => {
+          cx.stop_propagation();
+          panel.handle.focus();
+          panel.pick(issue, "cycle", e.position);
+        })
+        .child(cycleMark(tense(cycle, team?.cycles ?? [], Date.now()), 13))
+        .child(String(cycle.number))] : [])
+      // An issue without an estimate shows nothing here: its menu's "Estimate" gives it one.
+      .children(estimate === null ? [] : [panel.control(size, () => panel.pick(issue, "estimate"))
+        .child(div().w(13).flex_none().flex().justify_center().child(svg(icon("estimate")).size(13)))
+        .child(div().w(estimateWidth).flex_none().text_center().child(estimate))]));
 }
 
 // What follows the pointer during a drag: the pressed issue, and how many ticked issues move with it.
