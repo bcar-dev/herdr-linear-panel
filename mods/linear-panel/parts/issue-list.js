@@ -3,7 +3,7 @@
 import { div, svg } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
 import { icon, shipped } from "../config.js";
-import { drawnColor } from "../tracker.js";
+import { drawnColor, openCycle } from "../tracker.js";
 import { CYCLE_BLUE, cycleMark, priorityColor, priorityMark, statusMark, zoom } from "../ui.js";
 import { completedNote, isFinished, points } from "../lib/listing.js";
 import { brighten } from "../lib/color.js";
@@ -238,8 +238,8 @@ function row(panel, issue, group, { t, identifierWidth, estimateWidth, lit }, jo
     .child(panel.control(status, () => panel.pick(issue, "status"))
       .child(svg(icon(statusIcon(issue.state, team?.states))).size(14)))
     .child(div().flex_1().min_w(0).truncate().child(issue.title))
-    // A right-click on the cycle opens its choices, not the issue's menu.
-    .children(term && cycle ? [panel.control(term, () => panel.pick(issue, "cycle"))
+    // A click on the cycle opens its page; a right-click opens its choices, not the issue's menu.
+    .children(term && cycle ? [panel.control(term, () => openCycle(issue, cycle))
       .on_mouse_down("right", (e, cx) => {
         cx.stop_propagation();
         panel.handle.focus();
