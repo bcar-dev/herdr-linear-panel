@@ -4,7 +4,7 @@ import { div, svg } from "gpui-kit";
 import { v_flex, h_flex, InputState, Input } from "gpui-base";
 import { MOD, PRIORITIES, shipped } from "../config.js";
 import { dismiss, submit } from "../channel.js";
-import { cycleMark, glyph, keycaps, priorityMark, statusMark, takeKeyboard } from "../ui.js";
+import { cycleMark, face, glyph, keycaps, priorityMark, statusMark, takeKeyboard } from "../ui.js";
 import { cycleName, cycleNote, pickable, tense } from "../lib/cycles.js";
 import { propertyKey, spelled } from "../lib/keys.js";
 import { commonCycles, commonEstimates, commonMembers, commonStates, estimateLabel, share } from "../lib/teams.js";
@@ -150,17 +150,15 @@ export class Commands {
       }));
     }
     if (this.page === "assign") {
-      // A member's mark is their initials on their own color. Pictures are left out: a mod can only show an image
-      // stored in Herdr's folder, not one at an address.
+      // A member's mark is their initials on their own color.
       /** @param {Member} member */
-      const face = (member) => div().size(18).flex().items_center().justify_center().rounded(9)
-        .bg(member.avatarBackgroundColor ?? t.raised).text_size(8).text_color("#ffffff").child(member.initials ?? "");
+      const mark = (member) => face(member.initials ?? "", member.avatarBackgroundColor ?? t.raised);
       const query = this.typed() ?? "";
       return commonMembers(teams)
         .filter((member) => `${member.name} ${member.displayName}`.toLowerCase().includes(query))
         .map((member) => ({
           label: member.displayName || member.name,
-          icon: face(member),
+          icon: mark(member),
           mark: member.id === this.me ? "all" : null,
           run: update({ assigneeId: member.id }),
         }));

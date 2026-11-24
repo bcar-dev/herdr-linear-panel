@@ -66,6 +66,32 @@ export function cycleMark(tense, size, color) {
   return tint ? mark.text_color(tint) : mark;
 }
 
+/** @type {Record<MergeStanding, Color>} */
+export const MERGE_COLORS = { merged: CYCLE_BLUE, open: "#4cb782", closed: "#eb5757" };
+
+// The pull request icon in the color of where merge requests stand. Some merged and some open: its left half blue,
+// its right half green, each half an icon clipped to its side.
+/**
+ * @param {MergeTint} tint
+ * @param {number} size
+ */
+export function mergeMark(tint, size) {
+  const mark = () => svg(icon("git-pull-request")).size(size).flex_none();
+  if (tint !== "mixed") return mark().text_color(MERGE_COLORS[tint]);
+  const half = size / 2;
+  return h_flex().w(size).h(size).flex_none()
+    .child(div().w(half).h(size).overflow_hidden().child(mark().text_color(MERGE_COLORS.merged)))
+    .child(div().w(half).h(size).overflow_hidden().child(mark().ml(-half).text_color(MERGE_COLORS.open)));
+}
+
+// Someone's initials on a round of their color: a mod cannot show a picture from an address.
+/**
+ * @param {string} initials
+ * @param {Color} color
+ */
+export const face = (initials, color) => div().size(18).flex_none().flex().items_center().justify_center()
+  .rounded(9).bg(color).text_size(8).text_color("#ffffff").child(initials);
+
 // One of the mod's icons at the size menus use.
 /**
  * @param {Theme} t

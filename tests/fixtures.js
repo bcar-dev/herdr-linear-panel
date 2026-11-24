@@ -46,9 +46,24 @@ export function issue(identifier, title, team, stateName, more = {}) {
   return {
     id, identifier, title, url: `https://tracker.test/issue/${identifier}`, priority: 0, estimate: null,
     branchName: `me/${id}`, completedAt: null, canceledAt: null,
-    state: team.states.find((s) => s.name === stateName), cycle: null, team: { id: team.id }, ...more,
+    state: team.states.find((s) => s.name === stateName), cycle: null, team: { id: team.id },
+    attachments: { nodes: [] }, ...more,
   };
 }
+
+// A merge request linked to an issue, as the tracker's attachment holds it. `repo` is "owner/name".
+export function mr(sourceType, repo, number, status, more = {}) {
+  const [repoLogin, repoName] = repo.split("/");
+  const url = sourceType === "gitlab" ? `https://gitlab.com/${repo}/-/merge_requests/${number}`
+    : `https://github.com/${repo}/pull/${number}`;
+  return { sourceType, metadata: { url, number, title: `Change ${number}`, status, repoLogin, repoName,
+    createdAt: "2026-11-24T07:00:00.000Z", mergedAt: status === "merged" ? "2026-11-23T11:00:00.000Z" : null,
+    closedAt: status === "closed" ? "2026-11-22T10:00:00.000Z" : null, userLogin: "benjamin.carlier", ...more } };
+}
+
+// What the tracker's pull requests answer tells of one: 6 files, +41 -4, approved by koromyslo.
+export const detail = (url, more = {}) => ({ url, diffStats: { fileCount: 6, additions: 41, deletions: 4 },
+  reviewerStates: [{ lastSubmittedDecision: "approved", reviewer: { displayName: "koromyslo" } }], ...more });
 
 // Three issues in the current cycle (one urgent and open, one urgent and done) and two outside it.
 export const sampleIssues = () => [
@@ -62,10 +77,10 @@ export const sampleIssues = () => [
 
 // A fake tracker: `fetch` and `exec` for the fake app, the `issues` it holds (an update changes them), and what it
 // was `asked`, as { kind, variables, url, authorization }. Set `key` to "" for a computer with no API key, `error`
-// to make every request fail with that message.
+// to make every request fail with that message, `details` for the pull requests it tells of.
 export function tracker({ issues = sampleIssues(), teams = [BACK, WEB], myTeams = [BACK, WEB] } = {}) {
   // Set `more` for an API that has more issues than the page it answers.
-  const server = { issues, asked: [], key: "test-key", error: null, more: false, history: [] };
+  const server = { issues, asked: [], key: "test-key", error: null, more: false, history: [], details: [] };
   const page = (nodes) => ({ nodes, pageInfo: { hasNextPage: server.more } });
   const answers = {
     issues: () => ({
@@ -87,6 +102,7 @@ export function tracker({ issues = sampleIssues(), teams = [BACK, WEB], myTeams 
         comments: { nodes: [{ body: "Seen it too", createdAt: "2026-11-21T10:00:00.000Z", user: { name: "Ada" } }] } },
     }),
     history: () => ({ issue: { stateHistory: { nodes: server.history } } }),
+    merges: () => ({ pullRequests: { nodes: server.details } }),
     planned: ({ id }) => ({ cycle: { issues: { nodes: server.issues.filter((i) => i.cycle?.id === id)
       .map(({ estimate, team }) => ({ estimate, team })) } } }),
     update: ({ ids, input }) => {
@@ -99,7 +115,8 @@ export function tracker({ issues = sampleIssues(), teams = [BACK, WEB], myTeams 
     },
   };
   const kindOf = (query) =>
-    query.includes("issueBatchUpdate") ? "update" : query.includes("cycle(id") ? "planned"
+    query.includes("pullRequests") ? "merges" : query.includes("issueBatchUpdate") ? "update"
+      : query.includes("cycle(id") ? "planned"
       : query.includes("viewer") ? "issues" : query.includes("teams(")
       ? "teams" : query.includes("stateHistory") ? "history" : query.includes("comments") ? "details" : "description";
   // The key as each system's shell answers it: cmd echoes the variable's name back when it is not set.

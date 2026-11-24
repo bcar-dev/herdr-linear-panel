@@ -15,6 +15,7 @@ import { isDark } from "../lib/color.js";
 import { Drag } from "../lib/drag.js";
 import { panelKey } from "../lib/keys.js";
 import { filters, groups, points } from "../lib/listing.js";
+import { merges } from "../lib/merges.js";
 import { Selection } from "../lib/selection.js";
 import { pickAgent } from "../lib/start.js";
 import { changeable, estimateLabel, moves } from "../lib/teams.js";
@@ -105,6 +106,10 @@ export class Panel {
     // answers. `at` is when they were asked.
     /** @type {Map<string, { points: number | null, at: number }>} */
     this.planned = new Map();
+    // What an issue's merge requests changed and who reviewed them, by issue id, once its row's merge requests were
+    // pointed at: null until the API answers. `at` is when they were asked.
+    /** @type {Map<string, { details: MergeDetails[] | null, at: number }>} */
+    this.merging = new Map();
     this.selection = new Selection();
     this.drag = new Drag();
     this.hints = new Hints();
@@ -511,6 +516,31 @@ export class Panel {
       } catch {
         // The tooltip goes without them, and they are asked for again the next time.
         this.planned.delete(cycle.id);
+      }
+      cx.notify();
+    });
+  }
+
+  // Asks the tracker for what an issue's merge requests changed and who reviewed them: the tooltip of its row's merge
+  // requests tells it. Asked again after a load, as the points of a cycle to come are.
+  /**
+   * @param {Issue} issue
+   * @param {Context} cx
+   */
+  inspect(issue, cx) {
+    const known = this.merging.get(issue.id);
+    if (known && known.at >= this.loadedAt) return;
+    const at = Date.now(), list = merges(issue), urls = new Set(list.map((merge) => merge.url));
+    this.merging.set(issue.id, { details: known?.details ?? null, at });
+    cx.spawn(async (cx) => {
+      try {
+        const found = await api.mergeDetails(list.map((merge) => merge.number),
+          [...new Set(list.map((merge) => merge.repoName))]);
+        // Merge requests of other repositories can share a number: only the issue's own count.
+        this.merging.set(issue.id, { details: found.filter((details) => urls.has(details.url)), at });
+      } catch {
+        // The tooltip goes without them, and they are asked for again the next time.
+        this.merging.delete(issue.id);
       }
       cx.notify();
     });

@@ -3,14 +3,16 @@
 import { div, svg } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
 import { icon, shipped } from "../config.js";
-import { drawnColor, openCycle } from "../tracker.js";
-import { CYCLE_BLUE, cycleMark, priorityColor, priorityMark, statusMark, zoom } from "../ui.js";
+import { browse, drawnColor, openCycle } from "../tracker.js";
+import { CYCLE_BLUE, cycleMark, mergeMark, priorityColor, priorityMark, statusMark, zoom } from "../ui.js";
 import { completedNote, isFinished, points } from "../lib/listing.js";
+import { chipLabel, merges, tint as tinted } from "../lib/merges.js";
 import { brighten } from "../lib/color.js";
 import { TENSES, cycleName, progressIcon, span, tense, weekdaysLeft } from "../lib/cycles.js";
 import { timeInStatuses, timeLabel } from "../lib/history.js";
 import { propertyKey } from "../lib/keys.js";
 import { fitWidth } from "../lib/placement.js";
+import { mergeCard } from "./merge-card.js";
 import { estimateLabel, statusIcon } from "../lib/teams.js";
 
 // Colors a small mark (an icon, or an icon and a figure) and brightens it under the pointer, with no background.
@@ -219,6 +221,17 @@ function row(panel, issue, group, { t, identifierWidth, estimateWidth, lit }, jo
     tip: { label: "", caps: [], body: (t) => cycleCard(panel, issue, cycle, t) },
     entered: (cx) => { if (Date.parse(cycle.startsAt) > Date.now()) panel.plan(cycle, cx); },
   });
+  // The merge requests: their icon, in the color of whether they are merged, and their number or count, in a box
+  // like the cycle's.
+  const linked = merges(issue);
+  const requests = linked.length > 0 && warming(panel, h_flex().h(20).px(6).gap(4).flex_none().items_center()
+    .rounded(10).border_1().border_color(t.border).text_size(11),
+  `merges-${issue.id}`, t.muted, t.foreground, {
+    still,
+    // The card alone: no label, no keys.
+    tip: { label: "", caps: [], body: (t) => mergeCard(panel, issue, t) },
+    entered: (cx) => panel.inspect(issue, cx),
+  });
   return h_flex().id(`issue-${issue.id}`).h(28).flex_none().px(8).gap(8).items_center().cursor_pointer()
     .rounded_t(joined.above ? 0 : 7).rounded_b(joined.below ? 0 : 7)
     .when(ticked, (el) => el.bg(/** @type {Color} */ (tint + "33")))
@@ -238,6 +251,11 @@ function row(panel, issue, group, { t, identifierWidth, estimateWidth, lit }, jo
     .child(panel.control(status, () => panel.pick(issue, "status"))
       .child(svg(icon(statusIcon(issue.state, team?.states))).size(14)))
     .child(div().flex_1().min_w(0).truncate().child(issue.title))
+    // A click opens every merge request in the browser; a right-click does nothing, not even the issue's menu.
+    .children(requests ? [panel.control(requests, () => { for (const merge of linked) browse(merge.url); })
+      .on_mouse_down("right", (_e, cx) => cx.stop_propagation())
+      .child(mergeMark(tinted(linked), 13))
+      .child(chipLabel(linked))] : [])
     // A click on the cycle opens its page; a right-click opens its choices, not the issue's menu.
     .children(term && cycle ? [panel.control(term, () => openCycle(issue, cycle))
       .on_mouse_down("right", (e, cx) => {

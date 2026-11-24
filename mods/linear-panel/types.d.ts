@@ -70,6 +70,37 @@ type IssueCycle = Cycle & { description: string | null; progress: number; scopeH
 /** Where a cycle stands among its team's (lib/cycles.js): "next" is the first to come, "previous" the last ended. */
 type CycleTense = "current" | "next" | "future" | "previous" | "past";
 
+/** Where a merge request stands, as the tracker keeps it: `open`, `inReview` and `draft` are not merged yet. */
+type MergeStatus = "open" | "inReview" | "draft" | "merged" | "closed";
+
+/** A merge request (GitLab) or pull request (GitHub) linked to an issue (lib/merges.js). `userLogin` is its author. */
+type Merge = {
+  sourceType: "github" | "gitlab";
+  url: string;
+  number: number;
+  title: string;
+  status: MergeStatus;
+  repoLogin: string;
+  repoName: string;
+  createdAt: string;
+  mergedAt: string | null;
+  closedAt: string | null;
+  userLogin: string;
+};
+
+/** What a merge request's card adds once asked: its changes, and the reviewers who submitted a review. */
+type MergeDetails = {
+  url: string;
+  files: number;
+  added: number;
+  removed: number;
+  reviewers: { name: string; approved: boolean }[];
+};
+
+/** Where merge requests stand, for their color (lib/merges.js): "mixed" when some are merged and others open. */
+type MergeStanding = "merged" | "open" | "closed";
+type MergeTint = MergeStanding | "mixed";
+
 type Issue = {
   id: string;
   identifier: string;
@@ -83,6 +114,7 @@ type Issue = {
   state: WorkflowState;
   cycle: IssueCycle | null;
   team: { id: string };
+  attachments: { nodes: { sourceType: Merge["sourceType"]; metadata: Omit<Merge, "sourceType"> }[] };
 };
 
 type Member = {
@@ -145,6 +177,16 @@ type ApiAnswer = {
     teams: { nodes: TeamAnswer[] };
     issue: { description: string | null; comments: { nodes: IssueComment[] }; stateHistory: { nodes: StatusSpan[] } };
     cycle: { issues: { nodes: Pick<Issue, "estimate" | "team">[] } };
+    pullRequests: {
+      nodes: {
+        url: string;
+        diffStats: { fileCount: number; additions: number; deletions: number } | null;
+        reviewerStates: {
+          lastSubmittedDecision: string | null;
+          reviewer: { displayName?: string; name?: string } | null;
+        }[];
+      }[];
+    };
     issueBatchUpdate: { success: boolean };
   };
   errors?: { message: string }[];
