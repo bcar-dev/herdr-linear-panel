@@ -65,7 +65,8 @@ export async function start(issue, text, states, { agent, base }) {
   }
   const state = startState(issue, states);
   if (state) await api.update([issue.id], { stateId: state.id });
-  // Unnamed, like the shipped worktree spaces: the space follows its checkout and nests under its repo.
+  // Named after the issue: unnamed, it would take its checkout's folder, the whole branch. It still nests under its
+  // repo, which the folder's git tells, not the name.
   const task = prompt(base, text, { ...issue, description }, NAME);
-  run("space.new", { folder: path, tab: issue.identifier, argv: agent.run, task });
+  run("space.new", { name: issue.identifier, folder: path, tab: issue.identifier, argv: agent.run, task });
 }

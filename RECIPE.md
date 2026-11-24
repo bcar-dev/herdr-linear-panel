@@ -266,9 +266,9 @@ of Linear when the pointer comes on the merge requests, and again after a load: 
    as a folder name>`. An existing branch is checked out; a new one starts from HEAD.
 4. Sets the issue to the team's "In Progress" status, or its first started status when none has that name. An issue
    already there or further along is left alone.
-5. Opens a new space in the checkout, its tab named after the identifier, running the agent with a first message in
-   three parts, a blank line between them: the base prompt of the settings, the text typed for this issue, then the
-   issue exactly as "Copy as prompt" gives it. An empty part is left out.
+5. Opens a new space in the checkout, the space and its tab named after the identifier, running the agent with a
+   first message in three parts, a blank line between them: the base prompt of the settings, the text typed for this
+   issue, then the issue exactly as "Copy as prompt" gives it. An empty part is left out.
 
 **The agent and the settings.** Nothing names an agent in the mod. The panel asks Herdr once for the agents people can
 start (`knownAgents()`: the entries of its table of programs that have a `run`, most picked first, each installed or
@@ -412,8 +412,8 @@ mod.
 `notify`, `spaces`, `panes`, `focused`, `home`, `appHome`, `readTextFile`, `knownAgents`, `openOverlay`, `closeOverlay`.
 Also `fetch`, `localStorage`, `cx.timer`, `cx.spawn` and `cx.write_to_clipboard`.
 
-**Commands:** `layout.select`, `layout.show`, `layout.hide`, `space.new` (`folder`, `tab`, `argv`: the agent's `run`,
-`task`).
+**Commands:** `layout.select`, `layout.show`, `layout.hide`, `space.new` (`name`, `folder`, `tab`, `argv`: the agent's
+`run`, `task`).
 
 **Outside its folder.** The mod reaches the network (Linear's API, or the address the `api` setting names), runs the
 programs below, reads Herdr's `settings.json` (for `worktrees.directory`, at Start) and writes to the clipboard.

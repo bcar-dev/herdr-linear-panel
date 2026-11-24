@@ -134,7 +134,9 @@ describe("start", () => {
       name: "space.new",
       // The agent the person starts most, and no base: the panel's settings give none.
       args: {
-        folder: "/home/me/wt/repo/me-back-2", tab: "BACK-2", argv: ["claude"], task: `Keep it small\n\n${ISSUE}`,
+        // Named after the issue, not after its checkout's long folder.
+        name: "BACK-2", folder: "/home/me/wt/repo/me-back-2", tab: "BACK-2", argv: ["claude"],
+        task: `Keep it small\n\n${ISSUE}`,
       },
     }]);
     assert.equal(find(panel.draw(), "failed"), null);
