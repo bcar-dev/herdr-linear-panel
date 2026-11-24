@@ -153,9 +153,11 @@ remembered.
   background, as do the estimate and a header's arrow and figure; an urgent mark keeps its orange, and a row's status
   icon turns a brighter shade of its own color (every channel 32 % stronger, as measured in Linear: a brighter green,
   not a paler one).
-- Click or right-click on the cycle opens its choices, at the pointer, in place of the issue menu a right-click
-  elsewhere on the row opens. Picking one moves the issue there; "No cycle" takes it out. An issue in no cycle shows no
-  box: the menu's "Cycle" gives it one. Teams without cycles offer neither.
+- Click on the cycle opens the cycle's page (`/team/FRONT/cycle/144` under the workspace's address) in the Linear
+  desktop app, else in the browser, as a click on the row does for the issue.
+- Right-click on the cycle opens its choices, at the pointer, in place of the issue menu a right-click elsewhere on the
+  row opens. Picking one moves the issue there; "No cycle" takes it out. An issue in no cycle shows no box: the menu's
+  "Cycle" gives it one. Teams without cycles offer neither.
 - Click on the estimate opens its choices. Picking a value sets it; "No estimate" clears it. An issue without an
   estimate shows no triangle: the menu's "Estimate" gives it one. Teams that do not estimate offer neither.
 - The checkbox shows while the pointer is on the row, its outline in the theme's accent while the pointer is on the

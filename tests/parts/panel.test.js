@@ -1061,7 +1061,7 @@ describe("header", () => {
     assert.equal(text(find(panel.draw(), "tooltip")), "Change estimate ⇧ E");
   });
 
-  it("shows the cycle of an issue that has one, and opens its choices on a click or a right-click", async () => {
+  it("shows an issue's cycle, opens its page on a click and its choices on a right-click", async () => {
     const panel = await startPanel({ app: { stored: { view: "all" } } });
     enter(panel);
     const root = panel.draw();
@@ -1071,9 +1071,13 @@ describe("header", () => {
     assert.equal(find(root, "cycle-web-7"), null);
     // A right-click on it opens the cycle's choices, not the issue's menu.
     send(root, find(root, "cycle-back-1"), "on_mouse_down:right", at(1250, 200), panel.cx);
-    clickOn(panel, "cycle-back-2");
     assert.deepEqual(host.overlays.map(({ props }) => [props.part, props.page, props.bare, props.targets[0].id]),
-      [["commands", "cycle", true, "back-1"], ["commands", "cycle", true, "back-2"]]);
+      [["commands", "cycle", true, "back-1"]]);
+    // A click opens the cycle's page under the workspace's address, by its team's key, and no choices.
+    clickOn(panel, "cycle-back-2");
+    assert.deepEqual(host.ran.at(-1),
+      { command: "open", args: ["linear://tracker.test/team/BACK/cycle/12"], options: {} });
+    assert.equal(host.overlays.length, 1);
     assert.equal(host.overlays[0].height, 48 + 5 * 32);
   });
 

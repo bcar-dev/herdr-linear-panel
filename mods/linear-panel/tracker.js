@@ -62,6 +62,15 @@ export async function openApp() {
 /** @param {MyTeam} team */
 export const composeIssue = (team) => openPage(`${SITE}team/${team.key}/new?assignee=me`);
 
+// An issue's cycle, on its team's page: the workspace's address is the issue's up to "/issue/", the team's key its
+// identifier less the number.
+/**
+ * @param {Issue} issue
+ * @param {Cycle} cycle
+ */
+export const openCycle = (issue, cycle) => openPage(`${issue.url.slice(0, issue.url.indexOf("/issue/"))}/team/`
+  + `${issue.identifier.replace(/-\d+$/, "")}/cycle/${cycle.number}`);
+
 // How each system's secret store is read from a shell. Windows has no command that reads its own: the variable only.
 /** @type {Record<string, string>} */
 const STORED_KEY = {
