@@ -1,8 +1,36 @@
-// What each entry of the Copy menu puts on the clipboard. Pure, so node can test it (tests/unit).
+// What each entry of the Copy menu puts on the clipboard. Pure, so node can test it (tests/unit)
+import { CopyWhat } from "../enums.js";
 
-// Between the documents of several issues: a rule, with the blank lines Markdown needs around it.
+/** @type {CopyWhat[]} */
+const DOCUMENTS = [CopyWhat.MARKDOWN, CopyWhat.EVERYTHING, CopyWhat.PROMPT];
+const ISO_DATE_LENGTH = 10;
 const RULE = "\n\n---\n\n";
-const DOCUMENTS = ["markdown", "everything", "prompt"];
+
+const COMMENTS_HEADING = "## Comments";
+const FIELD_JOINER = "\n\n";
+
+// Text that Markdown would read as markup
+/** @param {string} text */
+const escaped = (text) => text.replace(/[\\`*_[\]]/g, "\\$&");
+
+/** @type {Partial<Record<CopyWhat, (issue: Issue) => string>>} */
+const FIELDS = {
+  [CopyWhat.ID]: (issue) => issue.identifier,
+  [CopyWhat.URL]: (issue) => issue.url,
+  [CopyWhat.TITLE]: (issue) => issue.title,
+  [CopyWhat.LINK]: (issue) => `[${escaped(issue.title)}](${issue.url})`,
+  [CopyWhat.BRANCH]: (issue) => issue.branchName,
+};
+
+/** @param {PageComment} comment */
+const commentText = (comment) => {
+  const author = escaped(comment.user?.name ?? "Someone"), day = comment.createdAt.slice(0, ISO_DATE_LENGTH);
+  return `**${author}** (${day}):${FIELD_JOINER}${comment.body.trim()}`;
+};
+
+/** @param {(string | undefined)[]} parts */
+const paragraphs = (parts) => parts.filter(Boolean)
+  .join(FIELD_JOINER);
 
 /**
  * @param {CopyWhat} what
@@ -11,26 +39,19 @@ const DOCUMENTS = ["markdown", "everything", "prompt"];
  * @param {string} tracker
  */
 function one(what, issue, { description, comments = [] } = {}, tracker) {
-  const body = (description ?? "").trim(), markdown = [`# ${issue.title}`, body].filter(Boolean).join("\n\n");
-  /** @param {IssueComment} comment */
-  const said = (comment) =>
-    `**${comment.user?.name ?? "Someone"}** (${comment.createdAt.slice(0, 10)}):\n\n${comment.body.trim()}`;
-  if (what === "id") return issue.identifier;
-  if (what === "url") return issue.url;
-  if (what === "title") return issue.title;
-  if (what === "link") return `[${issue.title}](${issue.url})`;
-  if (what === "branch") return issue.branchName;
-  if (what === "markdown") return markdown;
-  if (what === "everything") return [markdown, ...(comments.length ? ["## Comments", ...comments.map(said)] : [])]
-    .join("\n\n");
-  const opening = ["Work on", tracker, `issue ${issue.identifier}: ${issue.title}`].filter(Boolean).join(" ");
-  return [opening, body, issue.url].filter(Boolean).join("\n\n");
+  const field = FIELDS[what];
+  if (field) return field(issue);
+  const body = (description ?? "").trim(), markdown = paragraphs([`# ${issue.title}`, body]);
+  if (what === CopyWhat.MARKDOWN) return markdown;
+  if (what === CopyWhat.EVERYTHING) return paragraphs([markdown, ...(comments.length ? [COMMENTS_HEADING] : []),
+    ...comments.map(commentText)]);
+  const opening = ["Work on", tracker, `issue ${issue.identifier}: ${issue.title}`].filter(Boolean)
+    .join(" ");
+  return paragraphs([opening, body, issue.url]);
 }
 
-// The text for these issues, in the order given. `details` holds, issue by issue, the { description, comments } of
-// the entries that need them, and `tracker` is the product's name.
-// Several issues give one line each (a title with its identifier, so the lines can be told apart) or one document
-// each, with a rule between them.
+// `details` holds, issue by issue, the { description, comments } of the entries that need them. Several issues give one
+// line each (a title with its identifier) or one document each, with a rule between them
 /**
  * @param {CopyWhat} what
  * @param {Issue[]} issues
@@ -39,7 +60,8 @@ function one(what, issue, { description, comments = [] } = {}, tracker) {
  */
 export function copyText(what, issues, details = [], tracker = "") {
   if (issues.length === 1) return one(what, issues[0], details[0], tracker);
-  if (what === "title") return issues.map((issue) => `${issue.identifier}: ${issue.title}`).join("\n");
+  if (what === CopyWhat.TITLE) return issues.map((issue) => `${issue.identifier}: ${issue.title}`)
+    .join("\n");
   return issues.map((issue, nth) => one(what, issue, details[nth], tracker))
     .join(DOCUMENTS.includes(what) ? RULE : "\n");
 }

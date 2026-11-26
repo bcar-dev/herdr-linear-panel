@@ -6,9 +6,9 @@ const state = (name, type, position) => ({ id: name, name, type, position });
 const backlog = state("Backlog", "backlog", 0), todo = state("Todo", "unstarted", 1),
   doing = state("In Progress", "started", 2);
 const review = state("In Review", "started", 3), done = state("Done", "completed", 4);
-const issue = (identifier, priority, s, title = identifier) => ({ identifier, priority, state: s, title });
+const issue = (identifier, priority, status, title = identifier) => ({ identifier, priority, state: status, title });
 const names = (list) => list.map((group) => group.state.name);
-const ids = (list) => list.map((group) => group.issues.map((i) => i.identifier));
+const ids = (list) => list.map((group) => group.issues.map((issue) => issue.identifier));
 
 describe("byTitle", () => {
   it("ignores case and puts spaces, punctuation, digits, then letters", () => {

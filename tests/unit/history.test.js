@@ -36,10 +36,26 @@ describe("timeInStatuses", () => {
 });
 
 describe("timeLabel", () => {
-  it("tells a time in its longest unit, rounded, and in weeks at most", () => {
+  it("tells a time in its longest unit, cut down to whole units, in days up to a month", () => {
     const SECOND = 1000, MINUTE = 60 * SECOND, HOUR = 60 * MINUTE, DAY = 24 * HOUR;
     assert.deepEqual(
-      [0, 5 * SECOND, 2_620_000, 3 * HOUR, 2.97 * DAY, 15 * DAY, 100 * DAY, 364 * DAY, 800 * DAY].map(timeLabel),
-      ["0s", "5s", "44min", "3h", "3d", "2w", "14w", "52w", "114w"]);
+      [0, 5 * SECOND, 2_620_000, 3 * HOUR, 7.6 * HOUR, 2.97 * DAY, 15 * DAY, 100 * DAY, 364 * DAY, 800 * DAY]
+        .map(timeLabel),
+      ["0s", "5s", "43min", "3h", "7h", "2d", "15d", "3mo", "11mo", "2y"]);
+  });
+});
+
+describe("timeLabel, at the edges of its units", () => {
+  const DAY = 24 * 60 * 60 * 1000;
+
+  it("never tells twelve months: a year starts where the twelfth month would", () => {
+    assert.deepEqual([30, 31, 364, 365, 366].map((days) => timeLabel(days * DAY)),
+      ["30d", "1mo", "11mo", "11mo", "1y"]);
+  });
+});
+
+describe("timeLabel, on a time that is slightly negative", () => {
+  it("tells 0s: a clock a little ahead never makes a negative age", () => {
+    assert.equal(timeLabel(-1500), "0s");
   });
 });

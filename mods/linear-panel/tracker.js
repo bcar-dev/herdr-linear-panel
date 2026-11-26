@@ -1,87 +1,115 @@
-// The issue tracker this panel talks to. Everything that names the product is here: what it is called, its
-// addresses, and where its API key is kept. So is everything that differs between macOS, Linux and Windows:
-// how an address is opened and where a secret is stored. The rest of the mod only says "the tracker".
-import { exec, window } from "herdr";
-
-export const NAME = "Linear";
-// The id of the panel's block in the layout, and its name in the tab bar's list of side panels.
-export const SLOT = "linear";
+// The issue tracker this panel talks to: its name, addresses and API key, and what differs per operating system
+import { URL } from "url";
+import { exec, notify, window } from "herdr";
+import { NEUTRAL_GREY, TOAST_MS } from "./config.js";
+import { Platform } from "./enums.js";
 
 export const API = "https://api.linear.app/graphql";
-export const KEY_PAGE = "https://linear.app/settings/account/security";
-
-// The API key is this environment variable when set, else this item of the system's secret store.
-const KEY_VARIABLE = "LINEAR_API_KEY";
-const KEY_ITEM = "herdr-linear";
-
-// The tracker does not draw every status in the color its API gives: its own app replaces some of its default colors
-// with shades that read on a dark background. This table lists them, as measured in the app.
+const APP_SCHEME = "linear";
+const DEFAULT_PLATFORM = Platform.MAC;
+// The tracker's own app draws some of its default colors in shades that read on a dark background
 /** @type {Record<string, Color>} */
 const DRAWN_AS = { "#0f783c": "#27a644" };
+export const HOST = "linear.app";
+const KEY_ITEM = "herdr-linear";
+export const KEY_PAGE_PATH = "settings/account/security";
+const KEY_VARIABLE = "LINEAR_API_KEY";
+export const NAME = "Linear";
+const PLATFORMS = Object.values(Platform);
+const SITE = `https://${HOST}/`;
+export const KEY_PAGE = `${SITE}${KEY_PAGE_PATH}`;
+// The id of the panel's block in the layout, and its name in the tab bar's list of side panels
+export const SLOT = "linear";
+// A system this mod has no commands for is treated as the one closest to it
+const UNKNOWN_PLATFORM_AS = Platform.LINUX;
 
-/** @param {Color} color */
-export const drawnColor = (color) => DRAWN_AS[color.toLowerCase()] ?? color;
+/** @param {Color | null | undefined} color */
+export const drawnColor = (color) => (color ? DRAWN_AS[color.toLowerCase()] ?? color : NEUTRAL_GREY);
 
-const SITE = "https://linear.app/";
-const APP_SCHEME = "linear";
+const platform = () => {
+  const named = window()?.platform ?? DEFAULT_PLATFORM;
+  return PLATFORMS.includes(named) ? named : UNKNOWN_PLATFORM_AS;
+};
+export const isMac = () => platform() === Platform.MAC;
 
-const platform = () => window()?.platform ?? "macos";
-export const isMac = () => platform() === "macos";
-
-// A program that is not installed counts as a failure.
+// A program that is not installed counts as a failure
 /**
  * @param {string} command
  * @param {string[]} args
  */
-const ran = (command, args) => exec(command, args).then((result) => result.code === 0, () => false);
+const ran = (command, args) => exec(command, args)
+  .then((result) => result.code === 0, () => false);
 
-// Answers whether a program took the address. Windows always answers yes.
+// Answers whether a program took the address, which only a web address or the tracker's own is: anything else (a file,
+// a share, a program) is never handed to the system. Windows always answers yes
 /** @param {string} address */
-export function browse(address) {
-  if (platform() === "windows") return ran("rundll32", ["url.dll,FileProtocolHandler", address]);
-  return ran(platform() === "linux" ? "xdg-open" : "open", [address]);
+function browse(address) {
+  if (!/^(https?|linear):\/\//i.test(address)) return Promise.resolve(false);
+  if (platform() === Platform.WINDOWS) return ran("rundll32", ["url.dll,FileProtocolHandler", address]);
+  return ran(platform() === Platform.LINUX ? "xdg-open" : "open", [address]);
 }
 
-// One of the tracker's pages in its desktop app, which takes the same address under its own scheme, else in the
-// browser. macOS and Linux fail to open an address nothing is registered for, which is the cue for the browser.
-// Windows asks the person what to do instead, so there the registry is asked first whether the app is installed.
+/** @param {string} address */
+async function browseOrSay(address) {
+  const opened = await browse(address);
+  if (!opened) notify({ title: `Could not open ${address}`, timeout: TOAST_MS });
+  return opened;
+}
+
+// The same address under the tracker's own scheme, which its desktop app takes
+/** @param {string} address */
+function inApp(address) {
+  try {
+    const { protocol, host, pathname, search, hash } = new URL(address);
+    return protocol === "https:" ? `${APP_SCHEME}://${host}${pathname}${search}${hash}` : address;
+  } catch {
+    return address;
+  }
+}
+
+// In its desktop app, else in the browser. macOS and Linux fail to open an address nothing is registered for, which is
+// the cue for the browser. Windows asks the person what to do instead, so there the registry is asked first whether
+// the app is installed
 /** @param {string} url */
 export async function openPage(url) {
-  const inApp = url.replace("https://", `${APP_SCHEME}://`);
-  if (platform() === "windows") return browse((await ran("reg", ["query", `HKCR\\${APP_SCHEME}`, "/ve"])) ? inApp
-    : url);
-  if (!(await browse(inApp))) await browse(url);
+  const app = inApp(url);
+  if (platform() === Platform.WINDOWS) {
+    return browseOrSay((await ran("reg", ["query", `HKCR\\${APP_SCHEME}`, "/ve"])) ? app : url);
+  }
+  return (await browse(app)) || browseOrSay(url);
 }
 
-// The desktop app, brought to the front; the tracker's site in the browser when the app is not installed.
+// A page of the tracker opens in its app first, any other address in the browser. A page the mod knows to be the
+// tracker's (an issue, a cycle) goes straight to `openPage`
+/** @param {string} url */
+export const openLink = (url) => (url.startsWith(SITE) ? openPage(url) : browseOrSay(url));
+
 export async function openApp() {
-  if (platform() !== "macos") return openPage(SITE);
-  if (!(await ran("open", ["-a", NAME]))) await browse(SITE);
+  if (platform() !== Platform.MAC) return openPage(SITE);
+  if (!(await ran("open", ["-a", NAME]))) await browseOrSay(SITE);
 }
 
 /** @param {MyTeam} team */
-export const composeIssue = (team) => openPage(`${SITE}team/${team.key}/new?assignee=me`);
+export const composeIssue = (team) => openPage(`${SITE}team/${encodeURIComponent(team.key)}/new?assignee=me`);
 
-// An issue's cycle, on its team's page: the workspace's address is the issue's up to "/issue/", the team's key its
-// identifier less the number.
 /**
  * @param {Issue} issue
  * @param {Cycle} cycle
  */
-export const openCycle = (issue, cycle) => openPage(`${issue.url.slice(0, issue.url.indexOf("/issue/"))}/team/`
-  + `${issue.identifier.replace(/-\d+$/, "")}/cycle/${cycle.number}`);
+export const openCycle = (issue, cycle) =>
+  openPage(`${SITE}team/${encodeURIComponent(issue.team.key)}/cycle/${cycle.number}`);
 
-// How each system's secret store is read from a shell. Windows has no command that reads its own: the variable only.
+// Windows has no command that reads its own secret store: the variable only
 /** @type {Record<string, string>} */
 const STORED_KEY = {
-  macos: `security find-generic-password -s ${KEY_ITEM} -w`,
-  linux: `secret-tool lookup service ${KEY_ITEM}`,
+  [Platform.MAC]: `security find-generic-password -s ${KEY_ITEM} -w`,
+  [Platform.LINUX]: `secret-tool lookup service ${KEY_ITEM}`,
 };
 
-// The API key, or "" when there is none. Read for each request: nothing is kept in the mod.
+// "" when there is no key
 export async function apiKey() {
-  if (platform() === "windows") {
-    // cmd answers the name itself, percent signs included, for a variable that is not set.
+  if (platform() === Platform.WINDOWS) {
+    // cmd answers the name itself, percent signs included, for a variable that is not set
     const answer = (await exec("cmd", ["/c", "echo", `%${KEY_VARIABLE}%`])).stdout.trim();
     return answer.startsWith("%") ? "" : answer;
   }
@@ -89,15 +117,13 @@ export async function apiKey() {
   return (await exec("sh", ["-c", read])).stdout.trim();
 }
 
-// How a person gives the mod its key on this system: the sentence of the setup step, and the command to run in a
-// terminal. The stores prompt for the key, so it is never typed on a command line; Windows has only the variable.
 export function keySetup() {
   /** @type {Record<string, string[]>} */
   const stores = {
-    macos: ["the macOS Keychain", `security add-generic-password -U -a "$USER" -s ${KEY_ITEM} -w`],
-    linux: ["your keyring", `secret-tool store --label="${NAME} API key" service ${KEY_ITEM}`],
+    [Platform.MAC]: ["the macOS Keychain", `security add-generic-password -U -a "$USER" -s ${KEY_ITEM} -w`],
+    [Platform.LINUX]: ["your keyring", `secret-tool store --label="${NAME} API key" service ${KEY_ITEM}`],
   };
-  if (platform() === "windows") {
+  if (platform() === Platform.WINDOWS) {
     return {
       how: `Set it as ${KEY_VARIABLE} from a terminal, with your key in place of KEY, then restart Herdr:`,
       command: `setx ${KEY_VARIABLE} KEY`,

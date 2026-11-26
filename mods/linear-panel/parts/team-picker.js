@@ -1,29 +1,74 @@
-// Picking a team opens the tracker's own composer: the issue is written there.
+// Picking a team opens the tracker's own composer, where the issue is written; or, from an issue's page, moves that
+// issue to the team: a search field, my teams, a tick on the issue's own
 import { div } from "gpui-kit";
-import { ask, dismiss } from "../channel.js";
-import { takeKeyboard } from "../ui.js";
-import { caption, frame, item } from "./menu.js";
+import { InputState } from "gpui-base";
+import { MENU_ROW_HEIGHT_PX } from "../config.js";
+import { ask, dismiss, submit } from "../channel.js";
+import { RequestKind } from "../enums.js";
+import { chordCaps, takeKeyboard, teamMark } from "../ui.js";
+import { caption, frame, item, rule, searchRow } from "./menu.js";
+
+const CHROME_PX = 38;
+const ISSUE_CHROME_PX = 52;
+const TEAM_KEY_COLUMN_WIDTH_PX = 52;
+const TEAM_MARK_SIZE_PX = 18;
+
+// A row a team, and the caption or search line above them
+/** @param {{ teams: MyTeam[], issue?: Issue }} props */
+export const heightFor = ({ teams, issue }) =>
+  teams.length * MENU_ROW_HEIGHT_PX + (issue ? ISSUE_CHROME_PX : CHROME_PX);
 
 export class TeamPicker {
   /**
    * @param {Opened<TeamPickerProps>} props
    * @param {Context} cx
    */
-  constructor({ teams, overlay }, cx) {
-    this.teams = teams;
-    this.overlay = overlay;
+  constructor(props, cx) {
+    this.props = props;
     this.handle = cx.focus_handle();
-    takeKeyboard(this.handle, cx);
+    this.query = "";
+    this.input = InputState.new({ placeholder: "Move to team…" });
+    this.input.on("change", (_e, cx) => { this.query = this.input.value(); cx.notify(); });
+    takeKeyboard(props.issue ? this.input : this.handle, cx);
+  }
+
+  /** @param {MyTeam} team */
+  choose(team) {
+    const { issue, overlay } = this.props;
+    if (!issue) { ask({ kind: RequestKind.COMPOSE, ids: [], team }); dismiss(overlay); return; }
+    if (team.id === issue.team.id) { dismiss(overlay); return; }
+    submit(this.props, [issue], { kind: RequestKind.UPDATE, input: { teamId: team.id } });
   }
 
   /** @param {Theme} t */
   render(t) {
+    const { issue, teams } = this.props, words = this.query.trim()
+      .toLowerCase();
+    const shown = teams.filter((team) => `${team.name} ${team.key}`.toLowerCase()
+      .includes(words));
     /** @param {MyTeam} team */
-    const label = (team) =>
-      [div().w(52).flex_none().text_size(11).text_color(t.dim).child(team.key), div().truncate().child(team.name)];
+    const label = (team) => [
+      ...(issue ? [teamMark(team, TEAM_MARK_SIZE_PX)] : []),
+      ...(issue ? [div()
+        .truncate()
+        .child(team.name), div()
+        .flex_none()
+        .text_size(11)
+        .text_color(t.dim)
+        .child(team.key)]
+      : [div()
+        .w(TEAM_KEY_COLUMN_WIDTH_PX)
+        .flex_none()
+        .text_size(11)
+        .text_color(t.dim)
+        .child(team.key),
+      div()
+        .truncate()
+        .child(team.name)]),
+    ];
     return frame(t, "team-picker", this.handle)
-      .child(caption(t, "New issue in…"))
-      .children(this.teams.map((team) =>
-        item(t, team.key, label(team), () => { ask({ kind: "compose", ids: [], team }); dismiss(this.overlay); })));
+      .children(issue ? [searchRow(t, this.input, chordCaps(["⇧", "M"])), rule(t)] : [caption(t, "New issue in…")])
+      .children(shown.map((team) =>
+        item(t, team.key, label(team), () => this.choose(team), issue ? team.id === issue.team.id : false)));
   }
 }

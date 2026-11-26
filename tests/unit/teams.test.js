@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { changeable, commonEstimates, commonMembers, commonStates, estimateLabel, estimates, moves, share, statusIcon,
-  workflow } from "../../mods/linear-panel/lib/teams.js";
+import { changeable, commonEstimates, commonMembers, commonStates, estimateLabel, estimateText, estimates, moves, share,
+  statusIcon, workflow } from "../../mods/linear-panel/lib/teams.js";
 
 const state = (name, type, position) => ({ id: name, name, type, position });
 
@@ -9,23 +9,24 @@ describe("workflow", () => {
   it("orders states as the workflow runs, by type then by position", () => {
     const states = [
       state("Duplicate", "duplicate", 9), state("Done", "completed", 4), state("In Review", "started", 3),
-        state("Todo", "unstarted", 1),
+      state("Todo", "unstarted", 1),
       state("In Progress", "started", 2), state("Backlog", "backlog", 0), state("On Hold", "started", 1.5),
     ];
-    assert.deepEqual(workflow(states).map((s) => s.name),
-      ["Backlog", "Todo", "On Hold", "In Progress", "In Review", "Done", "Duplicate"]);
+    assert.deepEqual(workflow(states)
+      .map((status) => status.name),
+    ["Backlog", "Todo", "On Hold", "In Progress", "In Review", "Done", "Duplicate"]);
   });
 });
 
 describe("statusIcon", () => {
   const started = (count) => Array.from({ length: count }, (_, i) => state(`Step ${i + 1}`, "started", i));
-  const pies = (states) => states.map((s) => statusIcon(s, [...states].reverse()));
+  const pies = (states) => states.map((status) => statusIcon(status, [...states].reverse()));
 
   it("has one icon per type, and the plain circle for a type it does not know", () => {
     const types = ["triage", "backlog", "unstarted", "completed", "canceled", "duplicate", "novel"];
     assert.deepEqual(types.map((type) => statusIcon({ type })), [
       "status-triage", "status-backlog", "status-unstarted", "status-completed", "status-canceled", "status-duplicate",
-        "status-unstarted",
+      "status-unstarted",
     ]);
   });
 
@@ -82,17 +83,22 @@ describe("what several teams have in common", () => {
   };
 
   it("keeps the statuses every team has, by name, in the first team's workflow order", () => {
-    assert.deepEqual(commonStates([backend, frontend]).map((s) => s.name), ["Todo", "Done"]);
-    assert.deepEqual(commonStates([backend]).map((s) => s.name), ["Todo", "In QA", "Done"]);
+    assert.deepEqual(commonStates([backend, frontend])
+      .map((status) => status.name), ["Todo", "Done"]);
+    assert.deepEqual(commonStates([backend])
+      .map((status) => status.name), ["Todo", "In QA", "Done"]);
     assert.deepEqual(commonStates([]), []);
   });
 
   it("keeps the members of every team, ordered by username", () => {
-    assert.deepEqual(commonMembers([backend, frontend]).map((m) => m.name), ["Adam", "zoe"]);
-    assert.deepEqual(commonMembers([backend]).map((m) => m.name), ["Adam", "Bob", "zoe"]);
+    assert.deepEqual(commonMembers([backend, frontend])
+      .map((member) => member.name), ["Adam", "zoe"]);
+    assert.deepEqual(commonMembers([backend])
+      .map((member) => member.name), ["Adam", "Bob", "zoe"]);
     const named = { members: [{ id: "a", name: "Zed Young", displayName: "al" },
       { id: "b", name: "Amy Adams", displayName: "zoe" }] };
-    assert.deepEqual(commonMembers([named]).map((m) => m.displayName), ["al", "zoe"]);
+    assert.deepEqual(commonMembers([named])
+      .map((member) => member.displayName), ["al", "zoe"]);
   });
 
   it("keeps the estimates every scale offers", () => {
@@ -155,5 +161,19 @@ describe("moves", () => {
 
   it("leaves an issue that is already there", () => {
     assert.deepEqual(moves([issue("d", "back", "back-doing")], teams, "In Progress"), []);
+  });
+});
+
+describe("estimateText", () => {
+  const fibonacci = { issueEstimationType: "fibonacci" }, shirts = { issueEstimationType: "tShirt" };
+
+  it("words a number of points as a picker and a property line do, one point in the singular", () => {
+    assert.deepEqual([0, 1, 3, 21].map((value) => estimateText(fibonacci, value)),
+      ["0 Points", "1 Point", "3 Points", "21 Points"]);
+  });
+
+  it("words no estimate, and a T-shirt size as it is", () => {
+    assert.equal(estimateText(fibonacci, null), "No estimate");
+    assert.equal(estimateText(shirts, 3), "M");
   });
 });

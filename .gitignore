@@ -19,3 +19,6 @@ coverage/
 .claude/
 .serena/
 .superpowers/
+
+# Local notes and plans
+docs/

@@ -1,49 +1,61 @@
 // The panel: my issues by view, grouped by status, and everything that can be done to them from here.
-// It holds the issues and does the work. The popups (see popups.js) only ask for it, through channel.js.
+// It draws what the store holds and wires the clicks and keys. The popups (see popups.js) only ask for it, through
+// channel.js
 import { div, image, svg } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
 import * as api from "../api.js";
 import * as channel from "../channel.js";
 import * as dock from "../dock.js";
 import { knownAgents } from "herdr";
-import { copy, start } from "../actions.js";
-import { COMPLETED, MIN_SPIN, ORDERINGS, RELOAD_EVERY, VIEWS, copiesFor, icon, logo, shipped } from "../config.js";
-import { openChoices, openCommands, openDisplayOptions, openIssueMenu, openTeamPicker } from "../popups.js";
-import { NAME, composeIssue, isMac, openApp, openPage } from "../tracker.js";
-import { chordCaps, zoom } from "../ui.js";
+import { COMPLETED, HEADER_HEIGHT_PX, MIN_SPIN_MS, ORDERINGS, RELOAD_EVERY_MS, VIEWS, icon, logo,
+  shipped } from "../config.js";
+import { Completed, Ordering, RequestKind, ViewKey } from "../enums.js";
+import { NAME, isMac, openApp, openPage } from "../tracker.js";
+import { chordCaps, lit, roundButton, zoom } from "../ui.js";
 import { isDark } from "../lib/color.js";
 import { Drag } from "../lib/drag.js";
-import { panelKey } from "../lib/keys.js";
 import { filters, groups, points } from "../lib/listing.js";
-import { merges } from "../lib/merges.js";
+import { commandDown } from "../lib/keys.js";
+import { textWidth } from "../lib/placement.js";
 import { Selection } from "../lib/selection.js";
 import { pickAgent } from "../lib/start.js";
-import { changeable, estimateLabel, moves } from "../lib/teams.js";
+import { estimateLabel } from "../lib/teams.js";
+import { message } from "../lib/text.js";
 import { Hints } from "./hints.js";
-import { carried, section } from "./issue-list.js";
+import { carried, section, warming } from "./issue-list.js";
+import { IssuePage, SLIDE_MS } from "./issue-page.js";
+import { Openers } from "./openers.js";
+import { detailKey, listKey } from "./panel-keys.js";
+import { MUTATES, carryOut, serve } from "./requests.js";
 import { Setup } from "./setup.js";
+import { Store } from "./store.js";
 
-const HEADER = 42;
+const CLEAR_BUTTON_GLYPH_PX = 13;
+const CLEAR_BUTTON_SIZE_PX = 28;
+const COLUMN_CHARACTER_WIDTH_PX = 7;
+const DEFAULT_PANEL_WIDTH_PX = 368;
+const DETAIL_APPEAR_DELAY_MS = 30;
+const DETAIL_RELEASE_DELAY_MS = SLIDE_MS + 60;
+const DETAIL_SETTLE_DELAY_MS = SLIDE_MS + 40;
+const ICON_BUTTON_GLYPH_PX = 14;
+const ICON_BUTTON_SIZE_PX = 26;
+const ISLAND_HEIGHT_PX = 58;
+const ISLAND_SLIDE_MS = 180;
+const KEYBOARD_RETAKE_DELAYS_MS = [1, 8, 30];
+const KEYBOARD_RETAKE_FINAL_DELAY_MS = 150;
+const LOAD_TIMEOUT_MS = 30_000;
+const NEW_ISSUE_GLYPH_PX = 15;
+const SPINNER_TURN_MS = 900;
 
-// The stored value when it is one of the options, which are [value, label].
+// The stored value when it is the id of one of the options
 /**
  * @template {string} T
  * @param {string} name
- * @param {[T, string][]} options
+ * @param {NamedOption<T>[]} options
  */
-const stored = (name, options) => options.find(([value]) => value === localStorage.getItem(name))?.[0];
-/** @param {any} error */
-const message = (error) => String(error?.message ?? error);
+const stored = (name, options) => options.find(({ id }) => id === localStorage.getItem(name))?.id;
 
-// Whether a lookup found something: as a filter, it tells the checker that what is left was found.
-/**
- * @template T
- * @param {T | undefined} looked
- * @returns {looked is T}
- */
-const found = (looked) => looked !== undefined;
-
-// The stored list of names, or none when nothing readable is stored.
+// The stored list of names, or none when nothing readable is stored
 /** @param {string} name */
 function storedNames(name) {
   try {
@@ -54,8 +66,45 @@ function storedNames(name) {
   }
 }
 
+// How wide the longest of the texts is, in pixels of a style
+/** @param {string[]} texts */
+const widest = (texts) => textWidth(
+  texts.reduce((longest, text) => (text.length > longest.length ? text : longest), ""), COLUMN_CHARACTER_WIDTH_PX);
+
 export class Panel {
-  // `settings` are the person's, from the panel's block in their layout.
+  /** @type {Agent[]} the programs people can start, as Herdr knows them. Asked once: Herdr asks a shell for them */
+  agents = [];
+  again = false;
+  /** @type {string | null} */
+  error = null;
+  /** @type {string | null} what the last change or lookup that failed said, until it is clicked away */
+  failed = null;
+  /** @type {Bounds | undefined} the panel's bounds in the window, as the pointer last told */
+  frame;
+  /** @type {IssuePage | null} */
+  detail = null;
+  /** @type {string | null} */
+  hot = null;
+  /** @type {string | null} */
+  hovered = null;
+  loadAttempt = 0;
+  loadedAt = 0;
+  loading = false;
+  needsKey = false;
+  /** @type {Point | undefined} */
+  pointer;
+  /** @type {Point | undefined} where the last control was pressed */
+  pressedAt;
+  /** @type {Bounds | undefined} */
+  pressedBounds;
+  // The panel keeps its focused look while it takes the keyboard back from a popup
+  retaking = false;
+  spinning = false;
+  spunAt = 0;
+  /** @type {string[]} the issues in the order drawn, for a Shift+click to span: not those of a folded group */
+  visibleIds = [];
+  working = 0;
+
   /**
    * @param {PanelProps} settings
    * @param {Context} cx
@@ -63,100 +112,63 @@ export class Panel {
   constructor(settings, cx) {
     this.settings = settings;
     api.use(settings.api);
-    // The agents people can start, as Herdr knows them. Asked once: Herdr asks a shell for them.
-    /** @type {Agent[]} */
-    this.agents = [];
     cx.spawn(async (cx) => {
-      // Without them, the issue menu offers no Start.
-      this.agents = await knownAgents().catch(() => []);
+      try {
+        this.agents = await knownAgents();
+      } catch (error) {
+        this.failed = `Could not list the agents: ${message(error)}`;
+      }
       cx.notify();
     });
-    this.view = stored("view", VIEWS) ?? VIEWS[0][0];
+    this.view = stored("view", VIEWS) ?? VIEWS[0].id;
     this.display = {
-      by: stored("order", ORDERINGS) ?? "priority",
+      by: stored("order", ORDERINGS) ?? Ordering.PRIORITY,
       reversed: localStorage.getItem("reversed") === "1",
       recency: localStorage.getItem("recency") !== "0",
-      completed: stored("completed", COMPLETED) ?? "week",
+      completed: stored("completed", COMPLETED) ?? Completed.WEEK,
     };
-    // The figure beside each status: its estimate "points", or the "count" of its issues.
     this.totals = localStorage.getItem("totals") === "count" ? "count" : "points";
-    // The statuses whose issues are folded away, by name.
     this.folded = new Set(storedNames("folded"));
-    // The id of the list's small mark under the pointer, or null.
-    /** @type {string | null} */
-    this.hot = null;
-    // The id of the issue whose row is under the pointer, or null.
-    /** @type {string | null} */
-    this.hovered = null;
-    // The ids of the issues in the order last drawn.
-    /** @type {string[]} */
-    this.listed = [];
-    // What the API answered: the issues of each view and whether a view has more than it loaded, the teams of those
-    // issues by id, then `me` (my user id) and `myTeams`.
-    this.issues = Object.fromEntries(VIEWS.map(/** @returns {[string, Issue[]]} */ ([view]) => [view, []]));
-    /** @type {Record<string, boolean>} */
-    this.more = {};
-    /** @type {Map<string, Team>} */
-    this.teams = new Map();
-    this.me = "";
-    // An issue's stays in each status, by issue id, once its status mark was pointed at: null until the API answers.
-    /** @type {Map<string, StatusSpan[] | null>} */
-    this.history = new Map();
-    // The points planned in a cycle to come, by cycle id, once its row's cycle was pointed at: null until the API
-    // answers. `at` is when they were asked.
-    /** @type {Map<string, { points: number | null, at: number }>} */
-    this.planned = new Map();
-    // What an issue's merge requests changed and who reviewed them, by issue id, once its row's merge requests were
-    // pointed at: null until the API answers. `at` is when they were asked.
-    /** @type {Map<string, { details: MergeDetails[] | null, at: number }>} */
-    this.merging = new Map();
+    this.store = new Store();
+    this.openers = new Openers(this);
     this.selection = new Selection();
     this.drag = new Drag();
-    this.hints = new Hints();
+    this.hints = new Hints(() => channel.popups().length > 0);
     this.setup = new Setup();
     this.handle = cx.focus_handle();
-    // How many changes asked of the tracker have not ended yet.
-    this.working = 0;
-    // When the spinner last started; 0 before the first.
-    this.spunAt = 0;
-    // When the last load began; 0 before the first.
-    this.loadedAt = 0;
     channel.reset();
     this.keyboardAt = channel.givenBack();
-    // A request left over from before a restart or reload is not replayed.
-    this.served = channel.pending()?.at;
-    cx.timer.every(RELOAD_EVERY, (cx) => { if (dock.isShown()) this.reload(cx, true); });
+    // A request left over from before a restart or reload is not replayed
+    this.lastServedRequestAt = channel.pending()?.at ?? 0;
+    this.poll(cx);
+    cx.timer.every(RELOAD_EVERY_MS, (cx) => this.poll(cx));
   }
 
-  // Every loaded issue by id: an issue of the current cycle is in both views.
-  index() {
-    return new Map(Object.values(this.issues).flat().map((issue) => [issue.id, issue]));
+  // The first load shows a spinner, a catch-up does not
+  /** @param {Context} cx */
+  poll(cx) {
+    if (!dock.isShown()) return;
+    if (this.loadedAt === 0) this.reload(cx);
+    else this.reloadQuietly(cx);
   }
 
   ticked() {
-    const loaded = this.index();
-    return this.selection.list().map((id) => loaded.get(id)).filter(found);
-  }
-
-  // The teams of these issues, those that are loaded.
-  /** @param {Issue[]} issues */
-  teamsOf(issues) {
-    return [...new Set(issues.map((issue) => issue.team.id))].map((id) => this.teams.get(id)).filter(found);
+    const loaded = this.store.index();
+    return this.selection.list()
+      .flatMap((id) => loaded.get(id) ?? []);
   }
 
   sections() {
-    return groups(this.issues[this.view], this.display);
+    return groups(this.store.issues[this.view], this.display);
   }
 
-  // These issues from the top of the list down, which is the order they are copied in.
   /** @param {Issue[]} issues */
   inListOrder(issues) {
-    const order = this.sections().flatMap((group) => group.issues.map((issue) => issue.id));
-    return [...issues].sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
+    const order = this.sections()
+      .flatMap((group) => group.issues.map((issue) => issue.id));
+    return [...issues].sort((first, second) => order.indexOf(first.id) - order.indexOf(second.id));
   }
 
-  // Work shows as a spinner in the middle of the panel, never as a line above the list, which would push the issues
-  // down and back.
   spin() {
     if (this.spinning) return;
     this.spinning = true;
@@ -164,142 +176,161 @@ export class Panel {
   }
 
   // Stops the spinner once it has shown long enough, unless a load or a change is still under way: a quiet reload
-  // that ends must not hide the spinner of a change that has not.
+  // that ends must not hide the spinner of a change that has not
   /** @param {Context} cx */
   unspin(cx) {
     const idle = () => !this.loading && !this.working;
     if (!idle()) return;
-    const rest = this.spunAt + MIN_SPIN - Date.now();
+    const rest = this.spunAt + MIN_SPIN_MS - Date.now();
     if (rest > 0) cx.timer.after(rest, (cx) => { if (idle()) { this.spinning = false; cx.notify(); } });
     else this.spinning = false;
   }
 
-  // `quiet` is for reloads nobody asked for (the timer): they show no spinner.
-  // This only sets the loading state. A click or a key that asks for a reload must cx.notify() to show it: render()
-  // calls this too, where a notify is not allowed (it left the first load hanging).
+  // A click or a key that asks for a reload must cx.notify() to show the spinner
   /** @param {Context} cx */
-  reload(cx, quiet = false) {
-    if (!quiet) this.spin();
-    // One load at a time: a reload asked for meanwhile runs when this one ends.
+  reload(cx) {
+    this.spin();
+    this.#reload(cx);
+  }
+
+  // For reloads nobody asked for (the timer, the read back of a change under a page): they show no spinner
+  /** @param {Context} cx */
+  reloadQuietly(cx) {
+    this.#reload(cx);
+  }
+
+  // A load that has not answered in time is given up: the host has no way to cancel a request, so its answer, when it
+  // comes, is ignored
+  /** @param {Context} cx */
+  #reload(cx) {
     if (this.loading) { this.again = true; return; }
     this.loading = true;
     this.loadedAt = Date.now();
+    const attempt = ++this.loadAttempt;
+    cx.timer.after(LOAD_TIMEOUT_MS, (cx) => {
+      if (this.loading && attempt === this.loadAttempt) this.endLoad(new Error(`${NAME} did not answer in time`), cx);
+    });
     cx.spawn(async (cx) => {
+      /** @type {unknown} */
+      let failure;
       try {
-        await this.load();
-        this.needsKey = false;
-        this.error = null;
+        await this.load(attempt, cx);
       } catch (error) {
-        this.needsKey = error instanceof api.NoKey;
-        this.error = this.needsKey ? null : message(error);
-      } finally {
-        this.loading = false;
-        if (this.again) { this.again = false; this.reload(cx, true); }
-        else if (this.spinning) this.unspin(cx);
-        cx.notify();
+        failure = error;
       }
+      if (this.loading && attempt === this.loadAttempt) this.endLoad(failure, cx);
     });
   }
 
-  async load() {
+  /**
+   * @param {unknown} failure undefined when the load went well
+   * @param {Context} cx
+   */
+  endLoad(failure, cx) {
+    this.needsKey = failure instanceof api.NoKey;
+    this.error = failure === undefined || this.needsKey ? null : message(failure);
+    this.loading = false;
+    if (this.again) { this.again = false; this.reloadQuietly(cx); }
+    else if (this.spinning) this.unspin(cx);
+    cx.notify();
+  }
+
+  /**
+   * @param {number} attempt
+   * @param {Context} cx
+   */
+  async load(attempt, cx) {
+    const { store } = this;
     const viewer = await api.issues(filters(this.display.completed, Date.now()));
-    this.me = viewer.id;
-    this.myTeams = viewer.teams.nodes;
-    for (const [view] of VIEWS) {
-      this.issues[view] = viewer[view].nodes;
-      this.more[view] = viewer[view].pageInfo.hasNextPage;
-    }
-    const loaded = this.index();
-    // What is known of an issue's stays is out of date once its status has changed.
-    for (const [id,
-      spans] of this.history) if (spans?.at(-1)?.state?.id !== loaded.get(id)?.state.id) this.history.delete(id);
-    // A tick stays only on an issue the view still shows: nothing is done to an issue that cannot be seen.
-    this.selection.keep(new Set(this.issues[this.view].map((issue) => issue.id)));
-    // shortcut: a team's states, estimate scale and cycles are read once, reload the mod after changing them in the
-    // tracker. A cycle created since is missing from the cycle choices until then.
-    const missing = [...new Set([...loaded.values()].map((issue) => issue.team.id))]
-      .filter((id) => !this.teams.has(id));
-    if (missing.length) for (const team of await api.teams(missing)) this.teams.set(team.id, team);
+    if (attempt !== this.loadAttempt) return;
+    store.apply(viewer);
+    this.selection.keep(new Set(store.issues[this.view].map((issue) => issue.id)));
+    this.settle(store.loadProjects(), "the projects", cx);
+    // The issues wait for the teams never seen; the others show with what was kept, and are updated when the answer
+    // comes
+    const unseen = store.unseenTeams(), teams = store.loadTeams();
+    if (!teams) return;
+    if (unseen) return teams;
+    this.settle(teams, "the teams", cx);
+  }
+
+  // Lets what was asked end on its own: a failure is shown, and asked again the next time it is needed
+  /**
+   * @param {Promise<unknown> | undefined} pending
+   * @param {string} what
+   * @param {Context} cx
+   */
+  settle(pending, what, cx) {
+    if (!pending) return;
+    cx.spawn(async (cx) => {
+      try {
+        await pending;
+      } catch (error) {
+        this.failed = `Could not load ${what}: ${message(error)}`;
+      }
+      cx.notify();
+    });
   }
 
   // Takes the keyboard back once a popup opened from the panel has gone (channel.js), unless another popup is still
   // open. Herdr hands the keyboard to the terminal a few milliseconds after a popup closes, whoever had it before:
   // the panel takes it again right after, several times because the moment is not known. It cannot take it here,
-  // while drawing. Meanwhile it keeps its focused look (`retaking`), so its outline does not blink.
+  // while drawing. Meanwhile it keeps its focused look (`retaking`), so its outline does not blink. The first tries
+  // come sooner than `focusSoon` goes, and the last one ends the look
   /** @param {Context} cx */
   retake(cx) {
     const at = channel.givenBack();
     if (!at || at === this.keyboardAt) return;
     this.keyboardAt = at;
     this.retaking = true;
-    const take = () => { if (!channel.popups().length) this.handle.focus(); };
-    for (const wait of [1, 8, 30]) cx.timer.after(wait, take);
-    cx.timer.after(150, (cx) => { take(); this.retaking = false; cx.notify(); });
+    const take = () => { if (!channel.popups().length && !this.detail?.edited) this.handle.focus(); };
+    for (const wait of KEYBOARD_RETAKE_DELAYS_MS) cx.timer.after(wait, take);
+    cx.timer.after(KEYBOARD_RETAKE_FINAL_DELAY_MS, (cx) => { take(); this.retaking = false; cx.notify(); });
   }
 
-  // Called on every render: a request made since the last one is served once.
   /** @param {Context} cx */
   serve(cx) {
-    const request = channel.pending();
-    if (!request || request.at === this.served) return;
-    this.served = request.at;
-    if (request.kind === "display") this.redisplay(request.change, cx);
-    else if (request.kind === "compose") composeIssue(request.team);
-    else this.perform(request, cx);
+    for (const request of channel.requestsAfter(this.lastServedRequestAt)) {
+      this.lastServedRequestAt = request.at;
+      serve(this, request, cx);
+    }
   }
 
   /**
-   * @param {Work & { ids: string[] }} request
+   * @param {import("./requests.js").Performed} request
    * @param {Context} cx
+   * @param {() => void} [undo] runs when the tracker refuses the change
    */
-  perform(request, cx) {
-    const loaded = this.index(), targets = request.ids.map((id) => loaded.get(id)).filter(found);
+  perform(request, cx, undo) {
+    const loaded = this.store.index(), page = this.detail?.issue;
+    const targets = request.ids.flatMap((id) => loaded.get(id) ?? (page?.id === id ? page : []));
     if (!targets.length) return;
     const name = targets.length === 1 ? targets[0].identifier : `${targets.length} issues`;
-    // Copying an issue or opening its page changes nothing in the tracker: no spinner, no reload.
-    const changes = request.kind !== "copy" && request.kind !== "open";
+    const changes = MUTATES[request.kind];
+    // With a page open, the list is out of sight: the change is read back quietly
+    const quiet = Boolean(this.detail);
     if (changes) {
-      this.spin();
+      if (!quiet) this.spin();
       this.working++;
     }
     this.failed = null;
     cx.spawn(async (cx) => {
       try {
-        await this.carryOut(request, targets, cx);
+        await carryOut(this, request, targets, cx);
       } catch (error) {
         this.failed = `${name}: ${message(error)}`;
+        undo?.();
       } finally {
         if (changes) {
           this.working--;
-          this.reload(cx);
+          if (quiet) this.reloadQuietly(cx);
+          else this.reload(cx);
         }
         cx.notify();
       }
     });
   }
 
-  /**
-   * @param {Work} request
-   * @param {Issue[]} targets
-   * @param {Context} cx
-   */
-  async carryOut(request, targets, cx) {
-    const [issue] = targets;
-    if (request.kind === "start") {
-      // The settings give the base of the agent's first message as a text, or as its lines.
-      const base = [this.settings.start_prompt ?? []].flat().join("\n");
-      return start(issue, request.text, this.teams.get(issue.team.id)?.states ?? [], { agent: this.agent(), base });
-    }
-    if (request.kind === "copy") return copy(this.inListOrder(targets), request.what, cx);
-    if (request.kind === "open") return openPage(issue.url);
-    if (request.kind === "status") {
-      for (const [stateId, ids] of moves(targets, this.teams, request.name)) await api.update(ids, { stateId });
-      return;
-    }
-    await api.update(targets.map((target) => target.id), request.input);
-  }
-
-  // A display option changed in its popup. Which finished issues show is the API's to filter, so that one reloads.
   /**
    * @param {Partial<Display>} change
    * @param {Context} cx
@@ -326,124 +357,20 @@ export class Panel {
     cx.notify();
   }
 
-  // A new issue is written in the tracker: this only picks the team, among those I belong to, and skips the question
-  // when I belong to only one.
-  compose() {
-    const teams = [...(this.myTeams ?? [])].sort((a, b) => (a.key < b.key ? -1 : 1));
-    if (teams.length === 1) composeIssue(teams[0]);
-    else if (teams.length) openTeamPicker(teams);
-  }
-
-  // The display options open under the header, by the panel's right edge: a key opens them too, wherever the pointer
-  // is.
-  displayOptions() {
-    const frame = this.frame, scale = zoom();
-    const corner = frame && { x: frame.x + frame.width - 8 * scale, y: frame.y + (HEADER + 4) * scale };
-    openDisplayOptions(this.display, corner && { point: corner, frame });
-  }
-
-  /** @param {Page} page */
-  commands(page = "actions") {
-    const targets = this.ticked(), teams = this.teamsOf(targets);
-    if (!targets.length || !teams.length) return;
-    // Straight to a property these issues cannot be given together (an estimate, for a team without one): nothing.
-    if (page !== "actions" && !changeable(teams).includes(page)) return;
-    openCommands(targets, teams, page, this.me);
-  }
-
-  // One property's choices for the issue under the pointer, where the pointer is. Nothing when the property has none
-  // (a team that does not estimate).
-  /**
-   * @param {Issue} issue
-   * @param {Property} page
-   */
-  choose(issue, page) {
-    this.offer(issue, page, this.pointer, false);
-  }
-
-  // One property's choices from a control of the issue's own row, where it was pressed (`at`, for a right-click).
-  /**
-   * @param {Issue} issue
-   * @param {Property} page
-   * @param {Point | undefined} [at]
-   */
-  pick(issue, page, at = this.pressedAt) {
-    this.offer(issue, page, at, true);
-  }
-
-  // `bare` leaves out the chip naming the issue.
-  /**
-   * @param {Issue} issue
-   * @param {Property} page
-   * @param {Point | undefined} point
-   * @param {boolean} bare
-   */
-  offer(issue, page, point, bare) {
-    const teams = this.teamsOf([issue]);
-    if (changeable(teams).includes(page)) openChoices([issue], teams, page, this.me, { point, frame: this.frame },
-      { bare });
-  }
-
-  // The menu of the issue right-clicked. On one of several ticked issues, it is about all of them.
-  /**
-   * @param {Issue} issue
-   * @param {Point} at
-   */
-  openMenu(issue, at) {
-    this.handle.focus();
-    const together = this.selection.size > 1 && this.selection.has(issue.id);
-    const issues = together ? this.inListOrder(this.ticked()) : [issue];
-    openIssueMenu(issues, this.teamsOf(issues), this.me, { point: at, frame: this.frame }, this.agent()?.name ?? null);
-  }
-
-  // The agent Start runs (lib/start.js), or null while Herdr has not told its agents, or has none.
   agent() {
     return pickAgent(this.agents, this.settings.agent);
   }
 
-  // Keys while the panel has the keyboard, which a press in it gives. lib/keys.js says what each one asks for.
   /**
-   * @param {KeyEvent} e
+   * @param {KeyEvent} event
    * @param {Context} cx
    */
-  key(e, cx) {
+  key(event, cx) {
     if (this.needsKey) return;
-    // The issue under the pointer, if the list still shows it: a row that went away is not told the pointer left.
-    const ticked = this.selection.size > 0, hovered = this.hovered;
-    const under = hovered !== null && this.listed.includes(hovered) ? this.index().get(hovered) : null;
-    // A copy shortcut acts on the ticked issues, else on the issue under the pointer, as the property keys do.
-    const copied = ticked ? this.selection.list() : under ? [under.id] : [];
-    const asked = panelKey(e,
-      { mac: isMac(), views: VIEWS.length, ticked, pointed: Boolean(under), aimed: copied.length > 0 });
-    if (!asked) return;
-    // An issue's own keys (choose, tick, unassign with nothing ticked) are asked for only when one is `pointed`.
-    const pointed = /** @type {Issue} */ (under);
-    switch (asked.do) {
-      case "commands": this.commands(asked.page); break;
-      // Not every entry is offered for several issues.
-      case "copy":
-        if (copiesFor(copied.length)
-          .some((entry) => entry.what === asked.what)) this.perform({ kind: "copy", ids: copied, what: asked.what },
-          cx);
-        break;
-      case "compose": this.compose(); break;
-      case "reload": this.reload(cx); break;
-      case "display": this.displayOptions(); break;
-      case "view": this.show(VIEWS[asked.nth][0], cx); break;
-      case "choose": this.choose(pointed, asked.page); break;
-      case "unassign":
-        this.perform({ kind: "update", ids: ticked ? this.selection.list() : [pointed.id],
-          input: { assigneeId: null } }, cx);
-        break;
-      case "untick": this.selection.clear(); break;
-      case "tick": this.tick(pointed, asked.extend, cx); break;
-    }
-    cx.stop_propagation();
-    // Whatever the key started shows now (the spinner of a change, the cleared ticks).
-    cx.notify();
+    if (this.detail) detailKey(this, this.detail, event, cx);
+    else listKey(this, event, cx);
   }
 
-  // The pointer came on an issue's row, or left it. The row's box shows meanwhile.
   /**
    * @param {Issue} issue
    * @param {boolean} on
@@ -452,7 +379,6 @@ export class Panel {
   hover(issue, on, cx) {
     const hovered = on ? issue.id : this.hovered === issue.id ? null : this.hovered;
     if (hovered === this.hovered) return;
-    /** @type {string | null} */
     this.hovered = hovered;
     cx.notify();
   }
@@ -463,11 +389,10 @@ export class Panel {
    * @param {Context} cx
    */
   tick(issue, extend, cx) {
-    this.selection.click(issue.id, extend, this.listed);
+    this.selection.click(issue.id, extend, this.visibleIds);
     cx.notify();
   }
 
-  // The pointer came on one of the list's small marks, or left it (parts/issue-list.js). That mark brightens.
   /**
    * @param {string} id
    * @param {boolean} on
@@ -480,73 +405,44 @@ export class Panel {
     cx.notify();
   }
 
-  // Asks the tracker for an issue's stays in each status, once: the tooltip of its status mark tells them.
+  // The tooltip of an issue's status mark tells its stays in each status
   /**
    * @param {Issue} issue
    * @param {Context} cx
    */
-  recall(issue, cx) {
-    if (this.history.has(issue.id)) return;
-    this.history.set(issue.id, null);
-    cx.spawn(async (cx) => {
-      try {
-        this.history.set(issue.id, await api.stateHistory(issue.id));
-      } catch {
-        // The tooltip goes without them, and they are asked for again the next time.
-        this.history.delete(issue.id);
-      }
-      cx.notify();
-    });
+  loadStatusHistory(issue, cx) {
+    this.settle(this.store.loadStatusHistory(issue), "the status history", cx);
   }
 
-  // Asks the tracker for the points planned in a cycle to come: the tooltip of a row's cycle tells them. Asked again
-  // after a load, since issues come and go; meanwhile the tooltip keeps the last answer.
+  // The tooltip of a row's cycle tells the points planned in a cycle to come
   /**
    * @param {Cycle} cycle
    * @param {Context} cx
    */
-  plan(cycle, cx) {
-    const known = this.planned.get(cycle.id);
-    if (known && known.at >= this.loadedAt) return;
-    const at = Date.now();
-    this.planned.set(cycle.id, { points: known?.points ?? null, at });
-    cx.spawn(async (cx) => {
-      try {
-        this.planned.set(cycle.id, { points: points(await api.planned(cycle.id), this.teams), at });
-      } catch {
-        // The tooltip goes without them, and they are asked for again the next time.
-        this.planned.delete(cycle.id);
-      }
-      cx.notify();
-    });
+  loadPlannedPoints(cycle, cx) {
+    this.settle(this.store.loadPlannedPoints(cycle, this.loadedAt), "the planned points", cx);
   }
 
-  // Asks the tracker for what an issue's merge requests changed and who reviewed them: the tooltip of its row's merge
-  // requests tells it. Asked again after a load, as the points of a cycle to come are.
+  // The tooltip of a row's merge requests tells what they changed and who reviewed them
   /**
    * @param {Issue} issue
    * @param {Context} cx
    */
-  inspect(issue, cx) {
-    const known = this.merging.get(issue.id);
-    if (known && known.at >= this.loadedAt) return;
-    const at = Date.now(), list = merges(issue), urls = new Set(list.map((merge) => merge.url));
-    this.merging.set(issue.id, { details: known?.details ?? null, at });
-    cx.spawn(async (cx) => {
-      try {
-        const found = await api.mergeDetails(list.map((merge) => merge.number),
-          [...new Set(list.map((merge) => merge.repoName))]);
-        // Merge requests of other repositories can share a number: only the issue's own count.
-        this.merging.set(issue.id, { details: found.filter((details) => urls.has(details.url)), at });
-      } catch {
-        // The tooltip goes without them, and they are asked for again the next time.
-        this.merging.delete(issue.id);
-      }
-      cx.notify();
-    });
+  loadMergeDetails(issue, cx) {
+    this.settle(this.store.loadMergeDetails(issue, this.loadedAt), "the merge request details", cx);
   }
 
-  // Folds a group away, or shows its issues again. Remembered.
+  // Answers whether it asked: the labels are not there for a picker until the answer comes
+  /**
+   * @param {string} team
+   * @param {Context} cx
+   */
+  loadLabels(team, cx) {
+    const pending = this.store.loadLabels(team);
+    this.settle(pending, "the labels", cx);
+    return pending !== undefined;
+  }
+
   /**
    * @param {Group} group
    * @param {Context} cx
@@ -555,7 +451,6 @@ export class Panel {
     const name = group.state.name;
     if (!this.folded.delete(name)) {
       this.folded.add(name);
-      // Its issues are no longer seen: they are unticked.
       this.selection.untick(group.issues.map((issue) => issue.id));
     }
     localStorage.setItem("folded", JSON.stringify([...this.folded]));
@@ -570,16 +465,23 @@ export class Panel {
   }
 
   // Makes an element of a row or a heading a control of its own: a press on it gives the panel the keyboard, is not
-  // the start of a drag, and ends one left hanging by a release outside the panel. `action(cx, e)` runs on a click.
+  // the start of a drag, and ends one left hanging by a release outside the panel. `action(cx, event)` runs on a click
   /**
-   * @param {NativeElement} el
-   * @param {(cx: Context, e: ClickEvent) => void} action
+   * @param {NativeElement} element
+   * @param {(cx: Context, event: ClickEvent) => void} action
    */
-  control(el, action) {
-    return el
+  control(element, action) {
+    return element
       .on_mouse_down("left",
-        (e, cx) => { cx.stop_propagation(); this.handle.focus(); this.drag.cancel(); this.pressedAt = e.position; })
-      .on_click((e, cx) => { cx.stop_propagation(); action(cx, e); });
+        (event, cx) => {
+          cx.stop_propagation();
+          this.hints.press(cx);
+          this.handle.focus();
+          this.drag.cancel();
+          this.pressedAt = event.position;
+          this.pressedBounds = event.bounds;
+        })
+      .on_click((event, cx) => { cx.stop_propagation(); action(cx, event); });
   }
 
   /**
@@ -588,107 +490,288 @@ export class Panel {
    */
   aim(group, cx) {
     if (this.drag.pressed === null) return;
-    const own = this.index().get(this.drag.pressed)?.state.name === group.state.name;
+    const own = this.store.index()
+      .get(this.drag.pressed)?.state.name === group.state.name;
     if (this.drag.aim(group.state.name, own)) cx.notify();
   }
 
   // A release on a row. Where the press began, before the pointer carried anything, it ends a click, which opens the
-  // issue. Otherwise it is a drop.
+  // issue's page in the panel, or with the command key held, in the tracker. Otherwise it is a drop
   /**
    * @param {Issue} issue
    * @param {Group} group
    * @param {Context} cx
+   * @param {MouseButtonEvent} event
    */
-  release(issue, group, cx) {
+  release(issue, group, cx, event) {
     if (!this.drag.clicked(issue.id)) return this.drop(group, cx);
-    // A click moves nothing, whatever is ticked.
     this.drag.cancel();
-    openPage(issue.url);
+    if (commandDown(event.modifiers, isMac())) openPage(issue.url);
+    else this.openDetail(issue, cx);
   }
 
-  // Moves the dragged issue to the group's status, and with it every ticked issue when it is one of them.
+  // Slides the issue's page in from the right: it is drawn first at the panel's edge, and a moment later where it
+  // stays, which is what the page's transition animates
+  /**
+   * @param {Issue} issue
+   * @param {Context} cx
+   */
+  openDetail(issue, cx) {
+    this.hints.clear();
+    const page = new IssuePage(this, issue, cx);
+    this.detail = page;
+    this.loadLabels(issue.team.id, cx);
+    cx.notify();
+    cx.timer.after(DETAIL_APPEAR_DELAY_MS, (cx) => {
+      if (this.detail !== page) return;
+      page.shown = true;
+      cx.notify();
+      cx.timer.after(DETAIL_SETTLE_DELAY_MS, (cx) => {
+        if (this.detail !== page || !page.shown) return;
+        page.settled = true;
+        this.hovered = this.hot = null;
+        cx.notify();
+      });
+    });
+  }
+
+  /** @param {Context} cx */
+  closeDetail(cx) {
+    const page = this.detail;
+    if (!page?.shown) return;
+    page.shown = false;
+    page.settled = false;
+    this.hints.clear();
+    cx.notify();
+    cx.timer.after(DETAIL_RELEASE_DELAY_MS, (cx) => {
+      if (this.detail !== page || page.shown) return;
+      page.release();
+      this.detail = null;
+      cx.notify();
+    });
+  }
+
+  /**
+   * @param {Extract<Work, { kind: "comment" }>} request
+   * @param {Context} cx
+   */
+  changeComment({ change, comment, extra }, cx) {
+    const page = this.detail;
+    if (!page) return;
+    if (change === "start-edit") {
+      return cx.timer.after(0, (cx) => {
+        try {
+          this.hints.clear();
+          page.startEdit(comment, cx);
+        } catch (error) {
+          this.failed = `${page.issue.identifier}: ${message(error)}`;
+          cx.notify();
+        }
+      });
+    }
+    this.trackedWork(() => api.changeComment(change, comment, extra), page.issue, cx, (cx) => page.load(cx));
+  }
+
+  // Work of the page that is not an update (a comment): with the spinner, like a change. `then` runs once it is done
+  /**
+   * @param {() => Promise<unknown>} task
+   * @param {Issue} issue
+   * @param {Context} cx
+   * @param {(cx: Context) => void} then
+   */
+  trackedWork(task, issue, cx, then) {
+    this.spin();
+    this.working++;
+    this.failed = null;
+    cx.spawn(async (cx) => {
+      try {
+        await task();
+        then(cx);
+      } catch (error) {
+        this.failed = `${issue.identifier}: ${message(error)}`;
+      } finally {
+        this.working--;
+        this.unspin(cx);
+        cx.notify();
+      }
+    });
+  }
+
   /**
    * @param {Group} group
    * @param {Context} cx
    */
   drop(group, cx) {
-    const pressed = this.drag.drop(), loaded = this.index();
+    const pressed = this.drag.drop(), loaded = this.store.index();
     cx.notify();
     if (pressed === null) return;
     const dragged = this.selection.has(pressed) ? this.selection.list() : [pressed];
     const ids = dragged.filter((id) => loaded.get(id)?.state.name !== group.state.name);
-    if (ids.length) this.perform({ kind: "status", ids, name: group.state.name }, cx);
+    if (ids.length) this.perform({ kind: RequestKind.STATUS, ids, name: group.state.name }, cx);
+  }
+
+  // A round button with an icon, a tooltip and a click: only the icon goes brighter under the pointer, not the circle
+  // around it. A hover style does not recolor an icon, which takes its color when it is described: the panel notes
+  // which button is under the pointer (`hot`). `ring` false leaves the circle without a border
+  /**
+   * @param {Theme} t
+   * @param {{ id: string, name: string, label: string, action: (cx: Context) => void, caps?: string[],
+   *   glyph?: number, size?: number, ring?: boolean, side?: Tip["side"] }} button
+   */
+  iconButton(t, { id, name, label, action, caps = [], glyph = ICON_BUTTON_GLYPH_PX,
+    size = ICON_BUTTON_SIZE_PX, ring = true, side }) {
+    const circle = roundButton(id, size)
+      .when(ring, (element) => element.border_1()
+        .border_color(t.border));
+    return this.control(this.hints.on(circle, label, { caps, side, key: id, hover: (on, cx) => this.heat(id, on, cx) }),
+      action)
+      .child(svg(icon(name))
+        .size(glyph)
+        .text_color(lit(t, this.hot === id)));
+  }
+
+  /** @param {Theme} t */
+  reloadButton(t) {
+    return this.iconButton(t, { id: "reload", label: "Reload", caps: ["R"], name: "refresh",
+      action: (cx) => { this.reload(cx); cx.notify(); } });
+  }
+
+  /** @param {Theme} t */
+  header(t) {
+    const home = div()
+      .id("home")
+      .h(28)
+      .px(8)
+      .gap(6)
+      .flex_none()
+      .flex()
+      .items_center()
+      .rounded(14)
+      .cursor_pointer()
+      .font_semibold()
+      .hover((style) => style.bg(t.hover))
+      .on_click(() => { openApp(); });
+    return h_flex()
+      .h(HEADER_HEIGHT_PX)
+      .flex_none()
+      .pl(8)
+      .pr(14)
+      .gap(8)
+      .items_center()
+      .border_b(1)
+      .border_color(t.border)
+      .child(this.hints.on(home, `Open ${NAME}`)
+        .child(image(logo(isDark(t.background)))
+          .size(14)
+          .flex_none())
+        .child(NAME))
+      .child(div()
+        .flex_1())
+      .when(this.needsKey, (element) => element
+        .child(this.reloadButton(t)));
+  }
+
+  // A click on the pill cannot reach a row behind it: it has its own strip under the list. The strip is always there,
+  // flat while nothing is ticked: its height is what Herdr animates, and the pill, hung from its top, rises from below
+  /** @param {Theme} t */
+  island(t) {
+    const strip = h_flex()
+      .id("island")
+      .flex_none()
+      .h(this.selection.size > 0 ? ISLAND_HEIGHT_PX : 0)
+      .overflow_hidden()
+      .items_start()
+      .justify_center()
+      .transition("height", { duration: ISLAND_SLIDE_MS, easing: "ease-out" });
+    if (!this.selection.size) return strip;
+    const targets = this.ticked(), total = points(targets, this.store.teams);
+    const actions = h_flex()
+      .id("actions")
+      .h(28)
+      .px(11)
+      .gap(6)
+      .flex_none()
+      .items_center()
+      .rounded(14)
+      .cursor_pointer()
+      .bg(t.raised)
+      .border_1()
+      .border_color(t.border)
+      .text_color(t.foreground)
+      .hover((style) => style.bg(t.hover))
+      .on_click(() => this.openers.commands());
+    const untick = this.iconButton(t, { id: "untick", name: "close", label: "Clear selected", caps: ["Esc"],
+      glyph: CLEAR_BUTTON_GLYPH_PX, size: CLEAR_BUTTON_SIZE_PX, ring: false, side: "above",
+      action: (cx) => { this.selection.clear(); this.hints.clear(); cx.notify(); } });
+    return strip
+      .child(h_flex()
+        .h(42)
+        .mt(8)
+        .pl(16)
+        .pr(7)
+        .gap(10)
+        .items_center()
+        .rounded(21)
+        .bg(t.popover)
+        .border_1()
+        .border_color(t.border)
+        .shadow_md()
+        .text_size(12.5)
+        .child(div()
+          .flex_none()
+          .text_color(t.foreground)
+          .child(`${targets.length} selected`))
+        .when(total > 0, (element) => element
+          .child(div()
+            .text_color(t.dim)
+            .child("·"))
+          .child(h_flex()
+            .flex_none()
+            .gap(3)
+            .items_center()
+            .text_color(t.muted)
+            .child(svg(icon("estimate"))
+              .size(13))
+            .child(String(total))))
+        .child(this.hints.on(actions, "Open command menu", { caps: chordCaps(["K"]), side: "above" })
+          .child(svg(icon("command"))
+            .size(13))
+          .child("Actions"))
+        .child(untick));
   }
 
   /**
    * @param {Theme} t
-   * @param {number} count
+   * @param {IssuePage} page
    */
-  header(t, count) {
-    /**
-     * @param {string} id
-     * @param {string} label
-     * @param {string[]} caps
-     * @param {string} name
-     * @param {number} size
-     * @param {OnClick} action
-     */
-    const round = (id, label, caps, name, size, action) => this.hints.on(
-      div().id(id).size(26).flex_none().flex().items_center().justify_center().rounded(13).cursor_pointer()
-        .border_1().border_color(t.border).text_color(t.muted)
-        .hover((s) => s.bg(t.hover).text_color(t.foreground))
-        .on_click(action),
-      label, { caps }).child(svg(icon(name)).size(size));
-    const home = div().id("home").h(28).px(6).gap(6).flex_none().flex().items_center().rounded(6).cursor_pointer()
-      .font_semibold()
-      .hover((s) => s.bg(t.hover))
-      .on_click(() => { openApp(); });
-    const badge = div().px(5).py(1).rounded(4).border_1().border_color(t.border).text_size(10).text_color(t.muted)
-      .child(`${count}${this.more[this.view] ? "+" : ""} ${count === 1 && !this.more[this.view] ? "issue" : "issues"}`);
-    return h_flex().h(HEADER).flex_none().pl(8).pr(14).gap(8).items_center().border_b(1).border_color(t.border)
-      // The tracker's logo, as a picture in its own color, then its name.
-      .child(this.hints.on(home, `Open ${NAME}`)
-        .child(image(logo(isDark(t.background))).size(14).flex_none())
-        .child(NAME))
-      .when(!this.needsKey, (el) => el.child(badge))
-      .child(div().flex_1())
-      .when(!this.needsKey, (el) => el
-        .child(round("new-issue", "Create new issue", ["C"], "create", 15, () => this.compose()))
-        .child(round("display-options", "Show display options", ["⇧", "V"], "display", 14,
-          () => this.displayOptions())))
-      .child(round("reload", "Reload", ["R"], "refresh", 14, (_e, cx) => { this.reload(cx); cx.notify(); }));
+  page(t, page) {
+    const width = this.frame ? this.frame.width / zoom() : DEFAULT_PANEL_WIDTH_PX;
+    const issue = this.store.index()
+      .get(page.issue.id) ?? page.issue;
+    return page.render(t, issue, width, (cx) => this.closeDetail(cx));
   }
 
-  // A click on the pill cannot reach a row behind it: it has its own strip under the list. The strip is always there,
-  // flat while nothing is ticked: its height is what Herdr animates, and the pill, hung from its top, rises from below.
-  /** @param {Theme} t */
-  island(t) {
-    const strip = h_flex().id("island").flex_none().h(this.selection.size > 0 ? 58 : 0).overflow_hidden().items_start()
-      .justify_center()
-      .transition("height", { duration: 180, easing: "ease-out" });
-    if (!this.selection.size) return strip;
-    const targets = this.ticked(), total = points(targets, this.teams);
-    const actions = h_flex().id("actions").h(28).px(11).gap(6).flex_none().items_center().rounded(14).cursor_pointer()
-      .bg(t.raised).border_1().border_color(t.border).text_color(t.foreground)
-      .hover((s) => s.bg(t.hover))
-      .on_click(() => this.commands());
-    const untick = div().id("untick").size(28).flex_none().flex().items_center().justify_center().rounded(14)
+  // The total of the view, in the mode the groups' totals are in: the number of issues, or their estimates. Like
+  // theirs, it brightens under the pointer, and a click switches the mode of all of them
+  /**
+   * @param {Theme} t
+   * @param {Issue[]} issues
+   */
+  totalButton(t, issues) {
+    const counting = this.totals === "count", cut = this.store.more[this.view];
+    return this.control(warming(this, h_flex()
+      .h(22)
+      .px(5)
+      .flex_none()
+      .gap(3)
+      .items_center()
+      .rounded(5)
       .cursor_pointer()
-      .text_color(t.muted)
-      .hover((s) => s.bg(t.hover).text_color(t.foreground))
-      .on_click((_e, cx) => { this.selection.clear(); this.hints.clear(); cx.notify(); });
-    return strip
-      .child(h_flex().h(42).mt(8).pl(16).pr(7).gap(10).items_center().rounded(21)
-        .bg(t.popover).border_1().border_color(t.border).shadow_md().text_size(12.5)
-        .child(div().flex_none().text_color(t.foreground).child(`${targets.length} selected`))
-        .when(total > 0, (el) => el
-          .child(div().text_color(t.dim).child("·"))
-          .child(h_flex().flex_none().gap(3).items_center().text_color(t.muted).child(svg(icon("estimate")).size(13))
-            .child(String(total))))
-        .child(this.hints.on(actions, "Open command menu", { caps: chordCaps(["K"]), side: "above" })
-          .child(svg(icon("command")).size(13)).child("Actions"))
-        .child(this.hints.on(untick, "Clear selected", { caps: ["Esc"], side: "above" })
-          .child(svg(icon("close")).size(13))));
+      .text_size(12), "total-view", t.muted, t.foreground), (cx) => this.switchTotals(cx))
+      .when(!counting, (element) => element.child(svg(icon("estimate"))
+        .size(14)))
+      .child(counting ? `${issues.length}${cut ? "+" : ""} ${issues.length === 1 && !cut ? "issue" : "issues"}`
+      : String(points(issues, this.store.teams)));
   }
 
   /**
@@ -697,45 +780,56 @@ export class Panel {
    */
   render(t, cx) {
     this.hints.begin();
+    // A popup open over the panel takes the pointer: no tooltip stays up or comes up meanwhile, since the control it
+    // hangs from is never told the pointer left
+    if (channel.popups().length) this.hints.clear();
     this.serve(cx);
     this.retake(cx);
-    // The panel shown again after a while. Its very first load shows a spinner, a catch-up does not.
-    if (dock.isShown() && Date.now() - this.loadedAt > RELOAD_EVERY) this.reload(cx, this.loadedAt !== 0);
-    const issues = this.issues[this.view], sections = this.sections();
-    // The issues in the order drawn, for a Shift+click to span: not those of a folded group, which are not drawn.
-    this.listed = sections.filter((group) => !this.folded.has(group.state.name))
+    // A page that has slid in covers the list, which is then not drawn: it would still answer the pointer
+    const covered = Boolean(this.detail?.settled);
+    const { store } = this, issues = store.issues[this.view], sections = this.sections();
+    this.visibleIds = sections.filter((group) => !this.folded.has(group.state.name))
       .flatMap((group) => group.issues.map((issue) => issue.id));
     const look = {
       t,
-      // One column for every identifier, as wide as the longest (about 7 px a character at this size), so the status
-      // marks line up.
-      identifierWidth: Math.max(0, ...issues.map((issue) => issue.identifier.length)) * 7,
-      // The same for the estimates, so their triangles line up whatever the digits beside them. Triangle and figure are
-      // each centered in a column of their own.
-      estimateWidth: Math.max(0,
-        ...issues.map((issue) => (estimateLabel(this.teams.get(issue.team.id), issue.estimate) ?? "").length)) * 7,
+      identifierWidth: widest(issues.map((issue) => issue.identifier)),
+      estimateWidth: widest(issues.map((issue) => estimateLabel(store.teams.get(issue.team.id), issue.estimate) ?? "")),
       lit: channel.lit(),
     };
-    const cycles = [...new Set(this.issues.cycle.flatMap(({ cycle }) =>
-      (cycle ? [`${cycle.name ?? `Cycle ${cycle.number}`} · ends ${cycle.endsAt.slice(0, 10)}`] : [])))];
-    const empty = this.loading ? "Loading issues…" : this.view === "cycle" ? "No issues in the current cycle"
+    const empty = this.loading ? "Loading issues…" : this.view === ViewKey.CYCLE ? "No issues in the current cycle"
       : "No assigned issues";
     /**
      * @param {string} text
      * @param {Color} color
      */
-    const note = (text, color) => div().flex_none().px(16).pt(6).text_size(11).text_color(color).child(text);
+    const note = (text, color) => div()
+      .flex_none()
+      .px(16)
+      .text_size(11)
+      .text_color(color)
+      .child(text);
     /**
-     * @param {[ViewKey, string]} entry
+     * @param {typeof VIEWS[number]} entry
      * @param {number} nth
      */
-    const pill = ([view, label], nth) => this.hints.on(
-      h_flex().id(`view-${view}`).h(28).px(9).gap(6).flex_none().items_center().rounded(6).cursor_pointer()
+    const pill = ({ id: view, label, icon: name }, nth) => this.hints.on(
+      h_flex()
+        .id(`view-${view}`)
+        .h(28)
+        .px(11)
+        .gap(6)
+        .flex_none()
+        .items_center()
+        .rounded(7)
+        .cursor_pointer()
         .text_size(13)
-        .bg(this.view === view ? t.selected : t.background).text_color(this.view === view ? t.foreground : t.muted)
-        .hover((s) => s.bg(t.hover))
+        .bg(this.view === view ? t.selected : t.background)
+        .text_color(this.view === view ? t.foreground : t.muted)
+        .when(this.view !== view, (element) => element.hover((style) => style.bg(t.hover)))
         .on_click((_e, cx) => this.show(view, cx))
-        .child(svg(icon(`view-${view}`)).size(14).flex_none())
+        .child(svg(icon(name))
+          .size(14)
+          .flex_none())
         .child(label),
       label, { caps: [String(nth + 1)] });
     /**
@@ -743,51 +837,106 @@ export class Panel {
      * @param {Context} cx
      */
     const endDrag = (_e, cx) => { if (this.drag.cancel()) cx.notify(); };
-    return v_flex().id("issues-panel").relative().track_focus(this.handle)
-      // With the keyboard, the panel is outlined like a focused pane.
-      .focus((s) => s.border_color(t.accent))
-      .on_key_down((e, cx) => this.key(e, cx))
-      .size_full().min_h(0).rounded(10).overflow_hidden()
-      .bg(t.background).border_1().border_color(t.border).text_color(t.foreground).text_size(13)
+    return v_flex()
+      .id("issues-panel")
+      .relative()
+      .track_focus(this.handle)
+      .focus((style) => style.border_color(t.accent))
+      .on_key_down((event, cx) => { this.hints.keys(event.modifiers, event.key, cx); this.key(event, cx); })
+      .on_key_up((event, cx) => this.hints.keys(event.modifiers, null, cx))
+      .on_modifiers_changed((event, cx) => this.hints.keys(event.modifiers, null, cx))
+      .size_full()
+      .min_h(0)
+      .rounded(10)
+      .overflow_hidden()
+      .bg(t.background)
+      .border_1()
+      .border_color(t.border)
+      .text_color(t.foreground)
+      .text_size(13)
       // A popup opened from the panel has the keyboard for a moment: the panel keeps its focused look meanwhile, and
-      // while it takes the keyboard back.
-      .when(channel.popups().length > 0 || Boolean(this.retaking), (el) => el.border_color(t.accent))
-      // Rows and headings handle the releases that drop. Whatever reaches here ends the drag with nothing moved:
-      // a release off the groups, a press outside the panel.
+      // while it takes the keyboard back
+      .when(channel.popups().length > 0 || this.retaking, (element) => element.border_color(t.accent))
       .on_mouse_up("left", endDrag)
       .on_mouse_down_out(endDrag)
-      // Any press in the panel gives it the keyboard. The handlers that stop a press before it gets here (a row's
-      // controls, a heading's figure, a right-click) focus it themselves.
       .on_mouse_down("left", () => { this.handle.focus(); this.drag.settle(); })
       .on_mouse_down("right", () => this.handle.focus())
-      .on_mouse_move((e, cx) => {
-        this.frame = e.bounds;
-        this.pointer = e.position;
-        if (this.drag.follow(e.position, e.local_position)) cx.notify();
+      .on_mouse_move((event, cx) => {
+        this.frame = event.bounds;
+        this.pointer = event.position;
+        if (this.drag.follow(event.position, event.local_position)) cx.notify();
       })
-      .child(this.header(t, issues.length))
-      .when(Boolean(this.needsKey), (el) => el.child(this.setup.render(t)))
-      .when(!this.needsKey, (el) => el
-        .child(h_flex().flex_none().px(8).pt(8).gap(4).items_center().children(VIEWS.map(pill)))
-        .when(this.view === "cycle" && cycles.length === 1, (el) => el.child(note(cycles[0], t.dim)))
+      .when(this.needsKey, (element) => element.child(this.header(t)))
+      .when(this.needsKey, (element) => element.child(this.setup.render(t)))
+      .when(!this.needsKey && !covered, (element) => element
+        .child(h_flex()
+          .flex_none()
+          .px(8)
+          .pt(8)
+          .pb(6)
+          .gap(4)
+          .items_center()
+          .children(VIEWS.map(pill))
+          .child(div()
+            .flex_1())
+          .child(this.iconButton(t, { id: "new-issue", label: "Create new issue", caps: ["C"], name: "create",
+            glyph: NEW_ISSUE_GLYPH_PX, action: () => this.openers.compose() }))
+          .child(this.iconButton(t, { id: "display-options", label: "Show display options", caps: ["⇧", "V"],
+            name: "display", action: () => this.openers.displayOptions() }))
+          .child(this.reloadButton(t)))
+        .child(h_flex()
+          .flex_none()
+          .px(11)
+          .items_center()
+          .child(this.totalButton(t, issues)))
         .children(this.error ? [note(this.error, t.ansi1)] : [])
-        .children(this.failed ? [note(this.failed, t.ansi1).id("failed").cursor_pointer()
+        .children(this.failed ? [note(this.failed, t.ansi1)
+          .id("failed")
+          .cursor_pointer()
           .on_click((_e, cx) => { this.failed = null; cx.notify(); })] : [])
-        .child(v_flex().id("issues").flex_1().min_h(0).overflow_y_scrollbar().p(6)
+        .child(v_flex()
+          .id("issues")
+          .flex_1()
+          .min_h(0)
+          .overflow_y_scrollbar()
+          .px(6)
+          .pb(6)
           .children(sections.map((group) => section(this, group, look)))
-          .when(!issues.length && !this.error, (el) =>
-            el.child(div().p(8).text_size(12).text_color(t.dim).child(empty)))
-          .when(Boolean(this.more[this.view]), (el) =>
-            el.child(div().p(8).text_size(11).text_color(t.dim).child("Showing the first 100 issues"))))
+          .when(!issues.length && !this.error, (element) =>
+            element.child(div()
+              .p(8)
+              .text_size(12)
+              .text_color(t.dim)
+              .child(empty)))
+          .when(Boolean(store.more[this.view]), (element) => element.child(div()
+            .p(8)
+            .text_size(11)
+            .text_color(t.dim)
+            .child(`Showing the first ${api.ISSUES_PER_VIEW} issues`))))
         .child(this.island(t)))
-      // Work someone asked for shows in the middle of the panel, over the list. It takes no mouse event: nothing
-      // listens on it.
-      .when(Boolean(this.spinning), (el) => el.child(div().absolute().inset_0().flex().items_center().justify_center()
-        .child(div().size(40).flex().items_center().justify_center().rounded(20)
-          .bg(t.popover).border_1().border_color(t.border).shadow_md()
-          .child(svg(shipped("spinner")).size(18).text_color(t.muted).spin(900)))))
+      .children(this.detail ? [this.page(t, this.detail)] : [])
+      .when(this.spinning, (element) => element
+        .child(div()
+          .absolute()
+          .inset_0()
+          .flex()
+          .items_center()
+          .justify_center()
+          .child(div()
+            .size(40)
+            .flex()
+            .items_center()
+            .justify_center()
+            .rounded(20)
+            .bg(t.popover)
+            .border_1()
+            .border_color(t.border)
+            .shadow_md()
+            .child(svg(shipped("spinner"))
+              .size(18)
+              .text_color(t.muted)
+              .spin(SPINNER_TURN_MS)))))
       .children(this.hints.showing() && this.frame ? [this.hints.draw(t, this.frame)] : [])
-      // Last, so it is drawn over everything else.
-      .when(this.drag.carrying, (el) => el.child(carried(this, t)));
+      .when(this.drag.carrying, (element) => element.child(carried(this, t)));
   }
 }

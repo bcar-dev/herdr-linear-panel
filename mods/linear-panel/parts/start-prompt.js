@@ -1,8 +1,9 @@
 import { div } from "gpui-kit";
-import { h_flex, InputState, Input } from "gpui-base";
+import { h_flex, InputState } from "gpui-base";
 import { submit } from "../channel.js";
+import { RequestKind } from "../enums.js";
 import { takeKeyboard } from "../ui.js";
-import { caption, frame } from "./menu.js";
+import { caption, frame, searchField } from "./menu.js";
 
 export class StartPrompt {
   /**
@@ -18,18 +19,39 @@ export class StartPrompt {
   }
 
   start() {
-    submit(this.props, [this.props.issue], { kind: "start", text: this.input.value() });
+    submit(this.props, [this.props.issue], { kind: RequestKind.START, text: this.input.value() });
   }
 
   /** @param {Theme} t */
   render(t) {
     return frame(t, "start-prompt", this.handle)
       .child(caption(t, `Start ${this.props.issue.identifier} with ${this.props.agent}`))
-      .child(h_flex().h(32).flex_none().mx(3).mb(5).pl(8).pr(4).gap(6).items_center()
-        .rounded(7).border_1().border_color(t.accent).bg(t.background)
-        .child(Input.new(this.input).flex_1().h_full().text_size(12.8).text_color(t.foreground))
-        .child(div().id("submit").h(24).px(9).flex_none().flex().items_center().rounded(5).cursor_pointer()
-          .bg(t.solid).text_color(t.solid_foreground).text_size(12)
+      .child(h_flex()
+        .h(32)
+        .flex_none()
+        .mx(3)
+        .mb(5)
+        .pl(8)
+        .pr(4)
+        .gap(6)
+        .items_center()
+        .rounded(7)
+        .border_1()
+        .border_color(t.accent)
+        .bg(t.background)
+        .child(searchField(t, this.input))
+        .child(div()
+          .id("submit")
+          .h(24)
+          .px(9)
+          .flex_none()
+          .flex()
+          .items_center()
+          .rounded(5)
+          .cursor_pointer()
+          .bg(t.solid)
+          .text_color(t.solid_foreground)
+          .text_size(12)
           .on_click(() => this.start())
           .child("Start")));
   }

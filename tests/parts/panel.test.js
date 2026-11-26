@@ -3,30 +3,40 @@ import { describe, it } from "node:test";
 import { setTimeout as wait } from "node:timers/promises";
 import { click, find, focuses, hover, icons, press, send, text, texts, walk } from "../host/elements.js";
 import { host } from "../host/herdr.js";
+import { ask, closed, opened } from "../../mods/linear-panel/channel.js";
 import { mountOverlay } from "../host/mount.js";
-import { BACK, CYCLE, FRAME, NEXT, WEB, at, detail, mr, sampleIssues, settled, startPanel } from "../fixtures.js";
+import { BACK, FRAME, NEXT, WEB, at, clickRow, detail, mr, sampleIssues, settled, startPanel,
+  tracker } from "../fixtures.js";
 
-const REQUEST = "linear-panel.request";
+const REQUESTS = "linear-panel.requests";
 const row = (root, id) => find(root, `issue-${id}`);
-const iconOf = (el, name) => [...walk(el)]
+const iconOf = (node, name) => [...walk(node)]
   .find((child) => child.$.kind === "svg" && child.$.args[0].endsWith(`/${name}.svg`));
-const identifiers = (root) => texts(find(root, "issues")).filter((piece) => /^[A-Z]+-\d+$/.test(piece));
+const identifiers = (root) => texts(find(root, "issues"))
+  .filter((piece) => /^[A-Z]+-\d+$/.test(piece));
 const updates = (server) => server.asked.filter((request) => request.kind === "update")
   .map((request) => request.variables);
-// Tells the panel where it is in the window, as the first move of the pointer over it does.
+// Tells the panel where it is in the window, as the first move of the pointer over it does
 function enter(panel) {
   const root = panel.draw();
   send(root, root, "on_mouse_move", at(950, 100), panel.cx);
 }
-// A click on the element of that id, in a fresh drawing.
+// A click on the element of that id, in a fresh drawing
 function clickOn(panel, id, modifiers) {
   const root = panel.draw();
   click(root, find(root, id), panel.cx, modifiers);
 }
-// The issues a drag carries: each shows a second time, beside the pointer.
+// A panel that has no key yet: it shows the header (the name of the tracker and Reload) over the setup
+async function withoutKey(options) {
+  const panel = await startPanel({ ...options, load: false, key: "" });
+  panel.draw();
+  await panel.cx.idle();
+  return panel;
+}
+// The issues a drag carries: each shows a second time, beside the pointer
 const carried = (root) => texts(root)
   .filter((piece, nth, all) => /^[A-Z]+-\d+$/.test(piece) && all.indexOf(piece) < nth);
-// What is carried once the pointer has moved on: nothing, unless an issue is still pressed.
+// What is carried once the pointer has moved on: nothing, unless an issue is still pressed
 function carriedOnMove(panel) {
   const root = panel.draw();
   send(root, root, "on_mouse_move", at(950, 300), panel.cx);
@@ -63,31 +73,35 @@ describe("loading", () => {
 
   it("counts one issue in the singular", async () => {
     const [only] = sampleIssues();
-    assert.match(text((await startPanel({ issues: [only] })).draw()), /1 issue(?!s)/);
+    const panel = await startPanel({ issues: [only], app: { stored: { totals: "count" } } });
+    assert.match(text(panel.draw()), /1 issue(?!s)/);
   });
 
-  it("lists the current cycle's issues by status, with their number and the cycle's end", async () => {
-    const root = (await startPanel()).draw();
+  it("lists the current cycle's issues by status, with their number", async () => {
+    const root = (await startPanel({ app: { stored: { totals: "count" } } })).draw();
     assert.deepEqual(identifiers(root), ["BACK-1", "BACK-2", "BACK-3"]);
-    assert.deepEqual(texts(find(root, "issues")).filter((piece) => ["In Progress", "Todo", "Done"].includes(piece)),
-      ["In Progress", "Todo", "Done"]);
+    assert.deepEqual(texts(find(root, "issues"))
+      .filter((piece) => ["In Progress", "Todo", "Done"].includes(piece)),
+    ["In Progress", "Todo", "Done"]);
     assert.match(text(root), /3 issues/);
-    assert.match(text(root), new RegExp(`Cycle 12 · ends ${CYCLE.endsAt.slice(0, 10)}`));
+    assert.doesNotMatch(text(root), /ends 20/);
   });
 
   it("shows a spinner for the first load, for at least a moment after the answer", async () => {
     const panel = await startPanel({ load: false });
     assert.match(text(panel.draw()), /Loading issues…/);
-    assert.ok(icons(panel.draw()).includes("spinner"));
+    assert.ok(icons(panel.draw())
+      .includes("spinner"));
     await panel.cx.idle();
-    assert.ok(icons(panel.draw()).includes("spinner"));
+    assert.ok(icons(panel.draw())
+      .includes("spinner"));
     panel.cx.elapse();
-    assert.ok(!icons(panel.draw()).includes("spinner"));
+    assert.ok(!icons(panel.draw())
+      .includes("spinner"));
   });
 
   it("shows how to add a key when there is none, and copies the command that stores one", async () => {
-    const panel = await startPanel({ load: false });
-    panel.server.key = "";
+    const panel = await startPanel({ load: false, key: "" });
     panel.draw();
     await panel.cx.idle();
     const root = panel.draw();
@@ -111,8 +125,7 @@ describe("loading", () => {
   });
 
   it("shows the API's error in the panel", async () => {
-    const panel = await startPanel({ load: false });
-    panel.server.error = "Rate limited";
+    const panel = await startPanel({ load: false, error: "Rate limited" });
     panel.draw();
     await panel.cx.idle();
     assert.match(text(panel.draw()), /Rate limited/);
@@ -120,24 +133,29 @@ describe("loading", () => {
   });
 
   it("says so when a view holds more issues than it loaded", async () => {
-    const panel = await startPanel({ load: false });
-    panel.server.more = true;
+    const panel = await startPanel({ load: false, app: { stored: { totals: "count" } }, more: true });
     panel.draw();
     await panel.cx.idle();
     assert.match(text(panel.draw()), /3\+ issues/);
     assert.match(text(panel.draw()), /Showing the first 100 issues/);
   });
 
-  it("catches up without a spinner when it is shown again after a minute", async (t) => {
-    const panel = await startPanel();
-    panel.cx.elapse();
-    // The clock goes on from the time of the load. The test's own mock is reset when the test ends.
-    t.mock.timers.enable({ apis: ["Date"], now: Date.now() });
-    t.mock.timers.tick(61_000);
-    panel.draw();
+  it("starts its first load without waiting for a drawing", async () => {
+    const panel = await startPanel({ load: false });
     await panel.cx.idle();
-    assert.deepEqual(panel.server.kinds(), ["issues", "teams", "issues"]);
-    assert.ok(!icons(panel.draw()).includes("spinner"));
+    assert.deepEqual(panel.server.kinds(), ["issues", "teams"]);
+  });
+
+  it("gives up a load that does not answer, says so, and loads again on a reload", async () => {
+    const panel = await startPanel({ load: false, app: { fetch: () => new Promise(() => {}) } });
+    panel.cx.elapse();
+    assert.match(text(panel.draw()), /Linear did not answer in time/);
+    assert.ok(!panel.view.part.loading);
+    host.fetch = panel.server.fetch;
+    clickOn(panel, "reload");
+    await panel.cx.idle();
+    assert.doesNotMatch(text(panel.draw()), /did not answer/);
+    assert.match(text(panel.draw()), /BACK-1/);
   });
 
   it("reloads by itself on the timer while it is shown, without a spinner", async () => {
@@ -146,7 +164,8 @@ describe("loading", () => {
     panel.cx.tick();
     await panel.cx.idle();
     assert.deepEqual(panel.server.kinds(), ["issues", "teams", "issues"]);
-    assert.ok(!icons(panel.draw()).includes("spinner"));
+    assert.ok(!icons(panel.draw())
+      .includes("spinner"));
   });
 
   it("does not reload on the timer while another panel shows", async () => {
@@ -160,11 +179,10 @@ describe("loading", () => {
 
 describe("on Linux and Windows", () => {
   const openRow = async (panel, id) => {
-    const root = panel.draw();
-    send(root, row(root, id), "on_mouse_down:left", at(950, 200), panel.cx);
-    send(root, row(root, id), "on_mouse_up:left", at(950, 200), panel.cx);
+    await clickRow(panel, id, { held: { control: true }, wait: false });
     await settled();
-    return host.ran.filter((ran) => !["sh", "cmd"].includes(ran.command)).map((ran) => [ran.command, ...ran.args]);
+    return host.ran.filter((ran) => !["sh", "cmd"].includes(ran.command))
+      .map((ran) => [ran.command, ...ran.args]);
   };
 
   it("reads the key from the variable or the keyring on Linux", async () => {
@@ -178,8 +196,7 @@ describe("on Linux and Windows", () => {
     const { server } = await startPanel({ app: { platform: "windows" } });
     assert.deepEqual([host.ran[0].command, host.ran[0].args], ["cmd", ["/c", "echo", "%LINEAR_API_KEY%"]]);
     assert.equal(server.asked[0].authorization, "test-key");
-    const panel = await startPanel({ load: false, app: { platform: "windows" } });
-    panel.server.key = "";
+    const panel = await startPanel({ load: false, app: { platform: "windows" }, key: "" });
     panel.draw();
     await panel.cx.idle();
     assert.match(text(panel.draw()),
@@ -189,15 +206,15 @@ describe("on Linux and Windows", () => {
   });
 
   it("explains the keyring on Linux", async () => {
-    const panel = await startPanel({ load: false, app: { platform: "linux" } });
-    panel.server.key = "";
+    const panel = await startPanel({ load: false, app: { platform: "linux" }, key: "" });
     panel.draw();
     await panel.cx.idle();
     assert.match(text(panel.draw()), /store it in your keyring from a terminal/);
     clickOn(panel, "copy-command");
     assert.equal(panel.cx.clipboard, 'secret-tool store --label="Linear API key" service herdr-linear');
     clickOn(panel, "key-page");
-    assert.deepEqual(host.ran.at(-1).args, ["https://linear.app/settings/account/security"]);
+    // The tracker's page: its app is tried first
+    assert.deepEqual(host.ran.at(-1).args, ["linear://linear.app/settings/account/security"]);
     assert.equal(host.ran.at(-1).command, "xdg-open");
   });
 
@@ -212,7 +229,7 @@ describe("on Linux and Windows", () => {
     const panel = await startPanel({ app: { platform: "windows" } });
     assert.deepEqual(await openRow(panel, "back-1"), [
       ["reg", "query", "HKCR\\linear", "/ve"],
-        ["rundll32", "url.dll,FileProtocolHandler", "linear://tracker.test/issue/BACK-1"],
+      ["rundll32", "url.dll,FileProtocolHandler", "linear://tracker.test/issue/BACK-1"],
     ]);
   });
 
@@ -224,12 +241,13 @@ describe("on Linux and Windows", () => {
   });
 
   it("opens the tracker itself the same way off macOS, and treats a missing program as a failure", async () => {
-    const panel = await startPanel({ app: { platform: "linux" } });
+    const panel = await withoutKey({ app: { platform: "linux" } });
     host.exec = (command,
       args) => { if (args[0].startsWith("linear://")) throw new Error("spawn xdg-open ENOENT"); return {}; };
     clickOn(panel, "home");
     await settled();
-    assert.deepEqual(host.ran.slice(-2).map((ran) => ran.args), [["linear://linear.app/"], ["https://linear.app/"]]);
+    assert.deepEqual(host.ran.slice(-2)
+      .map((ran) => ran.args), [["linear://linear.app/"], ["https://linear.app/"]]);
   });
 });
 
@@ -242,7 +260,7 @@ describe("views", () => {
   });
 
   it("switches on the digit of a view's place", async () => {
-    const panel = await startPanel();
+    const panel = await startPanel({ app: { stored: { totals: "count" } } });
     press(panel.draw(), "2", panel.cx);
     assert.match(text(panel.draw()), /5 issues/);
     press(panel.draw(), "1", panel.cx);
@@ -255,7 +273,7 @@ describe("views", () => {
   });
 
   it("starts on the view it was left on", async () => {
-    const panel = await startPanel({ app: { stored: { view: "all" } } });
+    const panel = await startPanel({ app: { stored: { view: "all", totals: "count" } } });
     assert.match(text(panel.draw()), /5 issues/);
   });
 });
@@ -270,10 +288,11 @@ describe("rows", () => {
   it("draws each status as the icon of its type, in its own color, on the rows and on the headings", async () => {
     const root = (await startPanel()).draw();
     const marks = [...walk(find(root, "issues"))]
-      .filter((el) => el.$.kind === "svg" && el.$.args[0].includes("/status-"));
-    assert.deepEqual(marks.map((el) => el.$.args[0].split("/").pop()), [
+      .filter((node) => node.$.kind === "svg" && node.$.args[0].includes("/status-"));
+    assert.deepEqual(marks.map((node) => node.$.args[0].split("/")
+      .pop()), [
       "status-started-4.svg", "status-started-4.svg", "status-unstarted.svg", "status-unstarted.svg",
-        "status-completed.svg", "status-completed.svg",
+      "status-completed.svg", "status-completed.svg",
     ]);
     assert.ok(iconOf(find(root, "status-back-1"), "status-started-4"));
     assert.equal(find(root, "status-back-1").$.style.text_color, "#started");
@@ -285,27 +304,27 @@ describe("rows", () => {
     const root = panel.draw();
     click(root, find(root, "priority-back-2"), panel.cx, {}, { x: 940, y: 240 });
     const [priorities] = host.overlays;
-    assert.deepEqual([priorities.props.page, priorities.props.bare, priorities.props.targets.map((i) => i.id),
+    assert.deepEqual([priorities.props.page, priorities.props.bare, priorities.props.targets.map((target) => target.id),
       priorities.at],
-      ["priority", true, ["back-2"], { x: 940, y: 240 }]);
+    ["priority", true, ["back-2"], { x: 940, y: 240 }]);
     assert.deepEqual(carriedOnMove(panel), []);
     assert.deepEqual(updates(panel.server), []);
   });
 
   it("brightens the priority, the estimate, the fold arrow and the group figure under the pointer, with no background",
     async () => {
-    const panel = await startPanel();
-    const color = (id) => find(panel.draw(), id).$.style.text_color;
-    for (const [id, plain] of [["priority-back-2", "theme.muted"], ["estimate-back-1", "theme.muted"],
-      ["fold-back-todo", "theme.dim"], ["total-back-todo", "theme.muted"]]) {
-      assert.equal(color(id), plain);
-      hover(find(panel.draw(), id), true, panel.cx);
-      assert.equal(color(id), "theme.foreground");
-      assert.deepEqual([find(panel.draw(), id).$.hover, find(panel.draw(), id).$.style.bg], [null, undefined]);
-      hover(find(panel.draw(), id), false, panel.cx);
-      assert.equal(color(id), plain);
-    }
-  });
+      const panel = await startPanel();
+      const color = (id) => find(panel.draw(), id).$.style.text_color;
+      for (const [id, plain] of [["priority-back-2", "theme.muted"], ["estimate-back-1", "theme.muted"],
+        ["fold-back-todo", "theme.dim"], ["total-back-todo", "theme.muted"]]) {
+        assert.equal(color(id), plain);
+        hover(find(panel.draw(), id), true, panel.cx);
+        assert.equal(color(id), "theme.foreground");
+        assert.deepEqual([find(panel.draw(), id).$.hover, find(panel.draw(), id).$.style.bg], [null, undefined]);
+        hover(find(panel.draw(), id), false, panel.cx);
+        assert.equal(color(id), plain);
+      }
+    });
 
   it("brightens a row's status under the pointer, in its own color and with no background", async () => {
     const issues = sampleIssues();
@@ -322,7 +341,7 @@ describe("rows", () => {
     issues[2].state = { ...issues[2].state, color: "#0f783c" };
     const root = (await startPanel({ issues })).draw();
     const heading = [...walk(find(root, "issues"))]
-      .filter((el) => el.$.kind === "svg" && el.$.args[0].endsWith("/status-completed.svg"))[0];
+      .filter((node) => node.$.kind === "svg" && node.$.args[0].endsWith("/status-completed.svg"))[0];
     assert.deepEqual([find(root, "status-back-3").$.style.text_color, heading.$.style.text_color],
       ["#27a644", "#27a644"]);
   });
@@ -339,12 +358,12 @@ describe("rows", () => {
 
   it("gives every estimate the width of the longest one, each figure centered in it, so triangles and figures line up",
     async () => {
-    const issues = sampleIssues();
-    issues[0].estimate = 13;
-    const root = (await startPanel({ issues, app: { stored: { view: "all" } } })).draw();
-    const figures = ["back-1", "back-3", "back-10"].map((id) => find(root, `estimate-${id}`).$.children[1].$.style);
-    assert.deepEqual(figures.map((style) => [style.w, style.text_center]), [[14, true], [14, true], [14, true]]);
-  });
+      const issues = sampleIssues();
+      issues[0].estimate = 13;
+      const root = (await startPanel({ issues, app: { stored: { view: "all" } } })).draw();
+      const figures = ["back-1", "back-3", "back-10"].map((id) => find(root, `estimate-${id}`).$.children[1].$.style);
+      assert.deepEqual(figures.map((style) => [style.w, style.text_center]), [[14, true], [14, true], [14, true]]);
+    });
 
   it("shows an estimate only on the issues that have one", async () => {
     const root = (await startPanel()).draw();
@@ -352,12 +371,9 @@ describe("rows", () => {
     assert.equal(find(root, "estimate-back-2"), null);
   });
 
-  it("opens the issue in the tracker's app on a click", async () => {
+  it("opens the issue in the tracker's app on a command-click", async () => {
     const panel = await startPanel();
-    const root = panel.draw();
-    send(root, row(root, "back-1"), "on_mouse_down:left", at(950, 200), panel.cx);
-    send(root, row(root, "back-1"), "on_mouse_up:left", at(950, 200), panel.cx);
-    await panel.cx.idle();
+    await clickRow(panel, "back-1", { held: { platform: true } });
     assert.deepEqual(host.ran.at(-1), { command: "open", args: ["linear://tracker.test/issue/BACK-1"], options: {} });
     assert.deepEqual(updates(panel.server), []);
   });
@@ -365,9 +381,7 @@ describe("rows", () => {
   it("opens the issue in the browser when no app takes it", async () => {
     const panel = await startPanel();
     host.exec = (command, args) => (command === "open" && args[0].startsWith("linear://") ? { code: 1 } : {});
-    const root = panel.draw();
-    send(root, row(root, "back-1"), "on_mouse_down:left", at(950, 200), panel.cx);
-    send(root, row(root, "back-1"), "on_mouse_up:left", at(950, 200), panel.cx);
+    await clickRow(panel, "back-1", { held: { platform: true }, wait: false });
     await settled();
     assert.deepEqual(host.ran.at(-1).args, ["https://tracker.test/issue/BACK-1"]);
   });
@@ -378,10 +392,10 @@ describe("rows", () => {
     const root = panel.draw();
     send(root, row(root, "back-1"), "on_mouse_down:right", at(1250, 700), panel.cx);
     const [menu] = host.overlays;
-    // It draws its own box: Herdr's frame is left out.
+    // It draws its own box: Herdr's frame is left out
     assert.deepEqual({ mod: menu.mod, kind: menu.kind, frame: menu.frame, width: menu.width, height: menu.height,
       at: menu.at },
-      { mod: "linear-panel", kind: "popup", frame: "none", width: 228, height: 304, at: { x: 1072, y: 436 } });
+    { mod: "linear-panel", kind: "popup", frame: "none", width: 228, height: 304, at: { x: 1072, y: 436 } });
     assert.equal(menu.props.part, "issue-menu");
     assert.deepEqual(menu.props.issues.map((issue) => issue.identifier), ["BACK-1"]);
     assert.deepEqual(menu.props.teams.map((team) => team.id), [BACK.id]);
@@ -401,7 +415,7 @@ describe("rows", () => {
     };
     assert.equal((await menuOf()).props.agent, "Claude Code");
     assert.equal((await menuOf({ settings: { agent: "codex" } })).props.agent, "Codex");
-    // No agent: no Start, and a menu shorter by that entry and its rule.
+    // No agent: no Start, and a menu shorter by that entry and its rule
     const bare = await menuOf({ app: { agents: [] } });
     assert.deepEqual([bare.props.agent, bare.height], [null, 304 - 31 - 9]);
   });
@@ -430,18 +444,33 @@ describe("rows", () => {
 
   it("opens the statuses from the row's status mark and the estimates from its estimate, without naming the issue",
     async () => {
+      const panel = await startPanel();
+      enter(panel);
+      const root = panel.draw();
+      click(root, find(root, "status-back-1"), panel.cx, {}, { x: 960, y: 210 });
+      click(root, find(root, "estimate-back-1"), panel.cx, {}, { x: 960, y: 210 });
+      const [statuses, sizes] = host.overlays;
+      assert.deepEqual({ ...statuses.props, targets: statuses.props.targets.map((target) => target.id),
+        teams: statuses.props.teams.map((team) => team.id) },
+      { part: "commands", targets: ["back-1"], teams: ["team-back"], page: "status", me: "me", compact: true,
+        bare: true, parent: undefined, visible: 5 });
+      assert.deepEqual([statuses.width, statuses.height, statuses.at], [208, 184, { x: 960, y: 210 }]);
+      assert.deepEqual([sizes.props.page, sizes.height], ["estimate", 212]);
+    });
+});
+
+describe("a property's choices from a row", () => {
+  it("open right below the control pressed, and at the pointer on a right-click", async () => {
     const panel = await startPanel();
     enter(panel);
-    const root = panel.draw();
-    click(root, find(root, "status-back-1"), panel.cx, {}, { x: 960, y: 210 });
-    click(root, find(root, "estimate-back-1"), panel.cx, {}, { x: 960, y: 210 });
-    const [statuses, sizes] = host.overlays;
-    assert.deepEqual({ ...statuses.props, targets: statuses.props.targets.map((i) => i.id),
-      teams: statuses.props.teams.map((team) => team.id) },
-      { part: "commands", targets: ["back-1"], teams: ["team-back"], page: "status", me: "me", compact: true,
-        bare: true, parent: undefined });
-    assert.deepEqual([statuses.width, statuses.height, statuses.at], [208, 208, { x: 960, y: 210 }]);
-    assert.deepEqual([sizes.props.page, sizes.height], ["estimate", 240]);
+    const root = panel.draw(), control = find(root, "estimate-back-1");
+    const bounds = { x: 1262, y: 190, width: 30, height: 20 };
+    send(root, control, "on_mouse_down:left", { ...at(1270, 200), bounds }, panel.cx);
+    send(root, control, "on_click", at(1270, 200), panel.cx);
+    const popup = host.overlays.at(-1);
+    assert.equal(popup.props.page, "estimate");
+    assert.equal(popup.at.y, bounds.y + bounds.height + 6);
+    assert.ok(popup.at.x <= bounds.x);
   });
 });
 
@@ -482,7 +511,7 @@ describe("folding a group", () => {
     send(root, row(root, "back-2"), "on_mouse_down:left", at(950, 200), panel.cx);
     send(root, root, "on_mouse_move", at(950, 260), panel.cx);
     const heading = [...walk(find(root, "issues"))]
-      .find((el) => el.$.handlers["on_mouse_up:left"] && el.$.children.includes(find(root, "fold-back-done")));
+      .find((node) => node.$.handlers["on_mouse_up:left"] && node.$.children.includes(find(root, "fold-back-done")));
     send(root, heading, "on_mouse_up:left", at(950, 400), panel.cx);
     await panel.cx.idle();
     assert.deepEqual(updates(panel.server), [{ ids: ["back-2"], input: { stateId: "back-done" } }]);
@@ -492,13 +521,13 @@ describe("folding a group", () => {
 describe("ticking", () => {
   it("shows how many issues are ticked and their points, counting the team's default for an unestimated one",
     async () => {
-    const panel = await startPanel();
-    clickOn(panel, "tick-back-1");
-    clickOn(panel, "tick-back-2");
-    const root = panel.draw();
-    assert.match(text(root), /2 selected · 4 Actions/);
-    assert.equal(row(root, "back-1").$.style.bg, "theme.a33");
-  });
+      const panel = await startPanel();
+      clickOn(panel, "tick-back-1");
+      clickOn(panel, "tick-back-2");
+      const root = panel.draw();
+      assert.match(text(root), /2 selected · 4 Actions/);
+      assert.equal(row(root, "back-1").$.style.bg, "theme.accent");
+    });
 
   it("shows a row's box only under the pointer or when it is ticked, and never moves the row for it", async () => {
     const panel = await startPanel();
@@ -506,7 +535,7 @@ describe("ticking", () => {
     assert.deepEqual([hidden("back-1"), hidden("back-2")], [true, true]);
     hover(row(panel.draw(), "back-1"), true, panel.cx);
     assert.deepEqual([hidden("back-1"), hidden("back-2")], [false, true]);
-    // Shown, the box is outlined in gray, in the accent only under the pointer itself, and filled once ticked.
+    // Shown, the box is outlined in gray, in the accent only under the pointer itself, and filled once ticked
     const box = find(panel.draw(), "tick-back-1").$;
     assert.deepEqual([box.style.border_color, box.hover, box.style.bg],
       ["theme.input", { border_color: "theme.accent" }, "theme.background"]);
@@ -556,7 +585,7 @@ describe("ticking", () => {
     hover(find(root, "tick-back-1"), false, panel.cx);
     send(root, find(root, "tick-back-2"), "on_mouse_move", bounds(220), panel.cx);
     panel.cx.elapse();
-    // The fake app handed the box's bounds to the panel as its own. Told its own again, it can place the tooltip.
+    // The fake app handed the box's bounds to the panel as its own. Told its own again, it can place the tooltip
     enter(panel);
     assert.equal(find(panel.draw(), "tooltip").$.style.top, 220 - FRAME.y + 14 + 6);
   });
@@ -580,12 +609,12 @@ describe("ticking", () => {
 
   it("raises the pill from below: its strip is flat until an issue is ticked, and Herdr animates its height",
     async () => {
-    const panel = await startPanel();
-    assert.equal(find(panel.draw(), "island").$.style.h, 0);
-    clickOn(panel, "tick-back-1");
-    const { h, transition } = find(panel.draw(), "island").$.style;
-    assert.deepEqual([h, transition], [58, ["height", { duration: 180, easing: "ease-out" }]]);
-  });
+      const panel = await startPanel();
+      assert.equal(find(panel.draw(), "island").$.style.h, 0);
+      clickOn(panel, "tick-back-1");
+      const { h, transition } = find(panel.draw(), "island").$.style;
+      assert.deepEqual([h, transition], [58, ["height", { duration: 180, easing: "ease-out" }]]);
+    });
 
   it("unticks everything on Escape and from the pill's cross", async () => {
     const panel = await startPanel();
@@ -620,7 +649,7 @@ describe("ticking", () => {
     assert.match(text(panel.draw()), /Clear selected Esc$/);
     press(panel.draw(), "escape", panel.cx);
     assert.doesNotMatch(text(panel.draw()), /Clear selected/);
-    // Dropped, not only hidden: the control coming back does not bring it back.
+    // Dropped, not only hidden: the control coming back does not bring it back
     clickOn(panel, "tick-back-1");
     assert.equal(find(panel.draw(), "tooltip"), null);
   });
@@ -642,7 +671,7 @@ describe("ticking", () => {
 });
 
 describe("drag and drop", () => {
-  // Presses the row of `id`, carries it a little, and brings it over the row of `over`.
+  // Presses the row of `id`, carries it a little, and brings it over the row of `over`
   function carry(panel, id, over) {
     const root = panel.draw();
     send(root, row(root, id), "on_mouse_down:left", at(950, 200), panel.cx);
@@ -650,9 +679,10 @@ describe("drag and drop", () => {
     send(root, row(root, over), "on_mouse_move", at(950, 260), panel.cx);
     return panel.draw();
   }
-  // The groups outlined in the theme's accent, by name: the one a drag is over.
+  // The groups outlined in the theme's accent, by name: the one a drag is over
   const outlined = (root) => find(root, "issues").$.children
-    .filter((group) => group.$.style.border_color === "theme.accent").map((group) => texts(group)[0]);
+    .filter((group) => group.$.style.border_color === "theme.accent")
+    .map((group) => texts(group)[0]);
 
   it("carries the issue beside the pointer and fades its row", async () => {
     const panel = await startPanel();
@@ -663,9 +693,11 @@ describe("drag and drop", () => {
   });
 
   it("keeps the carried issue beside the pointer whatever the person's zoom", async () => {
-    // The pointer is 50 by 220 window pixels inside the panel: half as much in the pixels of a style at zoom 2.
+    // The pointer is 50 by 220 window pixels inside the panel: half as much in the pixels of a style at zoom 2
     const zoomed = await startPanel({ app: { settings: { zoom: 2 } } });
-    const beside = (root) => [...walk(root)].find((el) => el.$.style.absolute && text(el).includes("BACK-2")).$.style;
+    const beside = (root) =>
+      [...walk(root)].find((node) => node.$.style.absolute && text(node)
+        .includes("BACK-2")).$.style;
     const twice = beside(carry(zoomed, "back-2", "back-1"));
     assert.deepEqual([twice.left, twice.top], [25 + 14, 110 + 10]);
     const once = beside(carry(await startPanel(), "back-2", "back-1"));
@@ -678,19 +710,17 @@ describe("drag and drop", () => {
     send(root, row(root, "back-1"), "on_mouse_up:left", at(950, 260), panel.cx);
     await panel.cx.idle();
     assert.deepEqual(updates(panel.server), [{ ids: ["back-2"], input: { stateId: "back-doing" } }]);
-    assert.deepEqual(panel.server.kinds().slice(-2), ["update", "issues"]);
+    assert.deepEqual(panel.server.kinds()
+      .slice(-2), ["update", "issues"]);
     assert.deepEqual(identifiers(panel.draw()), ["BACK-1", "BACK-2", "BACK-3"]);
     assert.deepEqual(carriedOnMove(panel), []);
   });
 
-  it("moves nothing on a plain click on a ticked row, whatever else is ticked", async () => {
+  it("moves nothing on a command-click on a ticked row, whatever else is ticked", async () => {
     const panel = await startPanel();
     clickOn(panel, "tick-back-1");
     clickOn(panel, "tick-back-2");
-    const root = panel.draw();
-    send(root, row(root, "back-1"), "on_mouse_down:left", at(950, 200), panel.cx);
-    send(root, row(root, "back-1"), "on_mouse_up:left", at(950, 200), panel.cx);
-    await panel.cx.idle();
+    await clickRow(panel, "back-1", { held: { platform: true } });
     assert.deepEqual(host.ran.at(-1).args, ["linear://tracker.test/issue/BACK-1"]);
     assert.deepEqual(updates(panel.server), []);
   });
@@ -699,7 +729,7 @@ describe("drag and drop", () => {
     const panel = await startPanel();
     const root = carry(panel, "back-2", "back-1");
     send(root, row(root, "back-3"), "on_mouse_down:left", at(950, 400), panel.cx);
-    send(root, row(root, "back-3"), "on_mouse_up:left", at(950, 400), panel.cx);
+    send(root, row(root, "back-3"), "on_mouse_up:left", at(950, 400, { platform: true }), panel.cx);
     await panel.cx.idle();
     assert.deepEqual(host.ran.at(-1).args, ["linear://tracker.test/issue/BACK-3"]);
     assert.deepEqual(updates(panel.server), []);
@@ -753,7 +783,7 @@ describe("keys", () => {
     press(panel.draw(), "s", panel.cx);
     const [choices] = host.overlays;
     assert.deepEqual([choices.props.page, choices.props.bare, choices.height, choices.at],
-      ["status", false, 236, { x: 950, y: 100 }]);
+      ["status", false, 212, { x: 950, y: 100 }]);
     assert.deepEqual(host.shared["linear-panel.open"], { issue: "back-1", owner: "overlay-1" });
   });
 
@@ -772,7 +802,7 @@ describe("keys", () => {
     const [actions, priorities] = host.overlays;
     assert.deepEqual([actions.kind, actions.width, actions.height, actions.props.page],
       ["dialog", 460, 380, "actions"]);
-    assert.deepEqual(actions.props.targets.map((i) => i.identifier), ["BACK-1"]);
+    assert.deepEqual(actions.props.targets.map((target) => target.identifier), ["BACK-1"]);
     assert.equal(priorities.props.page, "priority");
   });
 
@@ -821,21 +851,21 @@ describe("keys", () => {
     press(panel.draw(), ".", panel.cx, { platform: true, shift: true });
     await panel.cx.idle();
     assert.equal(panel.cx.clipboard, "me/back-1");
-    assert.deepEqual(host.notes, [{ title: "Copied git branch name", body: "BACK-1", timeout: 2000 }]);
+    assert.deepEqual(host.notes, [{ title: "Copied git branch name · BACK-1", timeout: 1500 }]);
     assert.deepEqual(panel.server.kinds(), ["issues", "teams"]);
   });
 
   it("copies every ticked issue on a copy shortcut, from the top of the list down, whatever the pointer is on",
     async () => {
-    const panel = await startPanel();
-    clickOn(panel, "tick-back-3");
-    clickOn(panel, "tick-back-1");
-    hover(row(panel.draw(), "back-2"), true, panel.cx);
-    press(panel.draw(), "'", panel.cx, { platform: true, shift: true });
-    await panel.cx.idle();
-    assert.equal(panel.cx.clipboard, "BACK-1: Fix login\nBACK-3: Old bug");
-    assert.deepEqual(host.notes, [{ title: "Copied titles", body: "2 issues", timeout: 2000 }]);
-  });
+      const panel = await startPanel();
+      clickOn(panel, "tick-back-3");
+      clickOn(panel, "tick-back-1");
+      hover(row(panel.draw(), "back-2"), true, panel.cx);
+      press(panel.draw(), "'", panel.cx, { platform: true, shift: true });
+      await panel.cx.idle();
+      assert.equal(panel.cx.clipboard, "BACK-1: Fix login\nBACK-3: Old bug");
+      assert.deepEqual(host.notes, [{ title: "Copied titles · 2 issues", timeout: 1500 }]);
+    });
 
   it("copies nothing on the prompt shortcut while several issues are ticked", async () => {
     const panel = await startPanel();
@@ -850,7 +880,8 @@ describe("keys", () => {
     const panel = await startPanel();
     panel.cx.elapse();
     press(panel.draw(), "r", panel.cx);
-    assert.ok(icons(panel.draw()).includes("spinner"));
+    assert.ok(icons(panel.draw())
+      .includes("spinner"));
     await panel.cx.idle();
     assert.deepEqual(panel.server.kinds(), ["issues", "teams", "issues"]);
   });
@@ -859,8 +890,9 @@ describe("keys", () => {
     const panel = await startPanel();
     press(panel.draw(), "c", panel.cx);
     const [picker] = host.overlays;
-    assert.deepEqual(picker.props,
-      { part: "teams", teams: [{ key: "BACK", name: "Backend" }, { key: "WEB", name: "Website" }] });
+    assert.deepEqual(picker.props.teams.map(({ key, name }) => ({ key, name })),
+      [{ key: "BACK", name: "Backend" }, { key: "WEB", name: "Website" }]);
+    assert.equal(picker.props.issue, undefined);
     assert.deepEqual([picker.width, picker.height, picker.at], [200, 100, "pointer"]);
   });
 
@@ -873,19 +905,19 @@ describe("keys", () => {
 
   it("takes the keyboard back when its popup goes, several times over, and keeps its focused look meanwhile",
     async () => {
-    const panel = await startPanel();
-    assert.equal(panel.draw().$.style.border_color, "theme.border");
-    hover(row(panel.draw(), "back-1"), true, panel.cx);
-    press(panel.draw(), "p", panel.cx);
-    const popup = mountOverlay(), before = focuses(panel.draw());
-    assert.equal(panel.draw().$.style.border_color, "theme.accent");
-    popup.view.close();
-    assert.equal(panel.draw().$.style.border_color, "theme.accent");
-    assert.equal(focuses(panel.draw()), before);
-    panel.cx.elapse();
-    assert.equal(focuses(panel.draw()), before + 4);
-    assert.equal(panel.draw().$.style.border_color, "theme.border");
-  });
+      const panel = await startPanel();
+      assert.equal(panel.draw().$.style.border_color, "theme.border");
+      hover(row(panel.draw(), "back-1"), true, panel.cx);
+      press(panel.draw(), "p", panel.cx);
+      const popup = mountOverlay(), before = focuses(panel.draw());
+      assert.equal(panel.draw().$.style.border_color, "theme.accent");
+      popup.view.close();
+      assert.equal(panel.draw().$.style.border_color, "theme.accent");
+      assert.equal(focuses(panel.draw()), before);
+      panel.cx.elapse();
+      assert.equal(focuses(panel.draw()), before + 4);
+      assert.equal(panel.draw().$.style.border_color, "theme.border");
+    });
 
   it("takes the keyboard back for the next popup too", async () => {
     const panel = await startPanel();
@@ -922,8 +954,7 @@ describe("keys", () => {
   });
 
   it("takes no key while it waits for an API key", async () => {
-    const panel = await startPanel({ load: false });
-    panel.server.key = "";
+    const panel = await startPanel({ load: false, key: "" });
     panel.draw();
     await panel.cx.idle();
     press(panel.draw(), "c", panel.cx);
@@ -933,16 +964,22 @@ describe("keys", () => {
 });
 
 describe("header", () => {
+  it("is only there while the key is being set up, and the list starts at the top of the panel", async () => {
+    assert.equal(find((await startPanel()).draw(), "home"), null);
+    assert.notEqual(find((await withoutKey()).draw(), "home"), null);
+  });
+
   it("brings the tracker's app to the front from its name, its site when the app is missing", async () => {
-    const panel = await startPanel();
+    const panel = await withoutKey();
     host.exec = (command, args) => (args[0] === "-a" ? { code: 1 } : {});
     clickOn(panel, "home");
     await settled();
-    assert.deepEqual(host.ran.slice(-2).map((ran) => ran.args), [["-a", "Linear"], ["https://linear.app/"]]);
+    assert.deepEqual(host.ran.slice(-2)
+      .map((ran) => ran.args), [["-a", "Linear"], ["https://linear.app/"]]);
   });
 
   it("shows the tracker's logo before its name, as a picture", async () => {
-    const panel = await startPanel();
+    const panel = await withoutKey();
     const [picture, name] = find(panel.draw(), "home").$.children;
     assert.deepEqual([picture.$.kind, picture.$.args[0], name],
       ["image", "mods/linear-panel/brand/logo-light.svg", "Linear"]);
@@ -986,25 +1023,25 @@ describe("header", () => {
       const root = panel.draw();
       send(root, find(root, id), "on_mouse_move", { ...at(bounds.x, bounds.y), bounds }, panel.cx);
       // The fake app hands one event, with the control's bounds, to every element around it: the panel is told its
-      // own again.
+      // own again
       enter(panel);
       panel.cx.elapse();
       return find(panel.draw(), "tooltip");
     };
-    // In the middle of the panel: a row as wide as the nearer edge allows on each side, the tooltip in its middle.
+    // In the middle of the panel: a row as wide as the nearer edge allows on each side, the tooltip in its middle
     const centered = rest("view-all", { x: 1070, y: 90, width: 60, height: 28 });
     assert.deepEqual([centered.$.style.left, centered.$.style.w, centered.$.style.justify_center, centered.$.style.top],
       [0, 400, true, 84]);
     assert.equal(text(centered), "My issues 2");
     hover(find(panel.draw(), "view-all"), false, panel.cx);
-    // By the right edge: against it.
+    // By the right edge: against it
     const held = rest("reload", { x: 1260, y: 48, width: 26, height: 26 });
     assert.deepEqual([held.$.style.right, held.$.style.left, held.$.style.top, text(held)],
       [4, undefined, 40, "Reload R"]);
   });
 
   it("places a tooltip, a popup and the display options by the person's zoom", async () => {
-    // At zoom 2 the panel takes the same window pixels and every length of a style counts double.
+    // At zoom 2 the panel takes the same window pixels and every length of a style counts double
     const panel = await startPanel({ app: { settings: { zoom: 2 } } });
     enter(panel);
     const root = panel.draw();
@@ -1012,19 +1049,19 @@ describe("header", () => {
       { ...at(1270, 60), bounds: { x: 1260, y: 48, width: 26, height: 26 } }, panel.cx);
     enter(panel);
     panel.cx.elapse();
-    // 8 window pixels under the panel's top, 26 high, 6 of a style under it: (8 + 26) / 2 + 6.
+    // 8 window pixels under the panel's top, 26 high, 6 of a style under it: (8 + 26) / 2 + 6
     const tooltip = find(panel.draw(), "tooltip");
     assert.deepEqual([tooltip.$.style.right, tooltip.$.style.top], [4, 23]);
-    // The issue menu takes 456 by 608 window pixels: pulled back to the panel's left edge, and up from its bottom.
+    // The issue menu takes 456 by 608 window pixels: pulled back to the panel's left edge, and up from its bottom
     const drawn = panel.draw();
     send(drawn, row(drawn, "back-1"), "on_mouse_down:right", at(1250, 700), panel.cx);
     assert.deepEqual(host.overlays[0].at, { x: 900, y: 132 });
-    // The display options: 92 window pixels under the panel's top for the 42 of the header and the 4 kept.
+    // The display options: 92 window pixels under the panel's top for the 42 of the header and the 4 kept
     press(panel.draw(), "v", panel.cx, { shift: true });
     assert.deepEqual(host.overlays[1].at, { x: 900, y: 132 });
   });
 
-  it("shows a tooltip at once when the pointer comes from a control whose tooltip just showed", async (t) => {
+  it("waits a second for the first tooltip, then shows the next at once while hovering things in turn", async (t) => {
     t.mock.timers.enable({ apis: ["Date"], now: Date.now() });
     const panel = await startPanel();
     enter(panel);
@@ -1036,20 +1073,51 @@ describe("header", () => {
     const leave = (id) => hover(find(panel.draw(), id), false, panel.cx);
     const shown = () => text(find(panel.draw(), "tooltip") ?? "");
     rest("priority-back-1");
+    assert.equal(shown(), "");
     panel.cx.elapse();
     assert.equal(shown(), "Change priority P");
-    // To the next issue's priority: no second wait.
+    // To the next control: no second wait, and no timer to wait for
     leave("priority-back-1");
     rest("priority-back-2");
     assert.equal(shown(), "Change priority P");
     assert.deepEqual(panel.cx.timers.filter((timer) => timer.ms === 1000), []);
-    // Later than half a second after a tooltip went, the pointer rests again.
+    // Rested too long between two controls (past half a second): the second is waited again
     leave("priority-back-2");
     t.mock.timers.tick(600);
     rest("priority-back-1");
     assert.equal(shown(), "");
     panel.cx.elapse();
     assert.equal(shown(), "Change priority P");
+  });
+
+  it("shows no tooltip on a control that was pressed, until the pointer has left it", async () => {
+    const panel = await startPanel();
+    enter(panel);
+    const root = panel.draw(), bounds = { x: 1090, y: 190, width: 18, height: 18 };
+    const control = find(root, "priority-back-1");
+    send(root, control, "on_mouse_down:left", at(1100, 200), panel.cx);
+    send(root, control, "on_mouse_move", { ...at(1100, 200), bounds }, panel.cx);
+    panel.cx.elapse();
+    assert.equal(find(panel.draw(), "tooltip"), null);
+    hover(find(panel.draw(), "priority-back-1"), false, panel.cx);
+    send(root, control, "on_mouse_move", { ...at(1100, 200), bounds }, panel.cx);
+    panel.cx.elapse();
+    assert.notEqual(find(panel.draw(), "tooltip"), null);
+  });
+
+  it("keeps a pressed control's tooltip away while a popup covers it, and after the popup goes", async () => {
+    const panel = await startPanel();
+    enter(panel);
+    const root = panel.draw(), bounds = { x: 1090, y: 190, width: 18, height: 18 };
+    const control = find(root, "priority-back-1");
+    send(root, control, "on_mouse_down:left", at(1100, 200), panel.cx);
+    opened("menu");
+    // The popup opens over the control, which is told the pointer left it
+    hover(control, false, panel.cx);
+    closed("menu");
+    send(root, control, "on_mouse_move", { ...at(1100, 200), bounds }, panel.cx);
+    panel.cx.elapse();
+    assert.equal(find(panel.draw(), "tooltip"), null);
   });
 
   it("names what a click on a row's estimate does, and its keys", async () => {
@@ -1067,19 +1135,20 @@ describe("header", () => {
     enter(panel);
     const root = panel.draw();
     assert.equal(text(find(root, "cycle-back-1")), "12");
-    // The current cycle's icon is indigo.
     assert.equal(iconOf(find(root, "cycle-back-1"), "view-cycle").$.style.text_color, "#5e6ad2");
     assert.equal(find(root, "cycle-web-7"), null);
-    // A right-click on it opens the cycle's choices, not the issue's menu.
-    send(root, find(root, "cycle-back-1"), "on_mouse_down:right", at(1250, 200), panel.cx);
+    // A right-click on it opens the cycle's choices, not the issue's menu
+    const bounds = { x: 1225, y: 190, width: 34, height: 20 };
+    send(root, find(root, "cycle-back-1"), "on_mouse_down:right", { ...at(1250, 200), bounds }, panel.cx);
     assert.deepEqual(host.overlays.map(({ props }) => [props.part, props.page, props.bare, props.targets[0].id]),
       [["commands", "cycle", true, "back-1"]]);
-    // A click opens the cycle's page under the workspace's address, by its team's key, and no choices.
+    assert.equal(host.overlays[0].at.y, bounds.y + bounds.height + 6);
     clickOn(panel, "cycle-back-2");
     assert.deepEqual(host.ran.at(-1),
-      { command: "open", args: ["linear://tracker.test/team/BACK/cycle/12"], options: {} });
+      { command: "open", args: ["linear://linear.app/team/BACK/cycle/12"], options: {} });
     assert.equal(host.overlays.length, 1);
-    assert.equal(host.overlays[0].height, 48 + 5 * 32);
+    // Its rows, and a rule above the previous cycle at the bottom
+    assert.equal(host.overlays[0].height, 44 + 5 * 28 + 9);
   });
 
   it("tells on a row's cycle its capacity, how much is done, the weekdays left", async () => {
@@ -1090,14 +1159,14 @@ describe("header", () => {
       { ...at(1240, 200), bounds: { x: 1225, y: 190, width: 34, height: 20 } }, panel.cx);
     panel.cx.elapse();
     const tooltip = find(panel.draw(), "tooltip");
-    // The card alone: no label, no keys, no rule under it.
+    // The card alone: no label, no keys, no rule under it
     assert.match(text(tooltip), /^Cycle 12 Capacity: 20 pts 70% of 10 Current \d+ weekdays? left$/);
     assert.deepEqual(icons(tooltip), ["view-cycle", "status-started-6"]);
   });
 
   it("tells on a cycle to come the points planned in it, asked of the tracker, and its days", async () => {
     const issues = sampleIssues();
-    // BACK-2 has no estimate: it counts for the team's default, 1.
+    // BACK-2 has no estimate: it counts for the team's default, 1
     for (const id of ["back-2", "back-10"]) issues.find((issue) => issue.id === id).cycle = NEXT;
     const panel = await startPanel({ issues, app: { stored: { view: "all" } } });
     enter(panel);
@@ -1110,10 +1179,11 @@ describe("header", () => {
     const tooltip = find(panel.draw(), "tooltip");
     assert.match(text(tooltip), /^Cycle 13 3 Upcoming \w{3} \d+ - \w{3} \d+$/);
     assert.deepEqual(icons(tooltip), ["cycle", "estimate"]);
-    assert.deepEqual(panel.server.kinds().filter((kind) => kind === "planned"), ["planned"]);
+    assert.deepEqual(panel.server.kinds()
+      .filter((kind) => kind === "planned"), ["planned"]);
   });
 
-  // BACK-1 has one merged MR, BACK-2 a merged one and an open one.
+  // BACK-1 has one merged MR, BACK-2 a merged one and an open one
   const FRONT = mr("gitlab", "worklife-io/nuxt-frontend", 3463, "merged"),
     IAM = mr("gitlab", "worklife-io/iam", 599, "merged"), PHOENIX = mr("github", "WorklifeCare/phoenix", 47, "open");
   function withMerges() {
@@ -1122,7 +1192,7 @@ describe("header", () => {
     issues[1].attachments.nodes = [IAM, PHOENIX];
     return issues;
   }
-  const colors = (el) => [...walk(el)].filter((child) => child.$.kind === "svg")
+  const colors = (node) => [...walk(node)].filter((child) => child.$.kind === "svg")
     .map((child) => child.$.style.text_color);
 
   it("shows an issue's MRs left of its cycle, colored by whether they are merged", async () => {
@@ -1130,11 +1200,11 @@ describe("header", () => {
     const root = panel.draw();
     assert.equal(text(find(root, "merges-back-1")), "!3463");
     assert.deepEqual(colors(find(root, "merges-back-1")), ["#5e6ad2"]);
-    // Some merged, some not: the icon is half blue, half green.
+    // Some merged, some not: the icon is half blue, half green
     assert.equal(text(find(root, "merges-back-2")), "2 PRs");
     assert.deepEqual(colors(find(root, "merges-back-2")), ["#5e6ad2", "#4cb782"]);
     assert.deepEqual(icons(find(root, "merges-back-2")), ["git-pull-request", "git-pull-request"]);
-    const ids = [...walk(row(root, "back-1"))].map((el) => el.$.id);
+    const ids = [...walk(row(root, "back-1"))].map((node) => node.$.id);
     assert.ok(ids.indexOf("merges-back-1") < ids.indexOf("cycle-back-1"));
     assert.equal(find(root, "merges-web-7"), null);
   });
@@ -1165,9 +1235,10 @@ describe("header", () => {
     point();
     await panel.cx.idle();
     const asked = () => panel.server.asked.filter((request) => request.kind === "merges");
-    // By number and repository: numbers alone match the MRs of many other repositories.
-    assert.deepEqual(asked().map((request) => request.variables), [{ numbers: [599, 47], repos: ["iam", "phoenix"] }]);
-    // A load tells its answers from older ones by the time: let a millisecond pass.
+    // By number and repository: numbers alone match the MRs of many other repositories
+    assert.deepEqual(asked()
+      .map((request) => request.variables), [{ numbers: [599, 47], repos: ["iam", "phoenix"] }]);
+    // A load tells its answers from older ones by the time: let a millisecond pass
     await wait(2);
     press(panel.draw(), "r", panel.cx);
     await panel.cx.idle();
@@ -1176,7 +1247,7 @@ describe("header", () => {
     assert.equal(asked().length, 2);
   });
 
-  // The tooltip of a row's MRs, once the tracker has answered unless `waiting`.
+  // The tooltip of a row's MRs, once the tracker has answered unless `waiting`
   async function mergeCard(panel, id, { waiting = false } = {}) {
     enter(panel);
     const root = panel.draw(), mark = find(root, `merges-${id}`);
@@ -1193,7 +1264,7 @@ describe("header", () => {
     panel.server.details = [detail(FRONT.metadata.url)];
     const card = await mergeCard(panel, "back-1");
     assert.match(text(card), /^Change 3463 BE nuxt-frontend!3463 Merged \d+\w+ ago · 6 files \+41 -4 KO$/);
-    // The merged icon, then the check of a reviewer who approved.
+    // The merged icon, then the check of a reviewer who approved
     assert.deepEqual(icons(card), ["git-merge", "check"]);
   });
 
@@ -1215,16 +1286,19 @@ describe("header", () => {
       detail(PHOENIX.metadata.url, { reviewerStates: [decided("Codex"), decided("Claude"),
         { lastSubmittedDecision: null, reviewer: { displayName: "fx" } }] }),
       detail(IAM.metadata.url, { reviewerStates: [decided("amalchaker")] }),
-      // Another repository's MR with the same number: not this issue's.
+      // Another repository's MR with the same number: not this issue's
       detail("https://gitlab.com/worklife-io/other/-/merge_requests/47", { reviewerStates: [decided("nobody")] }),
     ];
     const card = await mergeCard(panel, "back-2");
     assert.equal(text(card), "Change 599 BE worklife-io/iam!599 · Reviewed by amalchaker "
       + "Change 47 BE WorklifeCare/phoenix#47 · Reviewed by Codex and Claude Change 1300 BE worklife-io/graphql!1300");
     assert.deepEqual(icons(card), ["git-merge", "git-pull-request", "git-pull-request"]);
-    issues[1].attachments.nodes.push(...[1, 2, 3, 4, 5, 6].map((n) => mr("gitlab", "worklife-io/iam", n, "open")));
+    issues[1].attachments.nodes.push(
+      ...[1, 2, 3, 4, 5, 6].map((number) => mr("gitlab", "worklife-io/iam", number, "open")));
+    await wait(2);
     press(panel.draw(), "r", panel.cx);
     await panel.cx.idle();
+    hover(find(panel.draw(), "merges-back-2"), false, panel.cx);
     assert.match(text(await mergeCard(panel, "back-2")), / 1 more$/);
   });
 
@@ -1255,7 +1329,8 @@ describe("header", () => {
   it("tells on a row's status how long the issue has been in each status, asked of the tracker once", async () => {
     const panel = await startPanel();
     const state = (name) => BACK.states.find((candidate) => candidate.name === name);
-    const ago = (hours) => new Date(Date.now() - hours * 3_600_000).toISOString();
+    const ago = (hours) => new Date(Date.now() - hours * 3_600_000)
+      .toISOString();
     panel.server.history = [
       { state: state("In Progress"), startedAt: ago(73), endedAt: null },
       { state: state("Todo"), startedAt: ago(75), endedAt: ago(73) },
@@ -1274,15 +1349,16 @@ describe("header", () => {
     panel.cx.elapse();
     const tooltip = find(panel.draw(), "tooltip"), [tip] = tooltip.$.children;
     assert.equal(text(tip), "Time in status Todo 2h In Progress 3d Change status S");
-    // Centered on the status, under it: the panel has room there for its title, two statuses and last line.
+    // Centered on the status, under it: the panel has room there for its title, two statuses and last line
     assert.deepEqual([tooltip.$.style.left, tooltip.$.style.w, tooltip.$.style.top], [0, 398, 174]);
-    // The status the issue is in stands out from those it left.
+    // The status the issue is in stands out from those it left
     const [, left, current] = tip.$.children[0].$.children;
     assert.deepEqual([left.$.style.text_color, current.$.style.text_color], ["theme.muted", "theme.foreground"]);
     hover(mark, false, panel.cx);
     visit();
     await panel.cx.idle();
-    assert.equal(panel.server.kinds().filter((kind) => kind === "history").length, 1);
+    assert.equal(panel.server.kinds()
+      .filter((kind) => kind === "history").length, 1);
   });
 
   it("shows a status tooltip without the times while the tracker has not answered, or cannot", async () => {
@@ -1309,7 +1385,7 @@ describe("header", () => {
     hover(reload, false, panel.cx);
     panel.cx.elapse();
     assert.doesNotMatch(text(panel.draw()), /Reload R$/);
-    // Back on it: the wait starts over, and the timer of the first visit shows nothing.
+    // Back on it: the wait starts over, and the timer of the first visit shows nothing
     move();
     const [first] = panel.cx.timers.filter((timer) => timer.ms === 1000);
     hover(reload, false, panel.cx);
@@ -1355,17 +1431,17 @@ describe("a popup and the panel together", () => {
   it("opens each popup as tall as what its part draws", async () => {
     const panel = await startPanel({ app: { stored: { view: "all" } } });
     enter(panel);
-    const drawn = (popup, pattern) => [...walk(popup.draw())].filter((el) => pattern.test(el.$.id ?? "")).length;
-    // A property's choices: the title line, the padding and the border, the list, and the chip naming the issue.
+    const drawn = (popup, pattern) => [...walk(popup.draw())].filter((node) => pattern.test(node.$.id ?? "")).length;
+    // A property's choices: the title line, the padding and the border, the list, and the chip naming the issue
     hover(row(panel.draw(), "back-1"), true, panel.cx);
     press(panel.draw(), "s", panel.cx);
     const choices = mountOverlay();
-    assert.equal(choices.overlay.height, 48 + find(choices.draw(), "commands-list").$.style.h + 28);
+    assert.equal(choices.overlay.height, 44 + find(choices.draw(), "commands-list").$.style.h + 28);
     clickOn(panel, "estimate-back-1");
     const bare = mountOverlay();
-    assert.equal(bare.overlay.height, 48 + find(bare.draw(), "commands-list").$.style.h);
+    assert.equal(bare.overlay.height, 44 + find(bare.draw(), "commands-list").$.style.h);
     // The issue menu: its entries, a caption, two rules, the padding and the border. The Copy page: its entries, the
-    // padding and the border.
+    // padding and the border
     const root = panel.draw();
     send(root, row(root, "back-1"), "on_mouse_down:right", at(950, 200), panel.cx);
     const menu = mountOverlay();
@@ -1374,7 +1450,7 @@ describe("a popup and the panel together", () => {
     send(entries, find(entries, "entry-copy"), "on_click", {}, menu.cx);
     const copies = mountOverlay();
     assert.equal(copies.overlay.height, drawn(copies, /^entry-/) * 31 + 12);
-    // The team picker: a row per team and its caption.
+    // The team picker: a row per team and its caption
     press(panel.draw(), "c", panel.cx);
     const teams = mountOverlay();
     assert.equal(teams.overlay.height, drawn(teams, /^item-/) * 31 + 38);
@@ -1382,8 +1458,6 @@ describe("a popup and the panel together", () => {
 });
 
 describe("requests from the popups", () => {
-  const ask = (request) => { host.shared[REQUEST] = { at: Date.now() + Math.random(), ...request }; };
-
   it("makes the change once, then reloads", async () => {
     const panel = await startPanel();
     ask({ ids: ["back-1", "back-2"], kind: "update", input: { priority: 3 } });
@@ -1392,7 +1466,8 @@ describe("requests from the popups", () => {
     panel.draw();
     await panel.cx.idle();
     assert.deepEqual(updates(panel.server), [{ ids: ["back-1", "back-2"], input: { priority: 3 } }]);
-    assert.deepEqual(panel.server.kinds().slice(-2), ["update", "issues"]);
+    assert.deepEqual(panel.server.kinds()
+      .slice(-2), ["update", "issues"]);
   });
 
   it("gives each issue its own team's status of the name asked", async () => {
@@ -1411,16 +1486,18 @@ describe("requests from the popups", () => {
     await panel.cx.idle();
     assert.equal(panel.cx.clipboard,
       "Work on Linear issue BACK-1: Fix login\n\nSteps to reproduce\n\nhttps://tracker.test/issue/BACK-1");
-    assert.deepEqual(panel.server.kinds().slice(-1), ["description"]);
+    assert.deepEqual(panel.server.kinds()
+      .slice(-1), ["description"]);
   });
 
   it("copies everything with the comments", async () => {
     const panel = await startPanel();
+    panel.server.comments = [{ body: "Seen it too", createdAt: "2026-11-21T10:00:00.000Z", user: { name: "Ada" } }];
     ask({ ids: ["back-1"], kind: "copy", what: "everything" });
     panel.draw();
     await panel.cx.idle();
     assert.match(panel.cx.clipboard, /## Comments\n\n\*\*Ada\*\* \(2026-11-21\):\n\nSeen it too$/);
-    assert.equal(host.notes[0].title, "Copied everything as Markdown");
+    assert.match(host.notes[0].title, /^Copied everything as Markdown/);
   });
 
   it("copies several issues as Markdown, reading each one's description", async () => {
@@ -1430,8 +1507,9 @@ describe("requests from the popups", () => {
     await panel.cx.idle();
     assert.equal(panel.cx.clipboard,
       "# Fix login\n\nSteps to reproduce\n\n---\n\n# Add audit log\n\nSteps to reproduce");
-    assert.deepEqual(panel.server.kinds().slice(-2), ["description", "description"]);
-    assert.equal(host.notes[0].title, "Copied issues as Markdown");
+    assert.deepEqual(panel.server.kinds()
+      .slice(-2), ["description", "description"]);
+    assert.match(host.notes[0].title, /^Copied issues as Markdown/);
   });
 
   it("opens an issue's page, and the composer of a team, when a popup asks", async () => {
@@ -1443,9 +1521,11 @@ describe("requests from the popups", () => {
     ask({ ids: [], kind: "compose", team: { key: "WEB", name: "Website" } });
     panel.draw();
     await settled();
-    assert.deepEqual(host.ran.slice(-2).map((ran) => ran.args[0]),
-      ["linear://tracker.test/issue/BACK-2", "linear://linear.app/team/WEB/new?assignee=me"]);
-    assert.ok(!icons(panel.draw()).includes("spinner"));
+    assert.deepEqual(host.ran.slice(-2)
+      .map((ran) => ran.args[0]),
+    ["linear://tracker.test/issue/BACK-2", "linear://linear.app/team/WEB/new?assignee=me"]);
+    assert.ok(!icons(panel.draw())
+      .includes("spinner"));
     assert.deepEqual(panel.server.kinds(), ["issues", "teams"]);
   });
 
@@ -1457,7 +1537,8 @@ describe("requests from the popups", () => {
     await panel.cx.idle();
     panel.draw();
     await panel.cx.idle();
-    assert.deepEqual(updates(panel.server).map((update) => update.ids), [["back-1"], ["back-2"]]);
+    assert.deepEqual(updates(panel.server)
+      .map((update) => update.ids), [["back-1"], ["back-2"]]);
   });
 
   it("keeps the spinner of a change while a quiet reload ends", async () => {
@@ -1468,18 +1549,20 @@ describe("requests from the popups", () => {
     const answer = host.fetch;
     host.fetch = async (url,
       options) => { if (JSON.parse(options.body).query.includes("issueBatchUpdate")) await held; return answer(url,
-        options); };
+      options); };
     ask({ ids: ["back-1"], kind: "update", input: { priority: 3 } });
     panel.draw();
     panel.cx.tick();
     await settled();
     await settled();
     panel.cx.elapse();
-    assert.ok(icons(panel.draw()).includes("spinner"));
+    assert.ok(icons(panel.draw())
+      .includes("spinner"));
     release();
     await panel.cx.idle();
     panel.cx.elapse();
-    assert.ok(!icons(panel.draw()).includes("spinner"));
+    assert.ok(!icons(panel.draw())
+      .includes("spinner"));
   });
 
   it("shows what failed for which issue, until the line is clicked", async () => {
@@ -1501,9 +1584,22 @@ describe("requests from the popups", () => {
     assert.deepEqual(updates(panel.server), []);
   });
 
+  it("serves every request sent before it drew, not only the last", async () => {
+    const panel = await startPanel();
+    ask({ ids: ["back-1"], kind: "update", input: { priority: 3 } });
+    ask({ ids: ["back-2"], kind: "update", input: { priority: 4 } });
+    panel.draw();
+    await panel.cx.idle();
+    assert.deepEqual(updates(panel.server)
+      .map(({ ids }) => ids), [["back-1"], ["back-2"]]);
+    panel.draw();
+    await panel.cx.idle();
+    assert.equal(updates(panel.server).length, 2);
+  });
+
   it("does not replay a request left from before it started", async () => {
     const left = { at: 5, ids: ["back-1"], kind: "update", input: { priority: 4 } };
-    const panel = await startPanel({ app: { shared: { [REQUEST]: left } } });
+    const panel = await startPanel({ app: { shared: { [REQUESTS]: [left] } } });
     panel.draw();
     await panel.cx.idle();
     assert.deepEqual(updates(panel.server), []);
@@ -1527,5 +1623,132 @@ describe("requests from the popups", () => {
     assert.deepEqual(panel.server.asked.at(-1).variables.mine,
       { state: { type: { nin: ["completed", "canceled", "duplicate"] } } });
     assert.equal(host.stored.completed, "none");
+  });
+});
+
+describe("lookups that fail", () => {
+  it("says so when Herdr cannot list the agents, instead of offering none", async () => {
+    const panel = await startPanel({ load: false, app: { agentsError: "No shell" } });
+    await panel.cx.idle();
+    assert.match(text(panel.draw()), /Could not list the agents: No shell/);
+  });
+
+  it("says so when the teams kept from the last run cannot be refreshed", async () => {
+    await startPanel();
+    const kept = host.stored["cache.v1.teams"];
+    const answer = tracker();
+    const refused = async (url, options) => {
+      if (JSON.parse(options.body).query.includes("issueEstimationType")) throw new Error("Offline");
+      return answer.fetch(url, options);
+    };
+    const second = await startPanel({ stored: { "cache.v1.teams": kept }, app: { fetch: refused } });
+    assert.match(text(second.draw()), /Could not load the teams: Offline/);
+  });
+});
+
+describe("what is kept between runs", () => {
+  it("starts with the teams of the last run, and asks for them again in the background", async () => {
+    await startPanel();
+    const kept = host.stored["cache.v1.teams"];
+    assert.ok(kept);
+    // A new run: the teams are known before the tracker answers, and are asked once more
+    const second = await startPanel({ load: false, stored: { "cache.v1.teams": kept } });
+    assert.equal(second.view.part.store.teams.size, 2);
+    second.draw();
+    await second.cx.idle();
+    assert.deepEqual(second.server.kinds(), ["issues", "teams"]);
+  });
+});
+
+describe("a picker that does not fit below its control", () => {
+  it("opens the whole list above the control, never over it, and scrolls only when neither side holds it", async () => {
+    const panel = await startPanel();
+    enter(panel);
+    const open = async (y) => {
+      host.overlays.length = 0;
+      const root = panel.draw(), control = find(root, "estimate-back-1");
+      send(root, control, "on_mouse_down:left", { ...at(1270, y + 10), bounds: { x: 1262, y, width: 30, height: 20 } },
+        panel.cx);
+      send(root, control, "on_click", at(1270, y + 10), panel.cx);
+      return host.overlays[0];
+    };
+    // Plenty of room below: all the rows, under the control
+    const roomy = await open(100);
+    assert.equal(roomy.props.visible, 6);
+    assert.equal(roomy.at.y, 100 + 20 + 6);
+    // Close to the bottom (the panel ends at 740): the same popup over the control
+    const low = await open(640);
+    assert.equal(low.props.visible, 6);
+    assert.equal(low.at.y + low.height, 640 - 6);
+  });
+});
+
+describe("the header's round buttons", () => {
+  it("light only their icon under the pointer, not the circle around it", async () => {
+    const panel = await startPanel();
+    const icon = (id) => find(panel.draw(), id).$.children[0].$.style.text_color;
+    for (const id of ["new-issue", "display-options", "reload"]) {
+      assert.equal(icon(id), "theme.muted");
+      hover(find(panel.draw(), id), true, panel.cx);
+      assert.equal(icon(id), "theme.foreground");
+      // The circle is as it was
+      const { style } = find(panel.draw(), id).$;
+      assert.deepEqual([style.border_color, style.bg], ["theme.border", undefined]);
+      hover(find(panel.draw(), id), false, panel.cx);
+      assert.equal(icon(id), "theme.muted");
+    }
+  });
+});
+
+describe("the view pills", () => {
+  it("light up under the pointer, except the selected one", async () => {
+    const root = (await startPanel()).draw();
+    assert.equal(find(root, "view-cycle").$.hover, null);
+    assert.deepEqual(find(root, "view-all").$.hover, { bg: "theme.hover" });
+  });
+});
+
+describe("the total of the view", () => {
+  const total = (panel) => find(panel.draw(), "total-view");
+
+  it("is under the view pills, in the groups' mode: the number of issues, or their estimates", async () => {
+    const counting = await startPanel({ app: { stored: { totals: "count" } } });
+    const pieces = texts(counting.draw());
+    assert.ok(pieces.indexOf("3 issues") > pieces.indexOf("My issues"));
+    assert.equal(text(total(counting)), "3 issues");
+    assert.deepEqual(icons(total(counting)), []);
+    const points = await startPanel();
+    // The cycle's three issues: 3, the team's default 1 for the one without, and 5 points
+    assert.deepEqual([text(total(points)), icons(total(points))], ["9", ["estimate"]]);
+  });
+
+  it("switches the mode of the total and of every group on a click, and brightens under the pointer", async () => {
+    const panel = await startPanel();
+    const figure = () => find(panel.draw(), "total-view").$.style.text_color;
+    assert.equal(figure(), "theme.muted");
+    hover(find(panel.draw(), "total-view"), true, panel.cx);
+    assert.equal(figure(), "theme.foreground");
+    clickOn(panel, "total-view");
+    assert.equal(text(find(panel.draw(), "total-view")), "3 issues");
+    assert.match(text(find(panel.draw(), "issues")), /In Progress 1/);
+    clickOn(panel, "total-view");
+    assert.equal(text(find(panel.draw(), "total-view")), "9");
+  });
+});
+
+describe("the addresses of links", () => {
+  it("lets only web addresses and the tracker's reach the system's opener", async () => {
+    const panel = await startPanel();
+    const { openLink } = await import("../../mods/linear-panel/tracker.js");
+    for (const address of ["file:///Applications/Calculator.app", "smb://host/share", "javascript:alert(1)",
+      "C:\\Windows\\System32\\calc.exe", "mailto:a@b.c", "ssh://host"]) {
+      await openLink(address);
+    }
+    assert.deepEqual(host.ran.filter((ran) => ran.command === "open"), []);
+    await openLink("https://example.com/x");
+    assert.deepEqual(host.ran.filter((ran) => ran.command === "open")
+      .map((ran) => ran.args[0]),
+    ["https://example.com/x"]);
+    assert.ok(panel);
   });
 });

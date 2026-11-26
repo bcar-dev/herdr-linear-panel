@@ -1,56 +1,82 @@
-// Tooltips of the panel's own, since Herdr's are text only: a control's name and its shortcut as keys.
+// Tooltips of the panel's own, since Herdr's are text only: a control's name and its shortcut as keys
 import { div } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
-import { keycaps, zoom } from "../ui.js";
-import { tipSpot, unzoomed } from "../lib/placement.js";
+import { Side } from "../enums.js";
+import { isMac } from "../tracker.js";
+import { KEYCAP_GAP_PX, KEYCAP_MIN_WIDTH_PX, KEYCAP_SIDE_PADDING_PX, keycaps, zoom } from "../ui.js";
+import { capHeld } from "../lib/keys.js";
+import { textWidth, tipSpot, unzoomed } from "../lib/placement.js";
 
-// How long the pointer rests on a control before its tooltip shows, in ms.
-const REST = 1000;
-// How long after a tooltip went the next control shows its own at once, in ms.
-const WARM = 500;
+const KEYCAPS_LEAD_PX = 5;
+const KEYCAP_CHAR_WIDTH_PX = 7;
+const KEYCAP_PADDING_PX = 2 * KEYCAP_SIDE_PADDING_PX;
+const LABEL_CHAR_WIDTH_PX = 6.3;
+const TOOLTIP_DELAY_MS = 1000;
+const TOOLTIP_FRAME_HEIGHT_PX = 28;
+const TOOLTIP_FRAME_WIDTH_PX = 20;
+const TOOLTIP_WARM_MS = 500;
 
 export class Hints {
   /** @type {Tip | null} */
   tip = null;
-  // The tooltip of the control the pointer is on, until the pointer has rested there long enough to show it.
   /** @type {Tip | null} */
   #waiting = null;
-  // The keys of the controls given a tooltip in the drawing under way.
+  // The keys of the controls given a tooltip in the drawing under way
   /** @type {Set<string>} */
   #drawn = new Set();
-  // Until when a control the pointer comes on shows its tooltip without the rest: a tooltip went a moment ago.
+  // Until when a control the pointer comes on shows its tooltip without the rest
   #warmUntil = 0;
+  /** @type {string | null} */
+  #hovered = null;
+  /** @type {string | null} */
+  #pressed = null;
+
+  // `covered()` says whether something is open over the panel (a popup): the pointer is then taken from the controls
+  // beneath it, which are told it left without its having left them, and a pressed control stays pressed
+  /** @param {() => boolean} [covered] */
+  constructor(covered = () => false) { this.#covered = covered; }
+  #covered;
 
   begin() { this.#drawn = new Set(); }
 
-  // The tooltip to show, once every control of the drawing has been given its own. A tooltip does not outlive its
-  // control: a control that went away while the pointer was on it is never told the pointer left.
+  /** @type {{ modifiers: KeyEvent["modifiers"], key: string | null }} */
+  held = { modifiers: { shift: false, control: false, alt: false, platform: false, function: false }, key: null };
+
+  /**
+   * @param {KeyEvent["modifiers"]} modifiers
+   * @param {string | null} key the key that went down, null when it went up or only a modifier changed
+   * @param {Context} cx
+   */
+  keys(modifiers, key, cx) {
+    this.held = { modifiers, key };
+    if (this.tip?.caps.length) cx.notify();
+  }
+
+  // A control that went away while the pointer was on it is never told the pointer left
   showing() {
     if (this.tip && !this.#drawn.has(this.tip.key)) this.tip = null;
     if (this.#waiting && !this.#drawn.has(this.#waiting.key)) this.#waiting = null;
     return this.tip;
   }
 
-  // Gives an element a tooltip, shown under it (or with side "above", over it) once the pointer has rested on it: its
-  // `label`, then the keys of its shortcut (`caps`). The element needs an id. `key` tells the controls apart: give
-  // one when several share a label. `body(t)` draws more above the label, or answers null for nothing. Under a body, an
-  // empty label leaves the tooltip to the body alone.
-  // An element takes one hover handler, and the tooltip needs it: `hover` is run from it, for the element's own use.
+  // The element needs an id. `key` tells the controls apart: give one when several share a label. `body(t)` draws more
+  // above the label, or answers null for nothing. Under a body, an empty label leaves the tooltip to the body alone.
+  // An element takes one hover handler, and the tooltip needs it: `hover` is run from it, for the element's own use
   /**
-   * @param {NativeElement} el
+   * @param {NativeElement} element
    * @param {string} label
    * @param {{
    *   caps?: string[], side?: Tip["side"], key?: string, body?: Tip["body"],
    *   hover?: (hovered: boolean, cx: Context) => void,
    * }} options
    */
-  on(el, label, { caps = [], side = "below", key = label, body, hover } = {}) {
+  on(element, label, { caps = [], side = Side.BELOW, key = label, body, hover } = {}) {
     this.#drawn.add(key);
-    return el
-      .on_mouse_move((e, cx) => {
-        if (this.tip?.key === key || this.#waiting?.key === key) return;
-        const tip = { key, label, caps, side, body, bounds: e.bounds };
-        // From one control to its neighbor, the pointer does not rest again: two issues can be compared at once.
+    return element
+      .on_mouse_down("left", (_event, cx) => this.#press(key, cx))
+      .on_mouse_move((event, cx) => {
+        if (this.#pressed === key || this.tip?.key === key || this.#waiting?.key === key) return;
+        const tip = { key, label, caps, side, body, bounds: event.bounds };
         if (this.tip || Date.now() < this.#warmUntil) {
           this.#waiting = null;
           this.tip = tip;
@@ -58,8 +84,8 @@ export class Hints {
           return;
         }
         this.#waiting = tip;
-        cx.timer.after(REST, (cx) => {
-          // Still the same visit of the pointer: it has not left, nor left and come back.
+        cx.timer.after(TOOLTIP_DELAY_MS, (cx) => {
+          // Still the same visit of the pointer: it has not left, nor left and come back
           if (this.#waiting !== tip) return;
           this.#waiting = null;
           this.tip = tip;
@@ -68,51 +94,97 @@ export class Hints {
       })
       .on_hover((hovered, cx) => {
         hover?.(hovered, cx);
-        if (hovered) return;
+        if (hovered) { this.#hovered = key; return; }
+        if (this.#hovered === key) this.#hovered = null;
+        if (this.#pressed === key && !this.#covered()) this.#pressed = null;
         if (this.#waiting?.key === key) this.#waiting = null;
         if (this.tip?.key !== key) return;
         this.tip = null;
-        this.#warmUntil = Date.now() + WARM;
+        this.#warmUntil = Date.now() + TOOLTIP_WARM_MS;
         cx.notify();
       });
   }
 
-  clear() { this.tip = this.#waiting = null; }
+  /**
+   * @param {string} key
+   * @param {Context} cx
+   */
+  #press(key, cx) {
+    this.#pressed = key;
+    this.#waiting = null;
+    this.#warmUntil = 0;
+    if (this.tip) { this.tip = null; cx.notify(); }
+  }
 
-  // The tooltip, drawn inside the panel since a mod cannot draw outside its block. `frame` is the panel's bounds.
+  // A control gives this to its own press handler, since that one stops the press and the tooltip's own never sees it
+  /** @param {Context} cx */
+  press(cx) {
+    if (this.#hovered) this.#press(this.#hovered, cx);
+  }
+
+  clear() {
+    this.tip = this.#waiting = null;
+    this.#warmUntil = 0;
+  }
+
+  // Drawn inside the panel: a mod cannot draw outside its block. `frame` is the panel's bounds
   /**
    * @param {Theme} t
    * @param {Bounds} frame
    */
   draw(t, frame) {
-    // There is one: the panel draws it only when `showing` answered it.
+    // There is one: the panel draws it only when `showing` answered it
     const { label, caps, side, bounds, body } = /** @type {Tip} */ (this.tip);
     const card = body?.(t) ?? null, lined = !card || label !== "";
-    // Under a body, the label and its keys take the two ends of their line.
-    const line = h_flex().h(26).flex_none().gap(8).items_center()
-      .child(div().flex_none().child(label))
-      .when(card !== null, (el) => el.child(div().flex_1()))
-      .when(caps.length > 0, (el) => el.child(keycaps(t, caps)));
-    const box = v_flex().px(9).flex_none().rounded(8)
-      .bg(t.popover).border_1().border_color(t.border).shadow_md().text_size(12).text_color(t.foreground)
+    const line = h_flex()
+      .h(26)
+      .flex_none()
+      .gap(8)
+      .items_center()
+      .child(div()
+        .flex_none()
+        .child(label))
+      .when(card !== null, (element) => element.child(div()
+        .flex_1()))
+      .when(caps.length > 0, (element) => element.child(keycaps(t, caps, (cap) => capHeld(cap, this.held, isMac()))));
+    const box = v_flex()
+      .px(9)
+      .flex_none()
+      .rounded(8)
+      .bg(t.popover)
+      .border_1()
+      .border_color(t.border)
+      .shadow_md()
+      .text_size(12)
+      .text_color(t.foreground)
       .children(card ? [card.el] : [])
-      .children(lined ? [...(card ? [div().h(1).flex_none().bg(t.border)] : []), line] : []);
-    // A mod cannot measure text: the label's line is reckoned at 6.3 px a character, a key at 20 px or more.
-    const lineWidth = 6.3 * label.length +
-      caps.reduce((sum, cap) => sum + 3 + Math.max(20, 10 + 7 * cap.length), caps.length ? 5 : 0);
-    // With the padding and the border; under a body, with its rule too.
-    const size = { width: Math.max(lineWidth, card?.width ?? 0) + 20,
-      height: (card ? card.height + (lined ? 1 : 0) : 0) + (lined ? 28 : 2) };
-    // The control and the panel are known in window pixels; the tooltip is placed in the pixels of a style.
+      .children(lined ? [...(card ? [div()
+        .h(1)
+        .flex_none()
+        .bg(t.border)] : []), line] : []);
+    const lineWidth = textWidth(label, LABEL_CHAR_WIDTH_PX) + caps.reduce(
+      (sum, cap) => sum + KEYCAP_GAP_PX +
+        Math.max(KEYCAP_MIN_WIDTH_PX, KEYCAP_PADDING_PX + textWidth(cap, KEYCAP_CHAR_WIDTH_PX)),
+      caps.length ? KEYCAPS_LEAD_PX : 0);
+    // With the padding and the border; under a body, with its rule too
+    const size = { width: Math.max(lineWidth, card?.width ?? 0) + TOOLTIP_FRAME_WIDTH_PX,
+      height: (card ? card.height + (lined ? 1 : 0) : 0) + (lined ? TOOLTIP_FRAME_HEIGHT_PX : 2) };
+    // The control and the panel are known in window pixels; the tooltip is placed in the pixels of a style
     const scale = zoom(), within = unzoomed(frame, scale);
     const { left, right, center, top, bottom } = tipSpot(unzoomed(bounds, scale), within, side, size);
     // Centered, the tooltip sits in the middle of a row that reaches as far on each side of the control's middle as
-    // the nearer edge of the panel: its own width, which is only reckoned, does not shift it.
+    // the nearer edge of the panel: its own width, which is only reckoned, does not shift it
     const reach = Math.min(center ?? 0, within.width - (center ?? 0));
-    const across = center !== undefined ? h_flex().absolute().left(center - reach).w(2 * reach).justify_center()
+    const across = center !== undefined ? h_flex()
+      .absolute()
+      .left(center - reach)
+      .w(2 * reach)
+      .justify_center()
       .child(box)
-      : left !== undefined ? box.absolute().left(left)
-        : box.absolute().right(right);
+      : left !== undefined ? box.absolute()
+        .left(left)
+      : box.absolute()
+        .right(right);
     const placed = across.id("tooltip");
     return top === undefined ? placed.bottom(bottom) : placed.top(top);
   }
