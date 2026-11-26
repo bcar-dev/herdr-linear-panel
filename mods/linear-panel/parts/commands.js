@@ -1,23 +1,65 @@
 // The command window on one or several issues: a list of actions, and a page of choices for each action that ends
-// in "…". It shows as a dialog with every page, or as a popup opened straight at one page.
+// in "…". It shows as a dialog with every page, or as a popup opened straight at one page
 import { div, svg } from "gpui-kit";
-import { v_flex, h_flex, InputState, Input } from "gpui-base";
-import { MOD, PRIORITIES, shipped } from "../config.js";
-import { dismiss, submit } from "../channel.js";
-import { cycleMark, face, glyph, keycaps, priorityMark, statusMark, takeKeyboard } from "../ui.js";
-import { cycleName, cycleNote, pickable, tense } from "../lib/cycles.js";
-import { propertyKey, spelled } from "../lib/keys.js";
-import { commonCycles, commonEstimates, commonMembers, commonStates, estimateLabel, share } from "../lib/teams.js";
-import { boxed } from "./menu.js";
+import { v_flex, h_flex, InputState } from "gpui-base";
+import { MENU_RULE_HEIGHT_PX, MOD, PICK_HEAD_HEIGHT_PX, PICK_MAX_ROWS, PICK_ROW_HEIGHT_PX, icon,
+  shipped } from "../config.js";
+import { dismiss, projectMembersOf, submit } from "../channel.js";
+import { Mark, Page, Property, RequestKind } from "../enums.js";
+import { FACE_SIZE_PX, cycleMark, face, glyph, keycaps, pillRow, priorityMark, statusMark,
+  takeKeyboard } from "../ui.js";
+import { choiceRows } from "../lib/choices.js";
+import { propertyKey, spelled, unmodified } from "../lib/keys.js";
+import { commonCycles, commonEstimates } from "../lib/teams.js";
+import { boxed, rule, searchField } from "./menu.js";
 
 // Herdr closes a popup or a dialog on Escape before the mod sees the key. A binding of the mod's own, in a context
-// only this window declares, comes first: Escape can then go back one page instead of closing everything.
+// only this window declares, comes first: Escape can then go back one page instead of closing everything
 const CONTEXT = "IssueCommands";
 const ESCAPE = `${MOD.replace(/-/g, "_")}_escape`;
 
-const ROW = 32;
-// A popup's list scrolls past this many rows.
-const MOST_ROWS = 16;
+const CAPTION_HEIGHT_PX = 28;
+const CYCLE_MARK_SIZE_PX = 15;
+const HEAD_RULE_PX = 2;
+const ICON_COLUMN_WIDTH_PX = 18;
+const MONO = "Menlo";
+/** @type {Partial<Record<Page, string>>} */
+const NO_MATCH = {
+  [Property.CYCLE]: "No cycle matches", [Property.ESTIMATE]: "No estimate matches",
+  [Property.PRIORITY]: "No priority matches", [Property.STATUS]: "No status matches",
+};
+/** @type {Page[]} */
+const NUMBERED = [Property.STATUS, Property.PRIORITY, Property.ASSIGN, Property.CYCLE];
+const PADDING_PX = 10;
+const ROW = PICK_ROW_HEIGHT_PX;
+
+// The height of the popup that holds the choices of a property: the window's padding, the search line and its rule, the
+// chip naming the issues unless `bare`, a rule between `groups` blocks, and `visible` rows
+/** @param {{ groups: number, bare: boolean, visible: number }} props */
+export const heightFor = ({ groups, bare, visible }) => PADDING_PX + PICK_HEAD_HEIGHT_PX + HEAD_RULE_PX
+  + (groups - 1) * MENU_RULE_HEIGHT_PX + (bare ? 0 : CAPTION_HEIGHT_PX) + visible * PICK_ROW_HEIGHT_PX;
+
+/**
+ * @param {Theme} t
+ * @param {import("../lib/choices.js").ChoiceSource} source
+ * @param {WorkflowState[]} states
+ */
+function rowIcon(t, source, states) {
+  switch (source.property) {
+    case Property.STATUS: return statusMark(source.state, states);
+    case Property.PRIORITY: return priorityMark(t, source.value, true);
+    case Property.ESTIMATE: return glyph(t, source.value === null ? "estimate-none" : "estimate");
+    case Property.ASSIGN: return source.member
+      ? face(source.member.initials ?? "", source.member.avatarBackgroundColor ?? t.raised)
+      : svg(icon("no-assignee"))
+        .size(FACE_SIZE_PX)
+        .text_color(t.muted);
+    default: return source.cycle ? cycleMark(source.tense, CYCLE_MARK_SIZE_PX, t.muted)
+      : svg(icon("cycle-none"))
+        .size(CYCLE_MARK_SIZE_PX)
+        .text_color(t.muted);
+  }
+}
 
 export class Commands {
   /** @type {Opened<CommandsProps>} */ props;
@@ -26,11 +68,11 @@ export class Commands {
   /** @type {string} */ me;
   /** @type {boolean | undefined} */ compact;
   /** @type {boolean | undefined} */ bare;
-  /** @type {Page} */ page = "actions";
+  /** @type {Page} */ page = Page.ACTIONS;
   /** @type {Choice[]} */ rows = [];
 
-  // `targets` are the issues and `teams` the teams they belong to; `page` is "actions" or the page to open at.
-  // `compact` is the window as a popup on one property. `bare` leaves out the chip naming the issues.
+  // `page` is "actions" or the page to open at. `compact` is the window as a popup on one property. `bare` leaves
+  // out the chip naming the issues
   /**
    * @param {Opened<CommandsProps>} props
    * @param {Context} cx
@@ -43,17 +85,20 @@ export class Commands {
     this.me = me;
     this.compact = compact;
     this.bare = bare;
-    // Escape on a page goes back to the actions when the window opened at them, and closes a window opened at a page.
-    this.fromActions = page === "actions";
+    // Escape on a page goes back to the actions when the window opened at them, and closes a window opened at a page
+    this.fromActions = page === Page.ACTIONS;
     this.handle = cx.focus_handle();
-    // The pages filtered by typing, each with a field of its own: a field takes its placeholder only when it is made.
+    // The pages filtered by typing, each with a field of its own: a field takes its placeholder only when it is made
     /** @type {Partial<Record<Page, ReturnType<typeof InputState.new>>>} */
-    this.fields = { assign: this.field("Assign to…"), cycle: this.field("Move to cycle…") };
-    // The keymap is Herdr's: each window asks again for its binding.
+    this.fields = { [Property.STATUS]: this.field("Change status…"),
+      [Property.PRIORITY]: this.field(`${this.verb("priority")} priority to…`),
+      [Property.ESTIMATE]: this.field(`${this.verb("estimate")} estimate to…`),
+      [Property.ASSIGN]: this.field("Assign to…"), [Property.CYCLE]: this.field("Move to cycle…") };
+    // The keymap is Herdr's: each window asks again for its binding
     try {
       cx.bind_keys([{ keystroke: "escape", action: ESCAPE, context: CONTEXT }]);
     } catch {
-      // Without the binding, Escape closes the window, which is Herdr's own behaviour.
+      // Without the binding, Escape closes the window, which is Herdr's own behaviour
     }
     this.open(page);
     takeKeyboard(this, cx);
@@ -67,12 +112,13 @@ export class Commands {
     return input;
   }
 
-  // What is typed in the page's field, or null on a page without one.
+  // What is typed in the page's field, or null on a page without one
   typed() {
-    return this.fields[this.page]?.value().trim().toLowerCase() ?? null;
+    return this.fields[this.page]?.value()
+      .trim()
+      .toLowerCase() ?? null;
   }
 
-  // A page filtered by typing gives its field the keyboard. The other pages take keys themselves.
   focus() {
     const field = this.fields[this.page];
     if (field) field.focus();
@@ -82,8 +128,6 @@ export class Commands {
   /** @param {Page} page */
   open(page) {
     this.page = page;
-    // The row the arrow keys are on. A popup on one property starts on none, so that nothing looks chosen before
-    // the person moves; the window with every action starts on its first row.
     this.at = this.compact ? -1 : 0;
     this.focus();
   }
@@ -98,18 +142,9 @@ export class Commands {
     return this.targets.every((issue) => !issue[field]) ? "Set" : "Change";
   }
 
-  title() {
-    return /** @type {Record<string, string>} */ ({
-      actions: "Actions",
-      status: "Change status…",
-      priority: `${this.verb("priority")} priority to…`,
-      estimate: `${this.verb("estimate")} estimate to…`,
-    })[this.page];
-  }
-
   // The rows of the page showing: { label, icon, key, caps, mark, run }. `key` is the shortcut obeyed, as lib/keys.js
   // spells it, and `caps` how it shows when that is not the key in capitals. `mark` says whether all ("all") or part
-  // ("some") of the issues already have that value.
+  // ("some") of the issues already have that value
   /**
    * @param {Theme} t
    * @returns {Choice[]}
@@ -117,104 +152,56 @@ export class Commands {
   choices(t) {
     const { targets, teams } = this;
     /** @param {IssueUpdate} input */
-    const update = (input) => () => this.send({ kind: "update", input });
-    /**
-     * @param {unknown} value
-     * @param {(issue: Issue) => unknown} read
-     */
-    const held = (value, read) => share(targets.map(read), value);
-    if (this.page === "status") {
-      return commonStates(teams).map((state, i) => ({
-        label: state.name,
-        icon: statusMark(state, teams[0].states),
-        key: i < 9 ? String(i + 1) : null,
-        mark: held(state.name, (issue) => issue.state.name),
-        run: () => this.send({ kind: "status", name: state.name }),
-      }));
-    }
-    if (this.page === "priority") {
-      return PRIORITIES.map(([value, label]) => ({
-        label,
-        icon: priorityMark(t, value, true),
-        key: String(value),
-        mark: held(value, (issue) => issue.priority),
-        run: update({ priority: value }),
-      }));
-    }
-    if (this.page === "estimate") {
-      return [null, ...commonEstimates(teams)].map((value) => ({
-        label: estimateLabel(teams[0], value) ?? "No estimate",
-        icon: glyph(t, value === null ? "estimate-none" : "estimate"),
-        mark: held(value, (issue) => issue.estimate ?? null),
-        run: update({ estimate: value }),
-      }));
-    }
-    if (this.page === "assign") {
-      // A member's mark is their initials on their own color.
-      /** @param {Member} member */
-      const mark = (member) => face(member.initials ?? "", member.avatarBackgroundColor ?? t.raised);
+    const update = (input) => () => this.send({ kind: RequestKind.UPDATE, input });
+    if (this.page !== Page.ACTIONS) {
       const query = this.typed() ?? "";
-      return commonMembers(teams)
-        .filter((member) => `${member.name} ${member.displayName}`.toLowerCase().includes(query))
-        .map((member) => ({
-          label: member.displayName || member.name,
-          icon: mark(member),
-          mark: member.id === this.me ? "all" : null,
-          run: update({ assigneeId: member.id }),
-        }));
-    }
-    if (this.page === "cycle") {
-      const cycles = commonCycles(teams), now = Date.now(), query = this.typed() ?? "";
-      /** @param {Issue} issue */
-      const inCycle = (issue) => issue.cycle?.id ?? null;
-      /** @type {Choice[]} */
-      const rows = [
-        { label: "No cycle", icon: glyph(t, "cycle-none"), mark: held(null, inCycle), run: update({ cycleId: null }) },
-        ...pickable(cycles, now).map((cycle) => ({
-          label: cycleName(cycle),
-          note: cycleNote(cycle, cycles, now),
-          icon: cycleMark(tense(cycle, cycles, now), 15, t.muted),
-          mark: held(cycle.id, inCycle),
-          run: update({ cycleId: cycle.id }),
-        })),
-      ];
-      return rows.filter((row) => `${row.label} ${row.note ?? ""}`.toLowerCase().includes(query));
+      return choiceRows(this.page, { targets, teams, me: this.me, projectMembers: projectMembersOf(targets) })
+        .filter((row) => row.words.toLowerCase()
+          .includes(query))
+        .map((row) => ({ label: row.label, note: row.note, key: row.key, mark: row.mark, group: row.group,
+          icon: rowIcon(t, row.source, this.teams[0].states), run: () => this.send(row.ask) }));
     }
     return [
-      { label: "Assign to…", icon: glyph(t, "assign"), ...propertyKey("assign"), run: () => this.open("assign") },
+      { label: "Assign to…", icon: glyph(t, "assign"), ...propertyKey(Property.ASSIGN),
+        run: () => this.open(Property.ASSIGN) },
       { label: "Un-assign from me", icon: glyph(t, "unassign"), key: "i", run: update({ assigneeId: null }) },
-      { label: "Change status…", icon: glyph(t, "status"), ...propertyKey("status"), run: () => this.open("status") },
-      { label: `${this.verb("priority")} priority…`, icon: glyph(t, "priority-2"), ...propertyKey("priority"),
-        run: () => this.open("priority") },
-      // An estimate scale belongs to a team: issues of several teams are offered the estimates all their scales have.
+      { label: "Change status…", icon: glyph(t, "status"), ...propertyKey(Property.STATUS),
+        run: () => this.open(Property.STATUS) },
+      { label: `${this.verb("priority")} priority…`, icon: glyph(t, "priority-2"), ...propertyKey(Property.PRIORITY),
+        run: () => this.open(Property.PRIORITY) },
+      // An estimate scale belongs to a team: issues of several teams are offered the estimates all their scales have
       ...(commonEstimates(teams).length ? [{
-        label: `${this.verb("estimate")} estimate…`, icon: glyph(t, "estimate"), ...propertyKey("estimate"),
-        run: () => this.open("estimate"),
+        label: `${this.verb("estimate")} estimate…`, icon: glyph(t, "estimate"), ...propertyKey(Property.ESTIMATE),
+        run: () => this.open(Property.ESTIMATE),
       }] : []),
       ...(commonCycles(teams).length ? [{
-        label: "Move to cycle…", icon: glyph(t, "cycle"), ...propertyKey("cycle"), run: () => this.open("cycle"),
+        label: "Move to cycle…", icon: glyph(t, "cycle"), ...propertyKey(Property.CYCLE),
+        run: () => this.open(Property.CYCLE),
       }] : []),
     ];
   }
 
   /** @param {Context} cx */
   escape(cx) {
-    if (!this.fromActions || this.page === "actions") return dismiss(this.props.overlay);
-    this.open("actions");
+    if (!this.fromActions || this.page === Page.ACTIONS) return dismiss(this.props.overlay);
+    this.open(Page.ACTIONS);
     cx.notify();
   }
 
   /**
-   * @param {KeyEvent} e
+   * @param {KeyEvent} event
    * @param {Context} cx
    */
-  key(e, cx) {
-    const rows = this.rows, m = e.modifiers, row = rows.find((candidate) => candidate.key === spelled(e));
-    if (e.key === "down") this.at = (this.at + 1) % Math.max(1, rows.length);
-    else if (e.key === "up") this.at = (Math.max(this.at, 0) + rows.length - 1) % Math.max(1, rows.length);
-    else if (e.key === "enter") rows[this.at]?.run();
-    // Typing in a page with a field filters it: its letters are not shortcuts.
-    else if (this.typed() === null && !m.control && !m.alt && !m.platform && row) row.run();
+  key(event, cx) {
+    const rows = this.rows, modifiers = event.modifiers;
+    const row = rows.find((candidate) => candidate.key === spelled(event));
+    if (event.key === "down") this.at = (this.at + 1) % Math.max(1, rows.length);
+    else if (event.key === "up") this.at = (Math.max(this.at, 0) + rows.length - 1) % Math.max(1, rows.length);
+    else if (event.key === "enter") rows[this.at]?.run();
+    // Typing in a page with a field filters it: its letters are not shortcuts. The digits of pages that number rows
+    // still are
+    else if ((this.typed() === null || (NUMBERED.includes(this.page) && /^\d$/.test(event.key)))
+      && unmodified(modifiers) && row) row.run();
     else return;
     cx.stop_propagation();
     cx.notify();
@@ -227,42 +214,114 @@ export class Commands {
     const chip = this.targets.length === 1 ? `${this.targets[0].identifier} · ${this.targets[0].title}`
       : `${this.targets.length} issues`;
     const field = this.fields[this.page];
-    const heading = field ? Input.new(field).flex_1().h_full().text_size(13).text_color(t.foreground)
-      : div().child(this.title());
+    const heading = field ? searchField(t, field, 13) : div()
+      .child("Actions");
     // A dialog has a height to fill and its list takes what is left. A popup is as tall as its content, where a list
-    // that only flexes collapses to nothing: there it gets its own height.
-    const list = v_flex().id("commands-list").overflow_y_scrollbar();
-    const sized = this.compact ? list.flex_none().h(Math.min(rows.length, MOST_ROWS) * ROW || ROW) : list.flex_1()
-      .min_h(0);
+    // that only flexes collapses to nothing: there it gets its own height
+    // The scrollbar is drawn over the right edge of the list: when there is one, the rows keep clear of it
+    const scrolls = rows.length > (this.compact ? this.props.visible ?? PICK_MAX_ROWS : Infinity);
+    const list = v_flex()
+      .id("commands-list")
+      .overflow_y_scrollbar()
+      .when(scrolls, (element) => element.pr(10));
+    const rules = Math.max(0, new Set(rows.map((row) => row.group)).size - 1);
+    const sized = this.compact
+      ? list.flex_none()
+        .h(Math.min(rows.length, this.props.visible ?? PICK_MAX_ROWS) * ROW + rules * MENU_RULE_HEIGHT_PX || ROW)
+      : list.flex_1()
+        .min_h(0);
     /**
      * @param {Choice} row
-     * @param {number} i
+     * @param {number} nth
      */
-    const line = (row, i) => h_flex().id(`command-${i}`).h(ROW).flex_none().px(8).gap(9).items_center().rounded(7)
-      .cursor_pointer()
-      .when(i === this.at, (el) => el.bg(t.selected))
-      .hover((s) => s.bg(t.hover))
+    const line = (row, nth) => pillRow(t, `command-${nth}`, ROW)
+      .when(nth === this.at, (element) => element.bg(t.selected))
       .on_click((_e, cx) => { row.run(); cx.notify(); })
-      .child(div().w(18).flex_none().flex().items_center().justify_center().child(row.icon))
-      .child(row.note ? h_flex().flex_1().min_w(0).gap(8).child(div().flex_none().child(row.label))
-        .child(div().min_w(0).truncate().text_color(t.dim).child(row.note))
-        : div().flex_1().min_w(0).truncate().child(row.label))
-      .when(row.mark === "all", (el) => el.child(svg(shipped("check")).size(13).flex_none().text_color(t.muted)))
-      .when(row.mark === "some", (el) => el.child(div().flex_none().text_color(t.muted).child("–")))
-      .children(row.key ? [keycaps(t, row.caps ?? [row.key.toUpperCase()])] : []);
-    return boxed(t, v_flex().id("commands").track_focus(this.handle).w_full().when(!this.compact, (el) => el.h_full())
-      .min_h(0).p(5))
-      .text_size(13).text_color(t.foreground)
+      .child(div()
+        .w(ICON_COLUMN_WIDTH_PX)
+        .flex_none()
+        .flex()
+        .items_center()
+        .justify_center()
+        .child(row.icon))
+      .child(row.note ? h_flex()
+        .flex_1()
+        .min_w(0)
+        .gap(8)
+        .child(div()
+          .flex_none()
+          .child(row.label))
+        .child(div()
+          .min_w(0)
+          .truncate()
+          .text_color(t.dim)
+          .child(row.note))
+      : div()
+        .flex_1()
+        .min_w(0)
+        .truncate()
+        .child(row.label))
+      .when(row.mark === Mark.ALL, (element) =>
+        element.child(svg(shipped("check"))
+          .size(13)
+          .flex_none()
+          .text_color(t.muted)))
+      .when(row.mark === Mark.SOME, (element) => element.child(div()
+        .flex_none()
+        .text_color(t.muted)
+        .child("–")))
+      .children(!row.key ? [] : /^\d$/.test(row.key) && !row.caps
+        ? [div()
+          .flex_none()
+          .text_size(12)
+          .text_color(t.dim)
+          .font_family(MONO)
+          .child(row.key)]
+        : [keycaps(t, row.caps ?? [row.key.toUpperCase()])]);
+    return boxed(t, v_flex()
+      .id("commands")
+      .track_focus(this.handle)
+      .w_full()
+      .when(!this.compact, (element) => element.h_full())
+      .min_h(0)
+      .p(5))
+      .text_size(12.5)
+      .text_color(t.foreground)
       .key_context(CONTEXT)
       .on_action(ESCAPE, (_e, cx) => this.escape(cx))
-      .on_key_down((e, cx) => this.key(e, cx))
-      .when(!this.bare, (el) => el.child(h_flex().flex_none().min_w(0).px(6).pt(4)
-        .child(div().min_w(0).truncate().px(8).py(2).rounded(6).bg(t.raised).text_size(12).text_color(t.muted)
+      .on_key_down((event, cx) => this.key(event, cx))
+      .when(!this.bare, (element) => element.child(h_flex()
+        .flex_none()
+        .min_w(0)
+        .px(6)
+        .pt(4)
+        .child(div()
+          .min_w(0)
+          .truncate()
+          .px(8)
+          .py(2)
+          .rounded(6)
+          .bg(t.raised)
+          .text_size(12)
+          .text_color(t.muted)
           .child(chip))))
-      .child(h_flex().h(36).flex_none().px(8).items_center().text_color(t.dim).child(heading))
+      .child(h_flex()
+        .h(PICK_HEAD_HEIGHT_PX)
+        .flex_none()
+        .px(8)
+        .gap(8)
+        .items_center()
+        .text_color(t.dim)
+        .child(heading)
+        .children(field && this.page !== Page.ACTIONS
+          ? [keycaps(t, propertyKey(/** @type {Property} */ (this.page)).caps)]
+          : []))
       .child(sized
-        .children(rows.map(line))
-        .when(!rows.length, (el) => el.child(div().p(8).text_color(t.dim)
-          .child(this.page === "cycle" ? "No cycle matches" : "No one matches"))));
+        .children(rows.flatMap((row, nth) => (nth > 0 && row.group !== rows[nth - 1].group
+          ? [rule(t), line(row, nth)] : [line(row, nth)])))
+        .when(!rows.length, (element) => element.child(div()
+          .p(8)
+          .text_color(t.dim)
+          .child(NO_MATCH[this.page] ?? "No one matches"))));
   }
 }

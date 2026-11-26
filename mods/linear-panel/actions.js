@@ -1,10 +1,15 @@
-// The two things done to an issue that are more than an update: copying it, and starting work on it.
+// The two things done to an issue that are more than an update: copying it, and starting work on it
 import { appHome, exec, focused, home, notify, panes, readTextFile, run, spaces } from "herdr";
 import * as api from "./api.js";
-import { copiesFor } from "./config.js";
+import { TOAST_MS, copiesFor } from "./config.js";
+import { CopyWhat } from "./enums.js";
 import { NAME } from "./tracker.js";
 import { copyText } from "./lib/copy.js";
 import { prompt, slug, startState, worktrees } from "./lib/start.js";
+
+const DEFAULT_WORKTREES = "~/.herdr/worktrees";
+const GIT_TIMEOUT_MS = 30_000;
+const WORKTREE_ADD_TIMEOUT_MS = 600_000;
 
 /**
  * @param {Issue[]} issues
@@ -13,26 +18,39 @@ import { prompt, slug, startState, worktrees } from "./lib/start.js";
  */
 export async function copy(issues, what, cx) {
   /** @type {(id: string) => Promise<IssueDetails>} */
-  const read = what === "everything" ? api.details
-    : what === "markdown" || what === "prompt" ? async (id) => ({ description: await api.description(id) })
-    : async () => ({});
+  const read = what === CopyWhat.EVERYTHING ? api.page
+    : what === CopyWhat.MARKDOWN || what === CopyWhat.PROMPT
+      ? async (id) => ({ description: await api.description(id) })
+      : async () => ({});
   const details = await Promise.all(issues.map((issue) => read(issue.id)));
   cx.write_to_clipboard(copyText(what, issues, details, NAME));
-  // Found: the menu and the key only ask for an entry that is offered for these issues.
-  const { label } = /** @type {{ label: string }} */ (copiesFor(issues.length).find((entry) => entry.what === what));
+  const { done } = /** @type {{ done: string }} */ (copiesFor(issues.length)
+    .find((entry) => entry.what === what));
   const copied = issues.length === 1 ? issues[0].identifier : `${issues.length} issues`;
-  notify({ title: label.replace("Copy", "Copied"), body: copied, timeout: 2000 });
+  notify({ title: `${done} · ${copied}`, timeout: TOAST_MS });
 }
 
-// Where checkouts go: Herdr's own setting, so they sit with the worktrees its shipped mod makes.
+// Windows drives and UNC paths count as absolute too
+const ABSOLUTE_PATH = /^([a-z]:)?[\\/]/i;
+
 async function worktreesFolder() {
-  const settings = JSON.parse((await readTextFile(`${appHome()}/settings.json`)) ?? "{}");
-  return (settings.worktrees?.directory ?? "~/.herdr/worktrees").replace(/^~(?=\/|$)/, home()).replace(/\/+$/, "");
+  const file = `${appHome()}/settings.json`;
+  /** @type {{ worktrees?: { directory?: string } }} */
+  let settings;
+  try {
+    settings = JSON.parse((await readTextFile(file)) ?? "{}");
+  } catch (error) {
+    throw new Error(`Start cannot read ${file}: ${error instanceof Error ? error.message : error}`, { cause: error });
+  }
+  const directory = (settings.worktrees?.directory ?? DEFAULT_WORKTREES).replace(/^~(?=\/|$)/, home())
+    .replace(/\/+$/, "");
+  if (!ABSOLUTE_PATH.test(directory)) {
+    throw new Error(`worktrees.directory in ${file} must be an absolute path (or start with ~): ${directory}`);
+  }
+  return directory;
 }
 
-// A checkout of the issue's branch (an existing one is reused), the issue moved to its started state unless it is
-// already there or further along, then a space there with the agent on it. `states` are the workflow states of the
-// issue's team, `agent` the agent to run and `base` what the person's settings open its first message with.
+// `base` is what the person's settings open the agent's first message with
 /**
  * @param {Issue} issue
  * @param {string} text
@@ -41,32 +59,37 @@ async function worktreesFolder() {
  */
 export async function start(issue, text, states, { agent, base }) {
   if (!agent) throw new Error("No agent to start: install one, or name one in the panel's settings");
-  const space = spaces().find((s) => s.active), f = focused();
-  // shortcut: this computer only, pass `on: space.machine` and that machine's home when spaces live elsewhere.
+  const space = spaces()
+      .find((candidate) => candidate.active), pane = focused();
   if (space?.machine) throw new Error("Start only works in a space on this computer");
-  const cwd = panes().find((p) => p.pane === f?.pane)?.cwd || f?.cwd || space?.folder;
+  const cwd = panes()
+    .find((listed) => listed.pane === pane?.pane)?.cwd || pane?.cwd || space?.folder;
   /** @param {string[]} args */
-  const git = (args, timeout = 30_000) => exec("git", args, { cwd, timeout });
-  // Checkouts deleted by hand stay registered and would be reused as if they were there: forget them first.
+  const git = (args, timeout = GIT_TIMEOUT_MS) => exec("git", args, { cwd, timeout });
+  // Checkouts deleted by hand stay registered and would be reused as if they were there: forget them first
   if (cwd) await git(["worktree", "prune"]);
   const list = cwd ? await git(["worktree", "list", "--porcelain"]) : null;
   if (!list || list.code !== 0) throw new Error("Start needs the focused pane to be in a git repository");
-  // Read before anything changes, so a rejected key stops Start early.
   const description = await api.description(issue.id);
   const checkouts = worktrees(list.stdout), branch = issue.branchName;
-  let path = checkouts.find((w) => w.branch === branch)?.path;
+  let path = checkouts.find((checkout) => checkout.branch === branch)?.path;
   if (!path) {
-    const repository = checkouts[0].path.split("/").pop();
+    // The branch name comes from the tracker, and git reads a leading dash as an option
+    if (branch.startsWith("-") || (await git(["check-ref-format", "--branch", branch])).code !== 0) {
+      throw new Error(`Start cannot use "${branch}" as a git branch name`);
+    }
+    const repository = checkouts[0].path.split("/")
+      .pop();
     path = `${await worktreesFolder()}/${repository}/${slug(branch)}`;
     const exists = (await git(["show-ref", "--verify", "--quiet", `refs/heads/${branch}`])).code === 0;
     const added = await git(exists ? ["worktree", "add", path, branch]
-      : ["worktree", "add", "-b", branch, path, "HEAD"], 600_000);
+      : ["worktree", "add", "-b", branch, path, "HEAD"], WORKTREE_ADD_TIMEOUT_MS);
     if (added.code !== 0) throw new Error((added.stderr || added.stdout).trim() || "git worktree add failed");
   }
   const state = startState(issue, states);
   if (state) await api.update([issue.id], { stateId: state.id });
-  // Named after the issue: unnamed, it would take its checkout's folder, the whole branch. It still nests under its
-  // repo, which the folder's git tells, not the name.
+  // Named after the issue, else it takes its checkout's folder, the whole branch. It still nests under its repo, which
+  // the folder's git tells, not the name
   const task = prompt(base, text, { ...issue, description }, NAME);
   run("space.new", { name: issue.identifier, folder: path, tab: issue.identifier, argv: agent.run, task });
 }

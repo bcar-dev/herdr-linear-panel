@@ -4,7 +4,7 @@
 //   none                       the panel
 //   { part: "button" }         the panel's button, for the top bar
 //   { part: <a popup>, ... }   one of the popups, opened by popups.js with the props its part needs
-// This file only picks the part. Each part is a class with render(t, cx), built from (props, cx).
+// This file only picks the part. Each part is a class with render(t, cx), built from (props, cx)
 import { View } from "gpui-kit";
 import { props, theme } from "herdr";
 import { closed, giveBack, opened, unlight } from "./channel.js";
@@ -12,23 +12,29 @@ import { PanelButton } from "./parts/button.js";
 import { Commands } from "./parts/commands.js";
 import { DisplayOptions } from "./parts/display-options.js";
 import { CopyMenu, IssueMenu } from "./parts/issue-menu.js";
+import { CommentMenu } from "./parts/comment-menu.js";
+import { LabelPicker } from "./parts/label-picker.js";
 import { Panel } from "./parts/panel.js";
 import { StartPrompt } from "./parts/start-prompt.js";
 import { TeamPicker } from "./parts/team-picker.js";
 
 const PARTS = {
   button: PanelButton,
-  "issue-menu": IssueMenu,
-  "copy-menu": CopyMenu,
-  start: StartPrompt,
-  display: DisplayOptions,
-  teams: TeamPicker,
   commands: Commands,
+  "comment-menu": CommentMenu,
+  "copy-menu": CopyMenu,
+  display: DisplayOptions,
+  "issue-menu": IssueMenu,
+  labels: LabelPicker,
+  start: StartPrompt,
+  teams: TeamPicker,
 };
 
 export default class IssuesPanel extends View {
-  // Assigned by `init`, which Herdr runs once on a new view, before it closes or draws it.
+  // Assigned by `init`, which Herdr runs once on a new view, before it closes or draws it
   /** @type {Part} */ part;
+  // Set once a press outside the popup closed it
+  pressedBeside = false;
 
   /**
    * @param {unknown} _props
@@ -37,13 +43,14 @@ export default class IssuesPanel extends View {
   init(_props, cx) {
     const given = /** @type {PartProps} */ (props() ?? {});
     if (given.overlay) opened(given.overlay);
-    this.part = new /** @type {PartClass} */ ((given.part && PARTS[given.part]) || Panel)(given, cx);
+    const Built = /** @type {PartClass | undefined} */ (given.part ? PARTS[given.part] : Panel);
+    if (!Built) throw new Error(`Unknown part: ${given.part}`);
+    this.part = new Built(given, cx);
   }
 
-  // Herdr calls this when a copy goes. A popup going away unlights the row it was open on and gives the keyboard
-  // back to the panel, however it was closed: by a choice, or by Herdr on Escape. Two cases keep the keyboard away
-  // from the panel: a press outside the popup closed it, and that press says where the keyboard goes; or the popup
-  // only made way for another one (`replaced`).
+  // Herdr calls this when a copy goes, however a popup was closed: by a choice, or by Herdr on Escape. Two cases keep
+  // the keyboard away from the panel: a press outside the popup closed it, and that press says where the keyboard
+  // goes; or the popup only made way for another one (`replaced`)
   close() {
     const overlay = /** @type {PartProps} */ (props())?.overlay;
     if (!overlay) return;

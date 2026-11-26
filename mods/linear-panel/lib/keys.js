@@ -1,91 +1,124 @@
-// What a key press means. Pure rules with no calls to Herdr, so node can test them (tests/unit).
+// What a key press means. Pure rules with no calls to Herdr, so node can test them (tests/unit)
+import { CopyWhat, KeyAction, Property } from "../enums.js";
 
-// A key press as shortcuts spell it here: Shift + e is "E".
-/** @param {KeyEvent} e */
-export const spelled = (e) => (e.modifiers.shift ? e.key.toUpperCase() : e.key);
+/** @param {KeyEvent} event */
+export const spelled = (event) => (event.modifiers.shift ? event.key.toUpperCase() : event.key);
 
-// Whether the command key is held (Cmd on macOS, Ctrl elsewhere) and the other of the two is not.
+// Whether none of Control, Alt and the platform key is held: a plain letter, with Shift or not
+/** @param {KeyEvent["modifiers"]} modifiers */
+export const unmodified = (modifiers) => !modifiers.control && !modifiers.alt && !modifiers.platform;
+
+// Whether the command key is down: Cmd on a Mac, Ctrl elsewhere
 /**
- * @param {KeyEvent["modifiers"]} m
+ * @param {KeyEvent["modifiers"]} modifiers
  * @param {boolean} mac
  */
-const commandHeld = (m, mac) => (mac ? m.platform && !m.control : m.control && !m.platform);
+export const commandDown = (modifiers, mac) => (mac ? modifiers.platform : modifiers.control);
 
-// The properties whose choices a key opens, in the order menus list them: the page, its label, its key as `spelled`
-// names it, and the key as menus show it. This is the one place a property's shortcut is written.
-/** @type {[page: Property, label: string, key: string, caps: string[]][]} */
+// Whether the command key is down alone, the other of Cmd and Ctrl not
+/**
+ * @param {KeyEvent["modifiers"]} modifiers
+ * @param {boolean} mac
+ */
+const commandHeld = (modifiers, mac) =>
+  (mac ? modifiers.platform && !modifiers.control : modifiers.control && !modifiers.platform);
+
+// The key is as `spelled` names it, the caps as menus show it. This is the one place a property's shortcut is written
+/** @type {{ page: Property, label: string, key: string, caps: string[], icon: string }[]} */
 export const PROPERTIES = [
-  ["status", "Status", "s", ["S"]],
-  ["priority", "Priority", "p", ["P"]],
-  ["assign", "Assignee", "a", ["A"]],
-  ["estimate", "Estimate", "E", ["⇧", "E"]],
-  ["cycle", "Cycle", "C", ["⇧", "C"]],
+  { page: Property.STATUS, label: "Status", key: "s", caps: ["S"], icon: "status" },
+  { page: Property.PRIORITY, label: "Priority", key: "p", caps: ["P"], icon: "priority-2" },
+  { page: Property.ASSIGN, label: "Assignee", key: "a", caps: ["A"], icon: "assign" },
+  { page: Property.ESTIMATE, label: "Estimate", key: "E", caps: ["⇧", "E"], icon: "estimate" },
+  { page: Property.CYCLE, label: "Cycle", key: "C", caps: ["⇧", "C"], icon: "cycle" },
 ];
 /** @type {Record<string, Property>} */
-const PROPERTY_OF_KEY = Object.fromEntries(PROPERTIES.map(([page, , key]) => [key, page]));
+const PROPERTY_OF_KEY = Object.fromEntries(PROPERTIES.map(({ page, key }) => [key, page]));
 
-// The shortcut of a property: { key, caps }, the key obeyed and the keys shown.
+/** @param {KeyEvent} event */
+export const propertyOf = (event) => PROPERTY_OF_KEY[spelled(event)];
+
+// { key, caps }: the key obeyed and the keys shown
 /** @param {Property} page */
 export function propertyKey(page) {
-  // Found: every property is listed above.
-  const [, , key, caps] = /** @type {typeof PROPERTIES[number]} */ (PROPERTIES.find(([property]) => property === page));
+  const { key, caps } = /** @type {typeof PROPERTIES[number]} */ (PROPERTIES.find((entry) => entry.page === page));
   return { key, caps };
 }
 
-// The copy shortcuts, by entry of the Copy menu: the key, with Shift or Alt, always under the command key, then the
-// keys menus show after Cmd or Ctrl. A shifted or Alt-ed key is listed under every spelling a keyboard may report.
+// { what, keys, held, caps }: always under the command key; caps are shown after Cmd or Ctrl. A shifted or Alt-ed
+// key is listed under every spelling a keyboard may report
 /** @type {CopyKey[]} */
 const COPY_KEYS = [
-  ["id", ["."], {}, ["."]],
-  ["url", [",", "<"], { shift: true }, ["⇧", ","]],
-  ["title", ["'", '"'], { shift: true }, ["⇧", "'"]],
-  ["link", ["c"], {}, ["C"]],
-  ["everything", ["c", "ç"], { alt: true }, ["⌥", "C"]],
-  ["branch", [".", ">"], { shift: true }, ["⇧", "."]],
-  ["prompt", ["p", "π"], { alt: true }, ["⌥", "P"]],
+  { what: CopyWhat.ID, keys: ["."], held: {}, caps: ["."] },
+  { what: CopyWhat.URL, keys: [",", "<"], held: { shift: true }, caps: ["⇧", ","] },
+  { what: CopyWhat.TITLE, keys: ["'", '"'], held: { shift: true }, caps: ["⇧", "'"] },
+  { what: CopyWhat.LINK, keys: ["c"], held: {}, caps: ["C"] },
+  { what: CopyWhat.EVERYTHING, keys: ["c", "ç"], held: { alt: true }, caps: ["⌥", "C"] },
+  { what: CopyWhat.BRANCH, keys: [".", ">"], held: { shift: true }, caps: ["⇧", "."] },
+  { what: CopyWhat.PROMPT, keys: ["p", "π"], held: { alt: true }, caps: ["⌥", "P"] },
 ];
 
-// The keys shown for a Copy entry's shortcut, or null when it has none.
+// Null when the entry has no shortcut
 /** @param {CopyWhat} what */
-export const copyCaps = (what) => COPY_KEYS.find(([entry]) => entry === what)?.[3] ?? null;
+export const copyCaps = (what) => COPY_KEYS.find((entry) => entry.what === what)?.caps ?? null;
 
 /**
- * @param {KeyEvent} e
+ * @param {KeyEvent} event
  * @param {boolean} mac
  */
-export function copyShortcut(e, mac) {
-  const m = e.modifiers, key = e.key.toLowerCase();
-  if (!commandHeld(m, mac)) return null;
+export function copyShortcut(event, mac) {
+  const modifiers = event.modifiers, key = event.key.toLowerCase();
+  if (!commandHeld(modifiers, mac)) return null;
   /** @param {CopyKey} entry */
-  const held = ([, keys, want]) => keys.includes(key) && Boolean(want.shift) === Boolean(m.shift) &&
-    Boolean(want.alt) === Boolean(m.alt);
-  return COPY_KEYS.find(held)?.[0] ?? null;
+  const held = ({ keys, held: want }) => keys.includes(key) && Boolean(want.shift) === Boolean(modifiers.shift) &&
+    Boolean(want.alt) === Boolean(modifiers.alt);
+  return COPY_KEYS.find(held)?.what ?? null;
 }
 
 // What a key press in the panel asks for, as { do, ... }, or null when the key is not the panel's.
 // `views` is how many views there are, `ticked` whether issues are ticked, `pointed` whether the pointer is on an
-// issue, `aimed` whether a copy shortcut has issues to act on (the ticked ones, else the pointed one).
+// issue, `aimed` whether a copy shortcut has issues to act on (the ticked ones, else the pointed one)
 /**
- * @param {KeyEvent} e
+ * @param {KeyEvent} event
  * @param {{ mac: boolean, views: number, ticked: boolean, pointed: boolean, aimed: boolean }} state
  * @returns {KeyAsk | null}
  */
-export function panelKey(e, { mac, views, ticked, pointed, aimed }) {
-  const m = e.modifiers, page = PROPERTY_OF_KEY[spelled(e)], nth = Number(e.key) - 1, what = copyShortcut(e, mac);
-  if (commandHeld(m, mac) && !m.alt && !m.shift && e.key === "k") return { do: "commands" };
-  if (what && aimed) return { do: "copy", what };
-  if (m.control || m.alt || m.platform) return null;
-  // Shift+c is the cycle's key, not this one.
-  if (spelled(e) === "c") return { do: "compose" };
-  if (e.key === "r") return { do: "reload" };
-  if (spelled(e) === "V") return { do: "display" };
-  if (Number.isInteger(nth) && nth >= 0 && nth < views) return { do: "view", nth };
-  // A property key acts on the ticked issues, else on the issue under the pointer.
-  if (page && ticked) return { do: "commands", page };
-  if (page && pointed) return { do: "choose", page };
-  if (e.key === "i" && (ticked || pointed)) return { do: "unassign" };
-  // With Shift, x ticks the range, as a Shift+click on the box does.
-  if (e.key.toLowerCase() === "x" && pointed) return { do: "tick", extend: Boolean(m.shift) };
-  if (e.key === "escape" && ticked) return { do: "untick" };
+export function panelKey(event, { mac, views, ticked, pointed, aimed }) {
+  const modifiers = event.modifiers, page = PROPERTY_OF_KEY[spelled(event)], nth = Number(event.key) - 1;
+  const what = copyShortcut(event, mac);
+  if (commandHeld(modifiers, mac) && !modifiers.alt && !modifiers.shift && event.key === "k") {
+    return { do: KeyAction.COMMANDS };
+  }
+  if (what && aimed) return { do: KeyAction.COPY, what };
+  if (!unmodified(modifiers)) return null;
+  // Shift+c is the cycle's key, not this one
+  if (spelled(event) === "c") return { do: KeyAction.COMPOSE };
+  if (event.key === "r") return { do: KeyAction.RELOAD };
+  if (spelled(event) === "V") return { do: KeyAction.DISPLAY };
+  if (Number.isInteger(nth) && nth >= 0 && nth < views) return { do: KeyAction.VIEW, nth };
+  if (page && ticked) return { do: KeyAction.COMMANDS, page };
+  if (page && pointed) return { do: KeyAction.CHOOSE, page };
+  if (event.key === "i" && (ticked || pointed)) return { do: KeyAction.UNASSIGN };
+  if (event.key.toLowerCase() === "x" && pointed) return { do: KeyAction.TICK, extend: Boolean(modifiers.shift) };
+  if (event.key === "escape" && ticked) return { do: KeyAction.UNTICK };
   return null;
+}
+
+// The other spellings a key can be reported in, by the key as a shortcut shows it: Shift turns "," into "<", Option
+// turns "P" into "π"
+/** @type {Record<string, string[]>} */
+const SPELLINGS = { ",": [",", "<"], ".": [".", ">"], "'": ["'", '"'], p: ["p", "π"], c: ["c", "ç"] };
+
+// A cap is a modifier's sign or name, or the key itself. `held` is the modifiers held and the last key pressed
+/**
+ * @param {string} cap
+ * @param {{ modifiers: KeyEvent["modifiers"], key: string | null }} held
+ * @param {boolean} mac
+ */
+export function capHeld(cap, { modifiers, key }, mac) {
+  if (cap === "\u2318" || cap === "Ctrl") return commandDown(modifiers, mac);
+  if (cap === "\u21E7" || cap === "Shift") return modifiers.shift;
+  if (cap === "\u2325" || cap === "Alt") return modifiers.alt;
+  const lower = cap.toLowerCase();
+  return key !== null && (SPELLINGS[lower] ?? [lower]).includes(key.toLowerCase());
 }

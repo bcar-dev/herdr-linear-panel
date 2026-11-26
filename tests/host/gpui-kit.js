@@ -1,4 +1,4 @@
-// A stand-in for Herdr's "gpui-kit" module: the view class and the plain elements.
+// A stand-in for Herdr's "gpui-kit" module: the view class and the plain elements
 import { element } from "./elements.js";
 
 export class View {}

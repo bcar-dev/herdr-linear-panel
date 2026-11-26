@@ -1,4 +1,4 @@
-// The example layout a person can copy: it must hold the two blocks the mod needs, and no one's own settings.
+// The example layout a person can copy: it must hold the two blocks the mod needs, and no one's own settings
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { it } from "node:test";

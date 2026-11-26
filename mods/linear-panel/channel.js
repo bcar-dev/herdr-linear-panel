@@ -1,5 +1,4 @@
-// How the mod's popups and its panel talk: through values of Herdr's shared state, since each is its own copy of
-// the mod.
+// How the mod's popups and its panel talk: through Herdr's shared state, as each is its own copy of the mod.
 //
 // A request is { at, ids, kind, ... }: the issues it is about, and one of
 //   { kind: "update", input }    the same change on every issue
@@ -12,32 +11,48 @@
 import { shared, setShared, closeOverlay } from "herdr";
 import { MOD } from "./config.js";
 
-const REQUEST = `${MOD}.request`;
+const KEYBOARD = `${MOD}.keyboard`;
+const LABELS = `${MOD}.labels`;
 const OPEN_ON = `${MOD}.open`;
 const POPUPS = `${MOD}.popups`;
-const KEYBOARD = `${MOD}.keyboard`;
+const PROJECTS = `${MOD}.projects`;
+const REQUESTS = `${MOD}.requests`;
+// The requests kept for the panel, which serves the ones it has not yet; older ones are dropped
+const REQUESTS_KEPT = 20;
 
-// A popup only asks: it is gone before the work ends, and a closing copy's tasks are cancelled. The panel does the
-// work. `at` tells one request from the next.
+// A popup is gone before the work ends, and a closing copy's tasks are cancelled. `at` tells one request from the next,
+// so it grows even when two come within one millisecond
 /** @param {PanelRequest} request */
-export const ask = (request) => setShared(REQUEST, { at: Date.now(), ...request });
+export const ask = (request) => setShared(REQUESTS,
+  [...queue()
+    .slice(1 - REQUESTS_KEPT), { at: Math.max(Date.now(), (pending()?.at ?? 0) + 1), ...request }]);
 
-// The popups that are open, by overlay id. Each lists itself when it starts and unlists itself when it goes
-// (main.js). While there is one, the panel keeps its focused look, though the popup has the keyboard.
+/** @typedef {PanelRequest & { at: number }} SentRequest */
+const queue = () => /** @type {SentRequest[]} */ (shared(REQUESTS)) ?? [];
+
+// The requests sent after the one made at `at`, oldest first
+/** @param {number} at */
+export const requestsAfter = (at) => queue()
+  .filter((request) => request.at > at);
+
+// By overlay id, listed by each popup as it starts and goes (main.js). While one is open, the panel keeps its focused
+// look, though the popup has the keyboard
 export const popups = () => /** @type {string[]} */ (shared(POPUPS)) ?? [];
 /** @param {string} overlay */
-export const opened = (overlay) => setShared(POPUPS, [...popups().filter((id) => id !== overlay), overlay]);
+export const opened = (overlay) => setShared(POPUPS, [...popups()
+  .filter((id) => id !== overlay), overlay]);
 /** @param {string} overlay */
 export function closed(overlay) {
-  if (popups().includes(overlay)) setShared(POPUPS, popups().filter((id) => id !== overlay));
+  if (popups()
+    .includes(overlay)) setShared(POPUPS, popups()
+    .filter((id) => id !== overlay));
 }
 
-// Gives the keyboard back to the panel: left alone, Herdr hands it to the terminal when a popup closes. A popup does
-// this as it goes (main.js, which names the two exceptions), since Herdr closes a popup on Escape by itself, without
-// the popup's say.
-// The popup leaves a stamp in shared state, which the panel reads when it next draws. A direct call from the popup
-// to the panel fails: the panel would then run in the popup's turn, where its timers never fire.
-// The stamp only has to differ from the last one: two popups can go within the same millisecond.
+// Left alone, Herdr hands the keyboard to the terminal when a popup closes, and it closes a popup on Escape without
+// its say, so a popup gives the keyboard back as it goes (main.js, which names the two exceptions)
+// A direct call from the popup to the panel fails: the panel would run in the popup's turn, where its timers never
+// fire. So the popup leaves a stamp in shared state, which the panel reads when it next draws. The stamp only has to
+// differ from the last one: two popups can go within the same millisecond
 export const giveBack = () => setShared(KEYBOARD, Date.now() + Math.random());
 
 export const givenBack = () => /** @type {number} */ (shared(KEYBOARD));
@@ -62,10 +77,11 @@ export function submit({ overlay, parent }, issues, request) {
   closeOverlay(parent);
 }
 
-export const pending = () => /** @type {PanelRequest} */ (shared(REQUEST));
+export const pending = () => queue()
+  .at(-1);
 
-// The issue a popup is open on: meanwhile the panel keeps that row lit, and the other rows ignore the pointer. The
-// popup that lit the row unlights it on closing, unless a later popup took the row over.
+// While a popup is open on an issue, the panel keeps its row lit and the other rows ignore the pointer. The popup that
+// lit the row unlights it on closing, unless a later popup took the row over
 /**
  * @param {Issue} issue
  * @param {string} overlay
@@ -77,8 +93,31 @@ export function unlight(overlay) {
   if (/** @type {OpenOn} */ (shared(OPEN_ON))?.owner === overlay) setShared(OPEN_ON, null);
 }
 
-// The panel starts over: it forgets whatever a popup left behind when Herdr last stopped.
+// Forgets whatever a popup left behind when Herdr last stopped
 export function reset() {
   if (shared(OPEN_ON)) setShared(OPEN_ON, null);
   if (popups().length) setShared(POPUPS, []);
+}
+
+// Set by the label picker and the pages opened beside it, ahead of the panel's reload. Null for an issue they have
+// not touched
+/** @param {string} issue */
+export const wornLabels = (issue) => {
+  const worn = /** @type {{ issue: string, ids: string[] } | undefined} */ (shared(LABELS));
+  return worn?.issue === issue ? worn.ids : null;
+};
+/**
+ * @param {string} issue
+ * @param {string[]} ids
+ */
+export const wear = (issue, ids) => setShared(LABELS, { issue, ids });
+
+/** @param {Record<string, Member[]>} members */
+export const shareProjects = (members) => setShared(PROJECTS, members);
+
+/** @param {Issue[]} issues */
+export function projectMembersOf(issues) {
+  const id = issues[0]?.project?.id;
+  if (!id || issues.some((issue) => issue.project?.id !== id)) return [];
+  return /** @type {Record<string, Member[]> | undefined} */ (shared(PROJECTS))?.[id] ?? [];
 }

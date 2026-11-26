@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { PROPERTIES, copyCaps, copyShortcut, panelKey, propertyKey,
-  spelled } from "../../mods/linear-panel/lib/keys.js";
+import { PROPERTIES, capHeld, commandDown, copyCaps, copyShortcut, panelKey, propertyKey, spelled,
+  unmodified } from "../../mods/linear-panel/lib/keys.js";
 
 const press = (key, held = {}) =>
   ({ key, modifiers: { platform: false, control: false, shift: false, alt: false, ...held } });
@@ -48,7 +48,7 @@ describe("the shortcuts as shown", () => {
   });
 
   it("gives each property the key the panel obeys for it", () => {
-    for (const [page, , key] of PROPERTIES) {
+    for (const { page, key } of PROPERTIES) {
       const shift = key !== key.toLowerCase();
       const asked = panelKey(press(key.toLowerCase(), { shift }),
         { mac: true, views: 2, ticked: false, pointed: true, aimed: false });
@@ -77,7 +77,7 @@ describe("panelKey", () => {
   it("composes on c and reloads on r", () => {
     assert.deepEqual(ask("c"), { do: "compose" });
     assert.deepEqual(ask("r"), { do: "reload" });
-    // Shift+C is the cycle's key.
+    // Shift+C is the cycle's key
     assert.equal(ask("c", { shift: true }), null);
   });
 
@@ -123,5 +123,37 @@ describe("panelKey", () => {
     assert.equal(ask("r", { platform: true }), null);
     assert.equal(ask("c", { control: true }), null);
     assert.equal(ask("1", { alt: true }), null);
+  });
+});
+
+describe("capHeld", () => {
+  const NONE = { shift: false, control: false, alt: false, platform: false, function: false };
+  const held = (modifiers, key = null) => ({ modifiers: { ...NONE, ...modifiers }, key });
+
+  it("tells whether the modifier a key of a shortcut stands for is held, by platform", () => {
+    assert.deepEqual(["⌘", "⇧", "⌥"].map((cap) => capHeld(cap, held({ platform: true, shift: true }), true)),
+      [true, true, false]);
+    assert.equal(capHeld("Ctrl", held({ control: true }), false), true);
+    assert.equal(capHeld("Ctrl", held({ platform: true }), false), false);
+  });
+
+  it("tells whether the key itself is down, in any spelling Shift or Option gives it", () => {
+    assert.equal(capHeld(",", held({}, "<"), true), true);
+    assert.equal(capHeld("P", held({ alt: true }, "π"), true), true);
+    assert.equal(capHeld("P", held({}, "o"), true), false);
+    assert.equal(capHeld(".", held({}, null), true), false);
+  });
+});
+
+describe("unmodified and commandDown", () => {
+  it("tells a plain key, with Shift or not, from one held with Control, Alt or the platform key", () => {
+    assert.deepEqual([{}, { shift: true }, { control: true }, { alt: true }, { platform: true }]
+      .map((held) => unmodified(press("a", held).modifiers)), [true, true, false, false, false]);
+  });
+
+  it("takes Cmd for the command key on a Mac and Ctrl elsewhere", () => {
+    assert.deepEqual([commandDown(press("a", { platform: true }).modifiers, true),
+      commandDown(press("a", { control: true }).modifiers, true),
+      commandDown(press("a", { control: true }).modifiers, false)], [true, false, true]);
   });
 });

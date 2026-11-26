@@ -1,5 +1,5 @@
 // Loaded before the tests (node --import): answers the modules Herdr gives a mod with the stand-ins beside this file,
-// and gives node the globals a mod finds in Herdr.
+// and gives node the globals a mod finds in Herdr
 import { registerHooks } from "node:module";
 import { host } from "./herdr.js";
 

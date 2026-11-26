@@ -1,80 +1,97 @@
 // What the list shows: which issues are asked for, how they are grouped and ordered, and what a group adds up to.
-// Pure rules with no calls to Herdr, so node can test them (tests/unit).
+// Pure rules with no calls to Herdr, so node can test them (tests/unit)
+import { Completed, Ordering, StateType } from "../enums.js";
+import { DAY_MS } from "./history.js";
+import { compareText } from "./text.js";
 
-// State types in the order their groups are listed: work in progress first, finished work last.
-const GROUP_ORDER = ["started", "unstarted", "backlog", "triage", "completed", "canceled", "duplicate"];
+const DAYS_IN_MONTH = 30, DAYS_IN_WEEK = 7, NO_PRIORITY_URGENCY = 5;
 
-export const FINISHED = ["completed", "canceled", "duplicate"];
+/** @type {string[]} */
+const FINISHED = [StateType.COMPLETED, StateType.CANCELED, StateType.DUPLICATE];
+/** @type {string[]} */
+const GROUP_ORDER = [
+  StateType.STARTED, StateType.UNSTARTED, StateType.BACKLOG, StateType.TRIAGE, StateType.COMPLETED,
+  StateType.CANCELED, StateType.DUPLICATE,
+];
+const IN_ACTIVE_CYCLE = { cycle: { isActive: { eq: true } } };
+const PAST = {
+  [Completed.DAY]: DAY_MS, [Completed.WEEK]: DAYS_IN_WEEK * DAY_MS, [Completed.MONTH]: DAYS_IN_MONTH * DAY_MS,
+};
+/** @type {Record<string, string>} */
+const SHOWING = {
+  [Completed.WEEK]: "in the past week", [Completed.MONTH]: "in the past month",
+  [Completed.CYCLE]: "during the current cycle",
+};
+const UNFINISHED = { state: { type: { nin: FINISHED } } };
+
 /** @param {Issue} issue */
 export const isFinished = (issue) => FINISHED.includes(issue.state.type);
 
-// The mod runtime's localeCompare compares code units (no ICU, options ignored), so the tracker's order is spelled out.
-/** @param {string} ch */
-const rank = (ch) => (/\s/u.test(ch) ? 0 : /\p{L}/u.test(ch) ? 3 : /\p{N}/u.test(ch) ? 2 : 1);
+// The mod runtime's localeCompare compares code units (no ICU, options ignored), so the tracker's order is spelled out
+/** @param {string} character */
+const rank = (character) =>
+  (/\s/u.test(character) ? 0 : /\p{L}/u.test(character) ? 3 : /\p{N}/u.test(character) ? 2 : 1);
 
-// Titles in the tracker's own order: case ignored; spaces, then punctuation, then digits, then letters.
+// Titles in the tracker's own order: case ignored; spaces, then punctuation, then digits, then letters
 /**
- * @param {string} a
- * @param {string} b
+ * @param {string} first
+ * @param {string} second
  */
-export function byTitle(a, b) {
-  const x = a.toLowerCase(), y = b.toLowerCase();
-  for (let i = 0; i < x.length && i < y.length; i++) {
-    if (x[i] !== y[i]) return rank(x[i]) - rank(y[i]) || (x[i] < y[i] ? -1 : 1);
+export function byTitle(first, second) {
+  const lowerFirst = first.toLowerCase(), lowerSecond = second.toLowerCase();
+  for (let i = 0; i < lowerFirst.length && i < lowerSecond.length; i++) {
+    if (lowerFirst[i] !== lowerSecond[i]) {
+      return rank(lowerFirst[i]) - rank(lowerSecond[i]) || (lowerFirst[i] < lowerSecond[i] ? -1 : 1);
+    }
   }
-  return x.length - y.length;
+  return lowerFirst.length - lowerSecond.length;
 }
 
-// BACK-9 before BACK-100: by team key, then by number.
+// Issues by team key, then by number taken as a number, so BACK-9 comes before BACK-100
 /**
- * @param {Issue} a
- * @param {Issue} b
+ * @param {Issue} first
+ * @param {Issue} second
  */
-function byIdentifier(a, b) {
-  const [keyA, numberA] = a.identifier.split("-"), [keyB, numberB] = b.identifier.split("-");
-  return (keyA < keyB ? -1 : keyA > keyB ? 1 : 0) || Number(numberA) - Number(numberB);
+function byIdentifier(first, second) {
+  const [keyA, numberA] = first.identifier.split("-"), [keyB, numberB] = second.identifier.split("-");
+  return compareText(keyA, keyB) || Number(numberA) - Number(numberB);
 }
 
 /** @param {Issue} issue */
-const urgency = (issue) => issue.priority || 5; // 0 is "no priority": last.
-/** @type {Record<string, (a: Issue, b: Issue) => number>} */
+const urgency = (issue) => issue.priority || NO_PRIORITY_URGENCY;
+/** @type {Record<string, (first: Issue, second: Issue) => number>} */
 const WITHIN_GROUP = {
-  priority: (a, b) => urgency(a) - urgency(b) || byIdentifier(a, b),
-  title: (a, b) => byTitle(a.title, b.title) || byIdentifier(a, b),
+  [Ordering.PRIORITY]: (first, second) => urgency(first) - urgency(second) || byIdentifier(first, second),
+  [Ordering.TITLE]: (first, second) => byTitle(first.title, second.title) || byIdentifier(first, second),
 };
 
 /** @param {Issue} issue */
 const finishedAt = (issue) => issue.completedAt ?? issue.canceledAt ?? "";
-// Most recently finished first. ISO dates compare as text.
+// ISO dates compare as text
 /**
- * @param {Issue} a
- * @param {Issue} b
+ * @param {Issue} first
+ * @param {Issue} second
  */
-const byRecency = (a, b) => (finishedAt(a) < finishedAt(b) ? 1 : finishedAt(a) > finishedAt(b) ? -1 : 0) ||
-  byIdentifier(a, b);
-
-const DAY = 86_400_000;
-const PAST = { day: DAY, week: 7 * DAY, month: 30 * DAY };
-const UNFINISHED = { state: { type: { nin: FINISHED } } };
-const IN_ACTIVE_CYCLE = { cycle: { isActive: { eq: true } } };
+const byRecency = (first, second) =>
+  compareText(finishedAt(second), finishedAt(first)) || byIdentifier(first, second);
 
 // The "Completed issues" option as an API filter on finished issues: "all", "day", "week", "month" (finished since
-// then), "cycle" (those of the active cycle) or "none". Unfinished issues always pass. Null lets every issue through.
+// then), "cycle" (those of the active cycle) or "none". Unfinished issues always pass. Null lets every issue through
 /**
- * @param {Display["completed"]} completed
+ * @param {Completed} completed
  * @param {number} now
  */
 function completedFilter(completed, now) {
-  if (completed === "all") return null;
-  if (completed === "none") return UNFINISHED;
-  if (completed === "cycle") return { or: [UNFINISHED, IN_ACTIVE_CYCLE] };
-  const since = new Date(now - PAST[completed]).toISOString();
+  if (completed === Completed.ALL) return null;
+  if (completed === Completed.NONE) return UNFINISHED;
+  if (completed === Completed.CYCLE) return { or: [UNFINISHED, IN_ACTIVE_CYCLE] };
+  const since = new Date(now - PAST[completed])
+    .toISOString();
   return { or: [UNFINISHED, { completedAt: { gte: since } }, { canceledAt: { gte: since } }] };
 }
 
-// The two views as API issue filters: the active cycle's issues, and all of mine.
 /**
- * @param {Display["completed"]} completed
+ * @param {Completed} completed
  * @param {number} now
  */
 export function filters(completed, now) {
@@ -82,19 +99,16 @@ export function filters(completed, now) {
   return { cycle: finished ? { and: [IN_ACTIVE_CYCLE, finished] } : IN_ACTIVE_CYCLE, mine: finished };
 }
 
-/** @type {Record<string, string>} */
-const SHOWING = { week: "in the past week", month: "in the past month", cycle: "during the current cycle" };
-
-// The line beside a completed group: which finished issues show (said for these three choices only), and their order.
+// Which finished issues show is said for these three choices only
 /**
- * @param {Display["completed"]} completed
+ * @param {Completed} completed
  * @param {boolean} recency
  */
 export const completedNote = (completed, recency) =>
   [SHOWING[completed] && `Showing issues completed ${SHOWING[completed]}`, recency && "Recent first"].filter(Boolean)
     .join(" · ");
 
-// A group's estimate points, totalled as the tracker does: an issue without an estimate counts for its team's default.
+// As the tracker totals them: an issue without an estimate counts for its team's default
 /**
  * @param {Pick<Issue, "estimate" | "team">[]} issues
  * @param {Map<string, Team>} teams
@@ -102,14 +116,14 @@ export const completedNote = (completed, recency) =>
 export const points = (issues, teams) =>
   issues.reduce((sum, issue) => sum + (issue.estimate ?? teams.get(issue.team.id)?.defaultIssueEstimate ?? 0), 0);
 
-// Issues grouped by workflow state. `by` orders the issues inside a group ("priority": most urgent first, "title":
-// A to Z) or the groups themselves ("status": in progress first); `reversed` flips that one order and leaves the
-// other alone. With `recency`, finished groups ignore both and list their most recently finished issue first.
+// `by` orders the issues inside a group ("priority": most urgent first, "title": A to Z) or the groups themselves
+// ("status": in progress first); `reversed` flips only that one. With `recency`, finished groups ignore both and
+// list their most recently finished issue first
 /**
  * @param {Issue[]} issues
  * @param {Partial<Display>} display
  */
-export function groups(issues, { by = "priority", reversed = false, recency = false } = {}) {
+export function groups(issues, { by = Ordering.PRIORITY, reversed = false, recency = false } = {}) {
   /** @type {Map<string, Group>} */
   const byState = new Map();
   for (const issue of issues) {
@@ -117,12 +131,15 @@ export function groups(issues, { by = "priority", reversed = false, recency = fa
     if (!group) byState.set(issue.state.name, group = { state: issue.state, issues: [] });
     group.issues.push(issue);
   }
-  const flip = reversed ? -1 : 1, inside = by === "status" ? 1 : flip, across = by === "status" ? flip : 1;
-  const within = WITHIN_GROUP[by] ?? WITHIN_GROUP.priority;
+  const byStatus = by === Ordering.STATUS, flip = reversed ? -1 : 1;
+  const inside = byStatus ? 1 : flip, across = byStatus ? flip : 1;
+  const within = WITHIN_GROUP[by] ?? WITHIN_GROUP[Ordering.PRIORITY];
   for (const group of byState.values()) {
-    group.issues.sort(recency && FINISHED.includes(group.state.type) ? byRecency : (a, b) => inside * within(a, b));
+    const inGroup = (/** @type {Issue} */ first, /** @type {Issue} */ second) => inside * within(first, second);
+    group.issues.sort(recency && FINISHED.includes(group.state.type) ? byRecency : inGroup);
   }
   /** @param {Group} group */
   const place = (group) => GROUP_ORDER.indexOf(group.state.type);
-  return [...byState.values()].sort((a, b) => across * (place(a) - place(b) || b.state.position - a.state.position));
+  return [...byState.values()].sort((first, second) =>
+    across * (place(first) - place(second) || second.state.position - first.state.position));
 }

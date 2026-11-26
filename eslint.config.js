@@ -10,6 +10,8 @@ export default [
   { files: ["tests/**/*.js"], languageOptions: { globals: NODE } },
   {
     rules: {
+      indent: ["error", 2, { MemberExpression: 1, SwitchCase: 1, flatTernaryExpressions: true }],
+      "newline-per-chained-call": ["error", { ignoreChainWithDepth: 1 }],
       "no-unused-vars": ["error", { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrors: "none" }],
     },
   },

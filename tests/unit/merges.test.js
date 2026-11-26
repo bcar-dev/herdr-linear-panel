@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { chipLabel, initials, merges, reference, reviewedBy, standing, tint, when }
+import { chipLabel, clipped, initials, merges, reference, reviewedBy, standing, tint, when }
   from "../../mods/linear-panel/lib/merges.js";
 
 const NOW = Date.parse("2026-11-24T10:00:00.000Z");
@@ -26,9 +26,9 @@ describe("merges", () => {
 });
 
 describe("standing", () => {
-  it("tells merged and closed apart, and takes anything else for open", () => {
+  it("tells merged, closed and draft apart, and takes anything else for open", () => {
     assert.deepEqual(["merged", "closed", "open", "inReview", "draft"].map((status) => standing(merge(status))),
-      ["merged", "closed", "open", "open", "open"]);
+      ["merged", "closed", "open", "open", "draft"]);
   });
 });
 
@@ -38,6 +38,11 @@ describe("tint", () => {
   it("is merged when all are, open when none is, mixed when some are", () => {
     assert.deepEqual([of("merged", "merged"), of("open", "draft", "inReview"), of("merged", "open")],
       ["merged", "open", "mixed"]);
+  });
+
+  it("is draft, grey, only when every one left is a draft", () => {
+    assert.deepEqual([of("draft"), of("draft", "draft"), of("draft", "closed"), of("draft", "open")],
+      ["draft", "draft", "draft", "open"]);
   });
 
   it("leaves the closed ones out, unless all are closed", () => {
@@ -79,5 +84,24 @@ describe("when", () => {
       when(merge("closed", { closedAt: "2026-11-22T10:00:00.000Z" }), NOW),
       when(merge("inReview"), NOW),
     ], ["Merged 23h ago", "Closed 2d ago", "Opened 3h ago"]);
+  });
+});
+
+describe("a merge request's title on the issue's page", () => {
+  it("cuts a title past 50 characters to exactly 50, its start then the three dots", () => {
+    assert.equal(clipped("a".repeat(50), 50), "a".repeat(50));
+    assert.equal(clipped("a".repeat(51), 50), `${"a".repeat(47)}...`);
+    const cut = clipped("feat!: enable SQLAlchemy 2.0 strict mode [BACK-5609]", 50);
+    assert.equal(cut, "feat!: enable SQLAlchemy 2.0 strict mode [BACK-...");
+    assert.equal(cut.length, 50);
+  });
+});
+
+describe("clipped, on a title with emojis", () => {
+  it("cuts between characters, never inside one that takes two code units", () => {
+    const title = `${"a".repeat(44)}\u{1F41B}${"b".repeat(20)}`;
+    const cut = clipped(title, 48);
+    assert.equal(cut.isWellFormed(), true);
+    assert.equal([...cut].length, 48);
   });
 });
