@@ -84,6 +84,8 @@ const COPIES = [
     doneMany: "Copied everything as Markdown" },
   { what: CopyWhat.BRANCH, icon: "copy-branch", one: "Copy git branch name", many: "Copy git branch name",
     done: "Copied git branch name", doneMany: "Copied git branch name", page: "Copy git branch name" },
+  { what: CopyWhat.DIFFS, icon: "copy-diffs", one: "Copy diff links", many: "Copy diff links",
+    done: "Copied diff links", doneMany: "Copied diff links" },
   { what: CopyWhat.PROMPT, icon: "copy-prompt", one: "Copy as prompt", many: null, done: "Copied as prompt",
     doneMany: null, page: "Copy as prompt" },
 ];

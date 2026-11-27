@@ -12,8 +12,8 @@ export const Completed = Object.freeze({
 /** @typedef {typeof Completed[keyof typeof Completed]} Completed */
 
 export const CopyWhat = Object.freeze({
-  BRANCH: "branch", EVERYTHING: "everything", ID: "id", LINK: "link", MARKDOWN: "markdown", PROMPT: "prompt",
-  TITLE: "title", URL: "url",
+  BRANCH: "branch", DIFFS: "diffs", EVERYTHING: "everything", ID: "id", LINK: "link", MARKDOWN: "markdown",
+  PROMPT: "prompt", TITLE: "title", URL: "url",
 });
 /** @typedef {typeof CopyWhat[keyof typeof CopyWhat]} CopyWhat */
 

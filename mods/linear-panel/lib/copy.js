@@ -1,5 +1,6 @@
 // What each entry of the Copy menu puts on the clipboard. Pure, so node can test it (tests/unit)
 import { CopyWhat } from "../enums.js";
+import { MergeStatus, merges, reference } from "./merges.js";
 
 /** @type {CopyWhat[]} */
 const DOCUMENTS = [CopyWhat.MARKDOWN, CopyWhat.EVERYTHING, CopyWhat.PROMPT];
@@ -21,6 +22,12 @@ const FIELDS = {
   [CopyWhat.LINK]: (issue) => `[${escaped(issue.title)}](${issue.url})`,
   [CopyWhat.BRANCH]: (issue) => issue.branchName,
 };
+
+/** @param {Issue[]} issues */
+const diffLinks = (issues) => [...new Set(issues.flatMap(merges)
+  .filter((merge) => merge.status !== MergeStatus.CLOSED)
+  .map((merge) => `- :${merge.sourceType}: [${reference(merge, false)}](${merge.url})`))]
+  .join("\n");
 
 /** @param {PageComment} comment */
 const commentText = (comment) => {
@@ -59,6 +66,7 @@ function one(what, issue, { description, comments = [] } = {}, tracker) {
  * @param {string} tracker
  */
 export function copyText(what, issues, details = [], tracker = "") {
+  if (what === CopyWhat.DIFFS) return diffLinks(issues);
   if (issues.length === 1) return one(what, issues[0], details[0], tracker);
   if (what === CopyWhat.TITLE) return issues.map((issue) => `${issue.identifier}: ${issue.title}`)
     .join("\n");

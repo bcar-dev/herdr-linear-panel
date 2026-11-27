@@ -63,6 +63,34 @@ describe("copyText", () => {
       /\*\*A\\\*da\\_\*\* \(2026-11-20\)/);
   });
 
+  it("copies the merge requests as a Slack list, skipping closed ones, other links and issues without one", () => {
+    /**
+     * @param {string} sourceType
+     * @param {string} repoName
+     * @param {number | undefined} number
+     * @param {string} status
+     */
+    const link = (sourceType, repoName, number, status = "open") => ({ sourceType,
+      metadata: { repoName, number, status, url: `https://${sourceType}.test/${repoName}/${number ?? "commit"}` } });
+    const linked = { ...issue, attachments: { nodes: [link("gitlab", "order_service", 12),
+      link("gitlab", "order_service", undefined), link("gitlab", "order_service", 9, "closed"),
+      link("github", "web-app", 4, "merged")] } };
+    const bare = { ...issue, attachments: { nodes: [] } };
+    const list = "- :gitlab: [order_service!12](https://gitlab.test/order_service/12)\n"
+      + "- :github: [web-app#4](https://github.test/web-app/4)";
+    assert.equal(copyText("diffs", [linked]), list);
+    assert.equal(copyText("diffs", [bare, linked, bare]), list);
+    assert.equal(copyText("diffs", [bare]), "");
+  });
+
+  it("lists a merge request linked to several issues once", () => {
+    const shared = { sourceType: "gitlab",
+      metadata: { repoName: "order", number: 12, status: "open", url: "https://gitlab.test/order/12" } };
+    const both = [issue, { ...issue, identifier: "BACK-9" }]
+      .map((each) => ({ ...each, attachments: { nodes: [shared] } }));
+    assert.equal(copyText("diffs", both), "- :gitlab: [order!12](https://gitlab.test/order/12)");
+  });
+
   it("copies a prompt that names the tracker when given its name", () => {
     assert.equal(copyText("prompt", [issue], [{ description: "Steps" }], "Acme"),
       "Work on Acme issue BACK-7: Fix login\n\nSteps\n\nhttps://tracker.test/issue/BACK-7");

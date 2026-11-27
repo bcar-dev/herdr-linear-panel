@@ -14,7 +14,7 @@ A mod for the [Herdr](https://herdr.dev) app: the Linear issues assigned to you,
 - Rest the pointer on an issue's status to see how long the issue has been in each status, and on its cycle to see the
   cycle's capacity, how much of it is done and the weekdays it has left.
 - Tick several issues and change them together from a command window (`Cmd+K`).
-- Copy one issue or several as IDs, links, Markdown or a prompt.
+- Copy one issue or several as IDs, links, Markdown, a prompt or their diffs as a list of links.
 - Start work on an issue: a git worktree on its branch, a new space there, and your agent briefed with the issue.
 
 ## Install
@@ -163,8 +163,9 @@ When Herdr is installed, the stand-in reads its `gpui-kit.d.ts` and refuses any 
 ## Icons
 
 `clipboard.svg`, `external-link.svg`, `refresh.svg`, `sort-down.svg`, `sort-up.svg`, `git-merge.svg`,
-`git-pull-request.svg`, `git-pull-request-draft.svg` and `git-pull-request-closed.svg` come from
-[Lucide](https://lucide.dev), some of them changed, under the ISC and MIT licenses in `LUCIDE-LICENSE.txt`.
+`git-pull-request.svg`, `git-pull-request-draft.svg` and `git-pull-request-closed.svg` come unchanged from
+[Lucide](https://lucide.dev) 1.82.0 (`refresh.svg` is its `refresh-cw`, `sort-down.svg` its `arrow-down-wide-narrow`
+and `sort-up.svg` its `arrow-up-narrow-wide`), under the ISC and MIT licenses in `LUCIDE-LICENSE.txt`.
 
 ## Trademarks
 
