@@ -19,8 +19,10 @@ describe("copyShortcut", () => {
     assert.equal(copyShortcut(press(",", { platform: true, shift: true }), true), "url");
     assert.equal(copyShortcut(press("'", { platform: true, shift: true }), true), "title");
     assert.equal(copyShortcut(press("c", { platform: true }), true), "link");
+    assert.equal(copyShortcut(press("m", { platform: true, alt: true }), true), "markdown");
     assert.equal(copyShortcut(press("c", { platform: true, alt: true }), true), "everything");
     assert.equal(copyShortcut(press(".", { platform: true, shift: true }), true), "branch");
+    assert.equal(copyShortcut(press("x", { platform: true, alt: true }), true), "diffs");
     assert.equal(copyShortcut(press("p", { platform: true, alt: true }), true), "prompt");
   });
 
@@ -28,6 +30,8 @@ describe("copyShortcut", () => {
     assert.equal(copyShortcut(press("<", { platform: true, shift: true }), true), "url");
     assert.equal(copyShortcut(press("P", { platform: true, alt: true }), true), "prompt");
     assert.equal(copyShortcut(press("π", { platform: true, alt: true }), true), "prompt");
+    assert.equal(copyShortcut(press("µ", { platform: true, alt: true }), true), "markdown");
+    assert.equal(copyShortcut(press("≈", { platform: true, alt: true }), true), "diffs");
   });
 
   it("wants Ctrl instead of Cmd off macOS", () => {
@@ -43,8 +47,9 @@ describe("copyShortcut", () => {
 });
 
 describe("the shortcuts as shown", () => {
-  it("shows for each Copy entry the keys its shortcut is made of, and none for the entry without one", () => {
-    assert.deepEqual(["id", "url", "everything", "markdown"].map(copyCaps), [["."], ["⇧", ","], ["⌥", "C"], null]);
+  it("shows for each Copy entry the keys its shortcut is made of", () => {
+    assert.deepEqual(["id", "url", "everything", "markdown", "diffs"].map(copyCaps),
+      [["."], ["⇧", ","], ["⌥", "C"], ["⌥", "M"], ["⌥", "X"]]);
   });
 
   it("gives each property the key the panel obeys for it", () => {
