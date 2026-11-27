@@ -6,6 +6,8 @@
 
 - Copy menu: "Copy diff links" copies an issue's diffs as a bullet points list with Gitlab or Github emoji and its
   repository and number linked to it. Each is listed once, and closed ones are left out.
+- Copy menu shortcuts: `⌘` `⌥` `M` for "Copy issue as Markdown" and `⌘` `⌥` `X` for "Copy diff links" (`Ctrl` `Alt`
+  off macOS).
 - The mod's own icons carry a copyright line in their SVG metadata.
 
 ### Changed

@@ -53,8 +53,10 @@ const COPY_KEYS = [
   { what: CopyWhat.URL, keys: [",", "<"], held: { shift: true }, caps: ["⇧", ","] },
   { what: CopyWhat.TITLE, keys: ["'", '"'], held: { shift: true }, caps: ["⇧", "'"] },
   { what: CopyWhat.LINK, keys: ["c"], held: {}, caps: ["C"] },
+  { what: CopyWhat.MARKDOWN, keys: ["m", "µ"], held: { alt: true }, caps: ["⌥", "M"] },
   { what: CopyWhat.EVERYTHING, keys: ["c", "ç"], held: { alt: true }, caps: ["⌥", "C"] },
   { what: CopyWhat.BRANCH, keys: [".", ">"], held: { shift: true }, caps: ["⇧", "."] },
+  { what: CopyWhat.DIFFS, keys: ["x", "≈"], held: { alt: true }, caps: ["⌥", "X"] },
   { what: CopyWhat.PROMPT, keys: ["p", "π"], held: { alt: true }, caps: ["⌥", "P"] },
 ];
 
@@ -107,7 +109,8 @@ export function panelKey(event, { mac, views, ticked, pointed, aimed }) {
 // The other spellings a key can be reported in, by the key as a shortcut shows it: Shift turns "," into "<", Option
 // turns "P" into "π"
 /** @type {Record<string, string[]>} */
-const SPELLINGS = { ",": [",", "<"], ".": [".", ">"], "'": ["'", '"'], p: ["p", "π"], c: ["c", "ç"] };
+const SPELLINGS = { ",": [",", "<"], ".": [".", ">"], "'": ["'", '"'], p: ["p", "π"], c: ["c", "ç"],
+  m: ["m", "µ"], x: ["x", "≈"] };
 
 // A cap is a modifier's sign or name, or the key itself. `held` is the modifiers held and the last key pressed
 /**
