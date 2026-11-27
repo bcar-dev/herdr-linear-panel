@@ -170,7 +170,7 @@ describe("issue menu", () => {
     rest(menu, "copy");
     menu.cx.elapse();
     assert.deepEqual(host.overlays[1].props.issues.map((issue) => issue.identifier), ["BACK-1", "BACK-2", "WEB-7"]);
-    assert.equal(host.overlays[1].height, 7 * 31 + 12);
+    assert.equal(host.overlays[1].height, 8 * 31 + 12);
   });
 
   it("gives the keyboard back to the panel when Herdr closes it, as Herdr does on Escape", () => {
@@ -224,7 +224,7 @@ describe("copy menu on several issues", () => {
       .draw())
       .filter((piece) => piece.startsWith("Copy")), [
       "Copy IDs", "Copy URLs", "Copy titles", "Copy titles as links", "Copy issues as Markdown",
-      "Copy everything as Markdown", "Copy git branch name",
+      "Copy everything as Markdown", "Copy git branch name", "Copy diff links",
     ]);
   });
 

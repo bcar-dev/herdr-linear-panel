@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-11-27
+
+### Added
+
+- Copy menu: "Copy diff links" copies an issue's diffs as a bullet points list with Gitlab or Github emoji and its
+  repository and number linked to it. Each is listed once, and closed ones are left out.
+- The mod's own icons carry a copyright line in their SVG metadata.
+
+### Changed
+
+- "Copy URL", "Copy title as link" and "Copy diff links" share one chain icon: two hooks facing each other with a bar
+  between them.
+- The Lucide icons are the unchanged ones of Lucide 1.82.0. The draft merge request icon shows a dotted line and a
+  circle instead of code brackets, and the closed one a smaller cross.
+
 ## 2026-11-26
 
 ### Added

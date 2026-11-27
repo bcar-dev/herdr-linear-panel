@@ -23,10 +23,15 @@ export async function copy(issues, what, cx) {
       ? async (id) => ({ description: await api.description(id) })
       : async () => ({});
   const details = await Promise.all(issues.map((issue) => read(issue.id)));
-  cx.write_to_clipboard(copyText(what, issues, details, NAME));
+  const text = copyText(what, issues, details, NAME);
+  const copied = issues.length === 1 ? issues[0].identifier : `${issues.length} issues`;
+  if (what === CopyWhat.DIFFS && !text) {
+    notify({ title: `No diffs to copy · ${copied}`, timeout: TOAST_MS });
+    return;
+  }
+  cx.write_to_clipboard(text);
   const { done } = /** @type {{ done: string }} */ (copiesFor(issues.length)
     .find((entry) => entry.what === what));
-  const copied = issues.length === 1 ? issues[0].identifier : `${issues.length} issues`;
   notify({ title: `${done} · ${copied}`, timeout: TOAST_MS });
 }
 

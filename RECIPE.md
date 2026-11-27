@@ -143,12 +143,15 @@ popover color, a 1 px border, corners rounded by 10 px and a shadow. Each is as 
   cycle and those to come in order, then the previous one under a rule, each "Cycle 88" followed, dimmed, by its days
   and, when Linear words it, where it stands: "Nov 10 - Nov 23 · Current", "Nov 24 - Dec 7 · Upcoming", "Oct 27 - Nov
   9 · Previous". Older cycles are left out. More than sixteen rows scroll. Where it opens: see **Pickers**.
-- Copy, as wide as its longest entry needs, between 220 and 340 px, Linear's eight entries, each with an icon like
-  Linear's and its shortcut as key boxes: "Copy ID" `⌘` `.`, "Copy URL" `⌘` `⇧` `,`, "Copy title" `⌘` `⇧` `'`, "Copy
-  title as link" `⌘` `C`, "Copy issue as Markdown", "Copy everything as Markdown" `⌘` `⌥` `C`, "Copy git branch name"
-  `⌘` `⇧` `.`, "Copy as prompt" `⌘` `⌥` `P`. Off macOS they read `Ctrl` and `Alt`. On several issues they read "Copy
-  IDs", "Copy URLs", "Copy titles", "Copy titles as links", "Copy issues as Markdown", "Copy everything as Markdown" and
-  "Copy git branch name", and "Copy as prompt" is left out.
+- Copy, as wide as its longest entry needs, between 220 and 340 px, Linear's eight entries and one more, each with an
+  icon like Linear's and its shortcut as key boxes: "Copy ID" `⌘` `.`, "Copy URL" `⌘` `⇧` `,`, "Copy title" `⌘` `⇧`
+  `'`, "Copy title as link" `⌘` `C`, "Copy issue as Markdown", "Copy everything as Markdown" `⌘` `⌥` `C`, "Copy git
+  branch name" `⌘` `⇧` `.`, "Copy diff links" (a pull request whose second end is a chain link, no shortcut; one line
+  per merge request, `- :gitlab: [repo!12](url)` or `- :github: [repo#4](url)`, each once and the closed ones left
+  out), "Copy as prompt" `⌘` `⌥` `P`. Off macOS
+  they read `Ctrl` and `Alt`. On several issues they read "Copy IDs", "Copy URLs", "Copy titles", "Copy titles as
+  links", "Copy issues as Markdown", "Copy everything as Markdown", "Copy git branch name" and "Copy diff links", and
+  "Copy as prompt" is left out. With no merge request to copy, a toast says so and the clipboard is left alone.
 - Start, 280 px wide: "Start BACK-12 with Claude Code" (the agent's name), a one-line input and a "Start" button.
 - New issue, as wide as the longest team name needs, between 200 and 300 px: the line "New issue in…" and a row per team
   you belong to, its key then its name.

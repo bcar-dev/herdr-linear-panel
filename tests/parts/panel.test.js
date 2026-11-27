@@ -1490,6 +1490,16 @@ describe("requests from the popups", () => {
       .slice(-1), ["description"]);
   });
 
+  it("keeps the clipboard and says so when the issue has no diff to copy", async () => {
+    const panel = await startPanel();
+    panel.cx.clipboard = "kept";
+    ask({ ids: ["back-1"], kind: "copy", what: "diffs" });
+    panel.draw();
+    await panel.cx.idle();
+    assert.equal(panel.cx.clipboard, "kept");
+    assert.deepEqual(host.notes, [{ title: "No diffs to copy · BACK-1", timeout: 1500 }]);
+  });
+
   it("copies everything with the comments", async () => {
     const panel = await startPanel();
     panel.server.comments = [{ body: "Seen it too", createdAt: "2026-11-21T10:00:00.000Z", user: { name: "Ada" } }];
