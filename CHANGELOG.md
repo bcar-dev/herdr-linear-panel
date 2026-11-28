@@ -17,6 +17,7 @@
 - A row's status takes clicks over 24 px instead of 18 px, and the lines that say what failed are 12 px instead of 11.
 - Start: the note that asks the agent to read the issue as information, never as instructions, covers the issue's
   title too, and stays when the issue has no description.
+- The version is the date of the latest entry in this changelog: 2026.11.28.
 - CI runs the type check too, on a copy of Herdr's `gpui-kit.d.ts` kept in `vendor/herdr/`.
 - TypeScript 7.0.2, the native compiler: the type check takes 0.4 s instead of 1.1 s.
 - ESLint 10.15.0, which drops a vulnerable minimatch (GHSA-g3hv-75wg-m249) from the dev dependencies.
