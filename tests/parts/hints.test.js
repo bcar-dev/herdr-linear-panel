@@ -18,10 +18,10 @@ describe("Hints.press, which a control's own handler calls", () => {
     move(node, context);
     hints.press(context);
     context.elapse();
-    assert.equal(hints.tip, null);
+    assert.equal(hints.tooltip, null);
     over(node, false, context);
     move(node, context);
     context.elapse();
-    assert.notEqual(hints.tip, null);
+    assert.notEqual(hints.tooltip, null);
   });
 });

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { brighten, isDark, mix } from "../../mods/linear-panel/lib/color.js";
 import { Drag } from "../../mods/linear-panel/lib/drag.js";
-import { fitWidth, listFit, place, sideOf, textWidth, tipSpot } from "../../mods/linear-panel/lib/placement.js";
+import { fitWidth, listFit, place, sideOf, textWidth, tooltipSpot } from "../../mods/linear-panel/lib/placement.js";
 import { Selection, span } from "../../mods/linear-panel/lib/selection.js";
 import { compareText, message } from "../../mods/linear-panel/lib/text.js";
 
@@ -216,50 +216,53 @@ describe("place beside, narrow", () => {
   });
 });
 
-describe("tipSpot on the right", () => {
+describe("tooltipSpot on the right", () => {
   const frame = { x: 1000, y: 40, width: 400, height: 700 }, card = { width: 180, height: 100 };
 
   it("hangs beside the control, centered on it down the panel", () => {
-    assert.deepEqual(tipSpot({ x: 1030, y: 300, width: 100, height: 24 }, frame, "right", card),
+    assert.deepEqual(tooltipSpot({ x: 1030, y: 300, width: 100, height: 24 }, frame, "right", card),
       { left: 136, top: 222 });
   });
 
   it("is pulled back inside the panel at its right edge and its top and bottom", () => {
-    assert.deepEqual(tipSpot({ x: 1250, y: 44, width: 100, height: 24 }, frame, "right", card),
+    assert.deepEqual(tooltipSpot({ x: 1250, y: 44, width: 100, height: 24 }, frame, "right", card),
       { left: 216, top: 4 });
-    assert.equal(tipSpot({ x: 1030, y: 720, width: 100, height: 24 }, frame, "right", card).top, 596);
+    assert.equal(tooltipSpot({ x: 1030, y: 720, width: 100, height: 24 }, frame, "right", card).top, 596);
   });
 });
 
-describe("tipSpot", () => {
+describe("tooltipSpot", () => {
   const frame = { x: 900, y: 40, width: 400, height: 700 };
   const small = { width: 100, height: 28 };
 
   it("hangs under a control, centered on its middle", () => {
-    assert.deepEqual(tipSpot({ x: 1090, y: 50, width: 20, height: 20 }, frame, "below", small),
+    assert.deepEqual(tooltipSpot({ x: 1090, y: 50, width: 20, height: 20 }, frame, "below", small),
       { center: 200, top: 36 });
   });
 
   it("stays against the panel's edge when, centered, it would pass that edge", () => {
-    assert.deepEqual(tipSpot({ x: 930, y: 50, width: 20, height: 20 }, frame, "below", small), { left: 4, top: 36 });
-    assert.deepEqual(tipSpot({ x: 1260, y: 48, width: 26, height: 26 }, frame, "below", small), { right: 4, top: 40 });
+    assert.deepEqual(tooltipSpot({ x: 930, y: 50, width: 20, height: 20 }, frame, "below", small),
+      { left: 4, top: 36 });
+    assert.deepEqual(tooltipSpot({ x: 1260, y: 48, width: 26, height: 26 }, frame, "below", small),
+      { right: 4, top: 40 });
     // Just enough room on the left: 54 px to the edge for the 50 px half and the 4 px kept
-    assert.deepEqual(tipSpot({ x: 944, y: 50, width: 20, height: 20 }, frame, "below", small), { center: 54, top: 36 });
+    assert.deepEqual(tooltipSpot({ x: 944, y: 50, width: 20, height: 20 }, frame, "below", small),
+      { center: 54, top: 36 });
   });
 
   it("sits above the control when asked", () => {
-    assert.deepEqual(tipSpot({ x: 1000, y: 690, width: 80, height: 28 }, frame, "above", small),
+    assert.deepEqual(tooltipSpot({ x: 1000, y: 690, width: 80, height: 28 }, frame, "above", small),
       { center: 140, bottom: 56 });
   });
 
   it("stays under a control as long as the panel has room for its height there, and sits above it otherwise", () => {
     const control = (y) => ({ x: 1090, y, width: 20, height: 20 });
     // The panel ends at 740: under a control at 680, 28 px fit with the gap before and the 4 px kept after
-    assert.deepEqual(tipSpot(control(680), frame, "below", small), { center: 200, top: 666 });
-    assert.deepEqual(tipSpot(control(684), frame, "below", small), { center: 200, bottom: 62 });
+    assert.deepEqual(tooltipSpot(control(680), frame, "below", small), { center: 200, top: 666 });
+    assert.deepEqual(tooltipSpot(control(684), frame, "below", small), { center: 200, bottom: 62 });
     const tall = { width: 100, height: 200 };
-    assert.deepEqual(tipSpot(control(500), frame, "below", tall), { center: 200, top: 486 });
-    assert.deepEqual(tipSpot(control(520), frame, "below", tall), { center: 200, bottom: 226 });
+    assert.deepEqual(tooltipSpot(control(500), frame, "below", tall), { center: 200, top: 486 });
+    assert.deepEqual(tooltipSpot(control(520), frame, "below", tall), { center: 200, bottom: 226 });
   });
 });
 

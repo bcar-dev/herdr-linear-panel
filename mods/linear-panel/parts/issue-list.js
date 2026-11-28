@@ -56,10 +56,11 @@ const TICKED_HOVER_ALPHA = 0.3;
  * @param {Color} color
  * @param {Color} bright
  * @param {{
- *   still?: boolean, tip?: { label: string, caps: string[], body?: Tip["body"] }, entered?: (context: Context) => void,
+ *   still?: boolean, tooltip?: { label: string, caps: string[], body?: Tooltip["body"] },
+ *   entered?: (context: Context) => void,
  * }} options
  */
-export function warming(panel, mark, id, color, bright, { still = false, tip, entered } = {}) {
+export function warming(panel, mark, id, color, bright, { still = false, tooltip, entered } = {}) {
   const colored = mark.id(id)
     .text_color(panel.hoveredControl === id && !still ? bright : color);
   /** @type {(hovered: boolean, context: Context) => void} */
@@ -67,7 +68,7 @@ export function warming(panel, mark, id, color, bright, { still = false, tip, en
     panel.hoverControl(id, hovered, context);
     if (hovered) entered?.(context);
   };
-  return tip ? panel.hints.on(colored, tip.label, { caps: tip.caps, body: tip.body, key: id, hover })
+  return tooltip ? panel.hints.on(colored, tooltip.label, { caps: tooltip.caps, body: tooltip.body, key: id, hover })
     : colored.on_hover(hover);
 }
 
@@ -96,7 +97,7 @@ const chip = (panel, theme, id, options) => warming(panel,
  * @param {Panel} panel
  * @param {Issue} issue
  * @param {Theme} theme
- * @returns {TipBody | null}
+ * @returns {TooltipBody | null}
  */
 export function timeInStatus(panel, issue, theme) {
   const spans = panel.store.historyByIssueId.get(issue.id), states = panel.store.teams.get(issue.team.id)?.states;
@@ -139,7 +140,7 @@ export function timeInStatus(panel, issue, theme) {
  * @param {Issue} issue
  * @param {IssueCycle} cycle
  * @param {Theme} theme
- * @returns {TipBody}
+ * @returns {TooltipBody}
  */
 export function cycleCard(panel, issue, cycle, theme) {
   const now = Date.now(), when = tense(cycle, panel.store.teams.get(issue.team.id)?.cycles ?? [], now),
@@ -340,7 +341,7 @@ function row(panel, issue, group, { theme, identifierWidth, estimateWidth, lit }
     .justify_center(),
   `status-${issue.id}`, stateColor, brighten(stateColor, STATUS_HOVER_BRIGHTNESS), {
     still,
-    tip: {
+    tooltip: {
       label: "Change status", caps: propertyKey(Property.STATUS).caps,
       body: (theme) => timeInStatus(panel, issue, theme),
     },
@@ -355,7 +356,7 @@ function row(panel, issue, group, { theme, identifierWidth, estimateWidth, lit }
     .items_center()
     .justify_center(),
   `priority-${issue.id}`, plain, urgent ? plain : theme.foreground,
-  { still, tip: { label: "Change priority", caps: propertyKey(Property.PRIORITY).caps } });
+  { still, tooltip: { label: "Change priority", caps: propertyKey(Property.PRIORITY).caps } });
   const size = warming(panel, h_flex()
     .h(20)
     .pr(4)
@@ -365,17 +366,17 @@ function row(panel, issue, group, { theme, identifierWidth, estimateWidth, lit }
     .rounded(Radius.CHIP)
     .text_size(Text.CAPTION),
   `estimate-${issue.id}`, theme.muted, theme.foreground,
-  { still, tip: { label: "Change estimate", caps: propertyKey(Property.ESTIMATE).caps } });
+  { still, tooltip: { label: "Change estimate", caps: propertyKey(Property.ESTIMATE).caps } });
   const { cycle } = issue;
   const term = cycle && chip(panel, theme, `cycle-${issue.id}`, {
     still,
-    tip: { label: "", caps: [], body: (theme) => cycleCard(panel, issue, cycle, theme) },
+    tooltip: { label: "", caps: [], body: (theme) => cycleCard(panel, issue, cycle, theme) },
     entered: (context) => { if (Date.parse(cycle.startsAt) > Date.now()) panel.loadPlannedPoints(cycle, context); },
   });
   const linked = merges(issue);
   const requests = linked.length > 0 && chip(panel, theme, `merges-${issue.id}`, {
     still,
-    tip: { label: "", caps: [], body: (theme) => mergeCard(panel, issue, theme) },
+    tooltip: { label: "", caps: [], body: (theme) => mergeCard(panel, issue, theme) },
     entered: (context) => panel.loadMergeDetails(issue, context),
   });
   return h_flex()

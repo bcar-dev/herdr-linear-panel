@@ -639,14 +639,14 @@ describe("the top of the page", () => {
     const root = slideIn(panel);
     const ids = ["url", "id", "branch", "prompt"].map((what) => `page-copy-${what}`);
     assert.deepEqual(ids.map((id) => find(root, id) !== null), [true, true, true, true]);
-    const tip = (id) => {
+    const tooltip = (id) => {
       const bounds = { x: 1200, y: 90, width: 30, height: 30 };
       send(root, find(root, id), "on_mouse_move", { ...at(1200, 100), bounds }, panel.context);
       panel.context.elapse();
       return texts(find(panel.draw(), "tooltip"));
     };
-    assert.deepEqual(tip(ids[0]), ["Copy issue URL", "⌘", "⇧", ","]);
-    assert.deepEqual(tip(ids[3]), ["Copy as prompt", "⌘", "⌥", "P"]);
+    assert.deepEqual(tooltip(ids[0]), ["Copy issue URL", "⌘", "⇧", ","]);
+    assert.deepEqual(tooltip(ids[3]), ["Copy as prompt", "⌘", "⌥", "P"]);
   });
 
   it("copies the URL, the identifier and the branch of the issue, one line of toast each", async () => {

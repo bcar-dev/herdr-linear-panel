@@ -79,7 +79,7 @@ const heading = (merge, lines, below, theme) => [
  * @param {Panel} panel
  * @param {Issue} issue
  * @param {Theme} theme
- * @returns {TipBody}
+ * @returns {TooltipBody}
  */
 export function mergeCard(panel, issue, theme) {
   const list = merges(issue), [only] = list;
@@ -93,7 +93,7 @@ export function mergeCard(panel, issue, theme) {
  * @param {Issue} issue
  * @param {Merge} merge
  * @param {Theme} theme
- * @returns {TipBody}
+ * @returns {TooltipBody}
  */
 export function mergeCardOf(panel, issue, merge, theme) {
   const answered = panel.store.mergeDetailsByIssueId.get(issue.id);
@@ -105,7 +105,7 @@ export function mergeCardOf(panel, issue, merge, theme) {
  * @param {MergeDetails | undefined} details
  * @param {boolean} pending
  * @param {Theme} theme
- * @returns {TipBody}
+ * @returns {TooltipBody}
  */
 function single(merge, details, pending, theme) {
   const said = [when(merge, Date.now()), details ? `${details.files} files` : pending && "…"].filter(Boolean)
@@ -159,7 +159,7 @@ function single(merge, details, pending, theme) {
  * @param {Merge[]} list
  * @param {(merge: Merge) => MergeDetails | undefined} detailsOf
  * @param {Theme} theme
- * @returns {TipBody}
+ * @returns {TooltipBody}
  */
 function several(list, detailsOf, theme) {
   const shown = list.slice(0, MOST_BLOCKS_SHOWN), more = list.length - shown.length;

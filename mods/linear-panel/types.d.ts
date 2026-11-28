@@ -52,20 +52,20 @@ type Where = {
 };
 
 /** What a tooltip says above its label (parts/hints.js): the element, and its size, which places the tooltip */
-type TipBody = { element: NativeElement; width: number; height: number };
+type TooltipBody = { element: NativeElement; width: number; height: number };
 
 /** The tooltip showing (parts/hints.js). `body` draws what it says above its label, or answers null for nothing */
-type Tip = {
+type Tooltip = {
   key: string;
   label: string;
   caps: string[];
   side: Side;
   bounds: Bounds;
-  body?: (theme: Theme) => TipBody | null;
+  body?: (theme: Theme) => TooltipBody | null;
 };
 
 /** Where a tooltip hangs in the panel (lib/placement.js): offsets from its edges, or `center` from its left edge */
-type TipSpot = (
+type TooltipSpot = (
   | { left: number; right?: undefined; center?: undefined }
   | { right: number; left?: undefined; center?: undefined }
   | { center: number; left?: undefined; right?: undefined }
