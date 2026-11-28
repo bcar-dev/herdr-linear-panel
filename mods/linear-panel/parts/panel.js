@@ -176,6 +176,8 @@ export class Panel {
     if (!at || at === this.keyboardAt) return;
     this.keyboardAt = at;
     this.retaking = true;
+    // The panel never heard the keys let go while the popup had the keyboard
+    this.hints.forgetKeys();
     const take = () => { if (!channel.popups().length && !this.detail?.comments.edited) this.handle.focus(); };
     for (const wait of KEYBOARD_RETAKE_DELAYS_MS) context.timer.after(wait, take);
     context.timer.after(KEYBOARD_RETAKE_FINAL_DELAY_MS, (context) => {
