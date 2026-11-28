@@ -11,7 +11,7 @@ import { chipLabel, merges, tint as tinted } from "../lib/merges.js";
 import { brighten, withAlpha } from "../lib/color.js";
 import { CycleTense, TENSES, cycleName, progressIcon, span, tense, weekdaysLeft } from "../lib/cycles.js";
 import { timeInStatuses, timeLabel } from "../lib/history.js";
-import { propertyKey } from "../lib/keys.js";
+import { propertyTooltip } from "../lib/keys.js";
 import { fitWidth, textWidth } from "../lib/placement.js";
 import { mergeCard } from "./merge-card.js";
 import { estimateLabel, statusIcon } from "../lib/teams.js";
@@ -342,7 +342,7 @@ function row(panel, issue, group, { theme, identifierWidth, estimateWidth, lit }
   `status-${issue.id}`, stateColor, brighten(stateColor, STATUS_HOVER_BRIGHTNESS), {
     still,
     tooltip: {
-      label: "Change status", caps: propertyKey(Property.STATUS).caps,
+      ...propertyTooltip(Property.STATUS),
       body: (theme) => timeInStatus(panel, issue, theme),
     },
     entered: (context) => panel.loadStatusHistory(issue, context),
@@ -356,7 +356,7 @@ function row(panel, issue, group, { theme, identifierWidth, estimateWidth, lit }
     .items_center()
     .justify_center(),
   `priority-${issue.id}`, plain, urgent ? plain : theme.foreground,
-  { still, tooltip: { label: "Change priority", caps: propertyKey(Property.PRIORITY).caps } });
+  { still, tooltip: propertyTooltip(Property.PRIORITY) });
   const size = warming(panel, h_flex()
     .h(20)
     .pr(4)
@@ -366,7 +366,7 @@ function row(panel, issue, group, { theme, identifierWidth, estimateWidth, lit }
     .rounded(Radius.CHIP)
     .text_size(Text.CAPTION),
   `estimate-${issue.id}`, theme.muted, theme.foreground,
-  { still, tooltip: { label: "Change estimate", caps: propertyKey(Property.ESTIMATE).caps } });
+  { still, tooltip: propertyTooltip(Property.ESTIMATE) });
   const { cycle } = issue;
   const term = cycle && chip(panel, theme, `cycle-${issue.id}`, {
     still,

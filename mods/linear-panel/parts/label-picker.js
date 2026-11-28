@@ -12,6 +12,7 @@ import { blocks, childrenOf, groupOf, matching, placeholderFor, wornRows } from 
 import { caption, frame, item, rule, searchRow } from "./menu.js";
 import { SubmenuHost } from "./submenu-host.js";
 import { Height, Radius, Text } from "../style.js";
+import { PAGE_KEYS } from "../lib/keys.js";
 
 const NO_BOUNDS = { x: 0, y: 0, width: 0, height: 0 };
 
@@ -174,7 +175,7 @@ export class LabelPicker {
     return frame(theme, "label-picker", this.handle)
       .on_mouse_move(this.pages.noteMenuBounds)
       .on_size_change((_size, context) => this.pages.followZoom(context))
-      .child(searchRow(theme, this.input, ["L"]))
+      .child(searchRow(theme, this.input, PAGE_KEYS.LABELS.caps))
       .child(rule(theme))
       .child(found ? list.children(found.map((label) => this.row(theme, label, labels, true)))
       : list.children([

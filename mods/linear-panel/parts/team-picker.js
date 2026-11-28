@@ -8,6 +8,7 @@ import { RequestKind } from "../enums.js";
 import { chordCaps, takeKeyboard, teamMark } from "../ui.js";
 import { caption, frame, item, rule, searchRow } from "./menu.js";
 import { Height, Text } from "../style.js";
+import { PAGE_KEYS } from "../lib/keys.js";
 
 const CHROME_PX = 38;
 const ISSUE_CHROME_PX = 52;
@@ -68,7 +69,7 @@ export class TeamPicker {
         .child(team.name)]),
     ];
     return frame(theme, "team-picker", this.handle)
-      .children(issue ? [searchRow(theme, this.input, chordCaps(["⇧", "M"])), rule(theme)]
+      .children(issue ? [searchRow(theme, this.input, chordCaps(PAGE_KEYS.TEAM.caps)), rule(theme)]
       : [caption(theme, "New issue in…")])
       .children(shown.map((team) =>
         item(theme, team.key, label(team), () => this.choose(team), issue ? team.id === issue.team.id : false)));

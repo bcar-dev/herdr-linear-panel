@@ -24,14 +24,34 @@ const commandHeld = (modifiers, mac) =>
   (mac ? modifiers.platform && !modifiers.control : modifiers.control && !modifiers.platform);
 
 // The key is as `spelled` names it, the caps as menus show it. This is the one place a property's shortcut is written
-/** @type {{ page: Property, label: string, key: string, caps: string[], icon: string }[]} */
+/** @type {{ page: Property, label: string, tooltip: string, key: string, caps: string[], icon: string }[]} */
 export const PROPERTIES = [
-  { page: Property.STATUS, label: "Status", key: "s", caps: ["S"], icon: "status" },
-  { page: Property.PRIORITY, label: "Priority", key: "p", caps: ["P"], icon: "priority-2" },
-  { page: Property.ASSIGN, label: "Assignee", key: "a", caps: ["A"], icon: "assign" },
-  { page: Property.ESTIMATE, label: "Estimate", key: "E", caps: ["⇧", "E"], icon: "estimate" },
-  { page: Property.CYCLE, label: "Cycle", key: "C", caps: ["⇧", "C"], icon: "cycle" },
+  { page: Property.STATUS, label: "Status", tooltip: "Change status", key: "s", caps: ["S"], icon: "status" },
+  { page: Property.PRIORITY, label: "Priority", tooltip: "Change priority", key: "p", caps: ["P"], icon: "priority-2" },
+  { page: Property.ASSIGN, label: "Assignee", tooltip: "Change assignee", key: "a", caps: ["A"], icon: "assign" },
+  { page: Property.ESTIMATE, label: "Estimate", tooltip: "Change estimate", key: "E", caps: ["⇧", "E"],
+    icon: "estimate" },
+  { page: Property.CYCLE, label: "Cycle", tooltip: "Change cycle", key: "C", caps: ["⇧", "C"], icon: "cycle" },
 ];
+
+// The issue page's own shortcuts, beside the properties'. With `command`, the command key comes before `caps`
+export const PAGE_KEYS = Object.freeze({
+  TEAM: { key: "m", shift: true, command: true, caps: ["⇧", "M"], tooltip: "Move to a different team" },
+  LABELS: { key: "l", shift: false, command: false, caps: ["L"], tooltip: "Add labels" },
+});
+/** @typedef {typeof PAGE_KEYS[keyof typeof PAGE_KEYS]} PageShortcut */
+
+/**
+ * @param {KeyEvent} event
+ * @param {boolean} mac
+ * @returns {PageShortcut | null}
+ */
+export function pageShortcut(event, mac) {
+  const { modifiers } = event;
+  return Object.values(PAGE_KEYS)
+    .find((entry) => event.key.toLowerCase() === entry.key && Boolean(modifiers.shift) === entry.shift
+      && !modifiers.alt && (entry.command ? commandDown(modifiers, mac) : unmodified(modifiers))) ?? null;
+}
 /** @type {Record<string, Property>} */
 const PROPERTY_OF_KEY = Object.fromEntries(PROPERTIES.map(({ page, key }) => [key, page]));
 
@@ -41,9 +61,19 @@ export const propertyOf = (event) => PROPERTY_OF_KEY[spelled(event)];
 // { key, caps }: the key obeyed and the keys shown
 /** @param {Property} page */
 export function propertyKey(page) {
-  const { key, caps } = /** @type {typeof PROPERTIES[number]} */ (PROPERTIES.find((entry) => entry.page === page));
+  const { key, caps } = propertyEntry(page);
   return { key, caps };
 }
+
+/** @param {Property} page */
+export function propertyTooltip(page) {
+  const { tooltip, caps } = propertyEntry(page);
+  return { label: tooltip, caps };
+}
+
+/** @param {Property} page */
+const propertyEntry = (page) =>
+  /** @type {typeof PROPERTIES[number]} */ (PROPERTIES.find((entry) => entry.page === page));
 
 // { what, keys, held, caps }: always under the command key; caps are shown after Cmd or Ctrl. A shifted or Alt-ed
 // key is listed under every spelling a keyboard may report

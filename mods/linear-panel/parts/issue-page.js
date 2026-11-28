@@ -15,7 +15,7 @@ import { timeLabel } from "../lib/history.js";
 import { clipped, merges, standing } from "../lib/merges.js";
 import { arrange } from "../lib/grid.js";
 import { estimateText, memberName } from "../lib/teams.js";
-import { propertyKey } from "../lib/keys.js";
+import { PAGE_KEYS, propertyTooltip } from "../lib/keys.js";
 import { textWidth } from "../lib/placement.js";
 import { cycleCard, timeInStatus } from "./issue-list.js";
 import { Comments } from "./comments.js";
@@ -278,26 +278,26 @@ export class IssuePage {
     cycle ? cycleName(cycle) : "No cycle", choose(Property.CYCLE));
     const lines = [
       this.line(theme, "status", statusMark(issue.state, team?.states), issue.state.name, choose(Property.STATUS), {
-        label: "Change status", caps: propertyKey(Property.STATUS).caps,
+        ...propertyTooltip(Property.STATUS),
         body: (theme) => timeInStatus(panel, issue, theme),
         entered: (context) => panel.loadStatusHistory(issue, context) }),
       this.line(theme, "team", teamMark(issue.team, TEAM_MARK_PX),
         issue.team.name, () => panel.openers.pickTeam(issue),
-        { label: "Move to a different team", caps: chordCaps(["⇧", "M"]) }),
+        { label: PAGE_KEYS.TEAM.tooltip, caps: chordCaps(PAGE_KEYS.TEAM.caps) }),
       this.line(theme, "priority", priorityMark(theme, issue.priority, false), priority, choose(Property.PRIORITY),
-        { label: "Change priority", caps: propertyKey(Property.PRIORITY).caps }),
+        propertyTooltip(Property.PRIORITY)),
       this.line(theme, "assign", issue.assignee ? faceOf(issue.assignee, AVATAR_PX)
       : svg(icon("no-assignee"))
         .size(AVATAR_PX)
         .flex_none()
         .text_color(theme.muted),
-      assignee, choose(Property.ASSIGN), { label: "Change assignee", caps: propertyKey(Property.ASSIGN).caps }),
+      assignee, choose(Property.ASSIGN), propertyTooltip(Property.ASSIGN)),
       this.line(theme, "estimate", svg(icon(issue.estimate === null ? "estimate-none" : "estimate"))
         .size(14)
         .flex_none()
         .text_color(theme.muted),
       estimate,
-      choose(Property.ESTIMATE), { label: "Change estimate", caps: propertyKey(Property.ESTIMATE).caps }),
+      choose(Property.ESTIMATE), propertyTooltip(Property.ESTIMATE)),
       cycle ? panel.hints.on(cycleLine, "", { key: "page-cycle", side: this.side(),
         body: (theme) => cycleCard(panel, issue, cycle, theme),
         hover: (hovered, context) => {
@@ -323,8 +323,9 @@ export class IssuePage {
   labels(theme, issue) {
     const { nodes } = issue.labels, adds = addLabelsId(issue);
     const open = (/** @type {Context} */ context) => this.panel.openers.chooseLabels(issue, context, adds);
-    const tooltip = { caps: ["L"], key: "page-add-labels", side: Side.RIGHT };
-    const plus = this.panel.iconButton(theme, { id: "page-add-label", name: "plus", label: "Add labels", caps: ["L"],
+    const tooltip = { caps: PAGE_KEYS.LABELS.caps, key: "page-add-labels", side: Side.RIGHT };
+    const plus = this.panel.iconButton(theme, { id: "page-add-label", name: "plus", label: PAGE_KEYS.LABELS.tooltip,
+      caps: PAGE_KEYS.LABELS.caps,
       glyph: PAGE_BUTTON_GLYPH_PX, size: ICON_BUTTON_PX, ring: false, side: Side.RIGHT, action: open })
       .on_window_mouse_move(this.noteBounds(adds))
       .hover((style) => style.bg(theme.hover))
