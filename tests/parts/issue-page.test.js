@@ -276,12 +276,49 @@ describe("editing a comment", () => {
     panel.context.elapse();
     assert.deepEqual(detail.edited.field.selected, { start: 11, end: 11 });
     detail.edited.field.type("Seen it too, fixed", panel.context);
-    detail.saveEdit(panel.context);
+    clickOn(panel, "edit-save");
     await panel.context.idle();
     const changed = panel.server.asked.find((request) => request.kind === "comment-change");
     assert.deepEqual(changed.variables, { id: "c1", body: "Seen it too, fixed" });
     assert.equal(panel.server.kinds()
       .at(-1), "page");
+    assert.equal(detail.edited, null);
+  });
+
+  it("drops what was typed on Cancel, and changes nothing", async () => {
+    const panel = await opened();
+    slideIn(panel);
+    ask({ ids: ["back-1"], kind: "comment", change: "start-edit", comment: "c1" });
+    panel.draw();
+    panel.context.elapse();
+    const { detail } = panel.view.part;
+    detail.edited.field.type("Never mind", panel.context);
+    clickOn(panel, "edit-cancel");
+    await panel.context.idle();
+    assert.equal(detail.edited, null);
+    assert.equal(panel.server.kinds()
+      .includes("comment-change"), false);
+    // Its text shows again, instead of the field
+    const root = panel.draw();
+    assert.equal(find(root, "edit-save"), null);
+    assert.ok([...walk(root)].some((node) => node.$.kind === "TextView" && node.$.args[1] === "Seen it too"));
+  });
+});
+
+describe("copying a comment from its menu", () => {
+  it("copies its link and its Markdown, each with a toast", async () => {
+    const panel = await opened();
+    slideIn(panel);
+    for (const [entry, copied, toast] of [["link", "https://tracker.test/c1", "Copied link to comment"],
+      ["markdown", "Seen it too", "Copied comment as Markdown"]]) {
+      clickOn(panel, "more-c1");
+      const menu = mountOverlay(), root = menu.draw();
+      click(root, find(root, `entry-${entry}`), menu.context);
+      panel.draw();
+      panel.context.elapse();
+      assert.equal(panel.context.clipboard, copied);
+      assert.equal(host.notes.at(-1).title, toast);
+    }
   });
 });
 
