@@ -474,11 +474,12 @@ describe("rows", () => {
     assert.equal(row(panel.draw(), "back-2").$.style.bg, "theme.hover");
   });
 
-  it("takes clicks on a row's status over 24 px, and keeps its 18 px slot", async () => {
-    const panel = await startPanel();
-    const { style } = find(panel.draw(), "status-back-1").$;
-    assert.deepEqual([style.size, style.mx], [24, -3]);
-  });
+  it("takes clicks on a row's status over 24 px, with no negative margin to collapse the identifier beside it",
+    async () => {
+      const panel = await startPanel();
+      const { style } = find(panel.draw(), "status-back-1").$;
+      assert.deepEqual([style.size, style.mx], [24, undefined]);
+    });
 
   it("moves one light through the rows with the arrow keys and the pointer, and opens the lit issue on Enter",
     async () => {

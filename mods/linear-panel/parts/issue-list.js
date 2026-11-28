@@ -33,8 +33,9 @@ const GHOST_OFFSET_X_PX = 14;
 const GHOST_OFFSET_Y_PX = 10;
 const PERCENT = 100;
 const ROW_MARK_PX = 13;
-// The status mark takes clicks over 24 px, the least target WCAG 2.2 asks, yet fills only the 18 px of its slot
-const STATUS_BUTTON_PX = 24, STATUS_SLOT_PX = 18;
+// The least target WCAG 2.2 asks. No negative margin to win back the width: in a group sized by its content, Herdr
+// then lays the group out as if it were empty, and the title draws over the identifier
+const STATUS_BUTTON_PX = 24;
 const STATUS_HOVER_BRIGHTNESS = 0.32;
 const STATUS_TIP_HEIGHT_PX = 36;
 const STATUS_TIP_LABEL_REST_PX = 64;
@@ -332,7 +333,6 @@ function row(panel, issue, group, { theme, identifierWidth, estimateWidth, lit }
   const stateColor = drawnColor(issue.state.color);
   const status = warming(panel, div()
     .size(STATUS_BUTTON_PX)
-    .mx((STATUS_SLOT_PX - STATUS_BUTTON_PX) / 2)
     .flex_none()
     .flex()
     .items_center()
