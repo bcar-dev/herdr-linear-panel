@@ -51,14 +51,16 @@ export function serve(panel, request, cx) {
 export async function carryOut(panel, request, targets, cx) {
   switch (request.kind) {
     case RequestKind.START: {
-      const [issue] = targets, states = panel.store.teams.get(issue.team.id)?.states ?? [];
+      const [issue] = targets;
+      if (!issue) return undefined;
+      const states = panel.store.teams.get(issue.team.id)?.states ?? [];
       const { pre_linear_issue_prompt: before = panel.settings.start_prompt, post_linear_issue_prompt: after }
         = panel.settings;
       return void await start(issue, states, panel.agent(), { preIssuePrompt: promptText(before),
         instructions: request.instructions, postIssuePrompt: promptText(after) });
     }
     case RequestKind.COPY: return void await copy(panel.inListOrder(targets), request.what, cx);
-    case RequestKind.OPEN: return void await openPage(targets[0].url);
+    case RequestKind.OPEN: return void (targets[0] && await openPage(targets[0].url));
     case RequestKind.STATUS:
       for (const [stateId, ids] of moves(targets, panel.store.teams, request.name)) await api.update(ids, { stateId });
       return undefined;

@@ -13,8 +13,15 @@ type MouseButtonEvent = import("gpui-kit").MouseButtonEvent;
 /** A color as Herdr's style methods take it: "#rrggbb" or "#rrggbbaa" */
 type Color = import("gpui-kit").Color;
 
-/** The theme's colors by name, as `theme()` of "herdr" answers them */
-type Theme = Record<string, Color>;
+/**
+ * The theme's colors the mod draws with, as `theme()` of "herdr" answers them. Herdr types that answer as any name, so
+ * the names are listed here: a misspelled one fails the type check instead of drawing nothing
+ */
+type Theme = Record<
+  | "accent" | "accent_foreground" | "ansi1" | "background" | "border" | "chrome" | "dim" | "done" | "foreground"
+  | "hover" | "input" | "muted" | "popover" | "raised" | "selected" | "solid" | "solid_foreground",
+  Color
+>;
 
 type OnClick = (event: ClickEvent, cx: Context) => void;
 

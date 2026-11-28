@@ -118,18 +118,15 @@ export async function apiKey() {
 }
 
 export function keySetup() {
-  /** @type {Record<string, string[]>} */
-  const stores = {
-    [Platform.MAC]: ["the macOS Keychain", `security add-generic-password -U -a "$USER" -s ${KEY_ITEM} -w`],
-    [Platform.LINUX]: ["your keyring", `secret-tool store --label="${NAME} API key" service ${KEY_ITEM}`],
-  };
   if (platform() === Platform.WINDOWS) {
     return {
       how: `Set it as ${KEY_VARIABLE} from a terminal, with your key in place of KEY, then restart Herdr:`,
       command: `setx ${KEY_VARIABLE} KEY`,
     };
   }
-  const [store, command] = stores[platform()];
+  const [store, command] = platform() === Platform.MAC
+    ? ["the macOS Keychain", `security add-generic-password -U -a "$USER" -s ${KEY_ITEM} -w`]
+    : ["your keyring", `secret-tool store --label="${NAME} API key" service ${KEY_ITEM}`];
   return { how: `Export it as ${KEY_VARIABLE}, or store it in ${store} from a terminal (it prompts for the key):`,
     command };
 }

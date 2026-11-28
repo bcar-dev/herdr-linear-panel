@@ -81,8 +81,8 @@ const heading = (merge, lines, below, t) => [
  * @returns {TipBody}
  */
 export function mergeCard(panel, issue, t) {
-  const list = merges(issue);
-  if (list.length === 1) return mergeCardOf(panel, issue, list[0], t);
+  const list = merges(issue), [only] = list;
+  if (only && list.length === 1) return mergeCardOf(panel, issue, only, t);
   const answered = panel.store.mergeDetailsByIssueId.get(issue.id);
   return several(list, (merge) => answered?.find((found) => found.url === merge.url), t);
 }

@@ -21,7 +21,7 @@ import { textWidth } from "../lib/placement.js";
 import { Selection } from "../lib/selection.js";
 import { pickAgent } from "../lib/start.js";
 import { estimateLabel } from "../lib/teams.js";
-import { message } from "../lib/text.js";
+import { issuesName, message } from "../lib/text.js";
 import { Hints } from "./hints.js";
 import { Loader } from "./loader.js";
 import { carried, section, warming } from "./issue-list.js";
@@ -113,7 +113,7 @@ export class Panel {
       }
       cx.notify();
     });
-    this.view = stored("view", VIEWS) ?? VIEWS[0].id;
+    this.view = stored("view", VIEWS) ?? ViewKey.CYCLE;
     this.display = {
       by: stored("order", ORDERINGS) ?? Ordering.PRIORITY,
       reversed: setting("reversed") === "1",
@@ -236,7 +236,7 @@ export class Panel {
     const loaded = this.store.index(), page = this.detail?.issue;
     const targets = request.ids.flatMap((id) => loaded.get(id) ?? (page?.id === id ? page : []));
     if (!targets.length) return;
-    const name = targets.length === 1 ? targets[0].identifier : `${targets.length} issues`;
+    const name = issuesName(targets);
     const changes = MUTATES[request.kind];
     // With a page open, the list is out of sight: the change is read back quietly
     const quiet = Boolean(this.detail);
@@ -333,9 +333,10 @@ export class Panel {
     if (!ids.length) return;
     const from = this.hovered === null ? -1 : ids.indexOf(this.hovered);
     const to = from < 0 ? (by > 0 ? 0 : ids.length - 1) : Math.min(ids.length - 1, Math.max(0, from + by));
-    this.hovered = ids[to];
+    const id = ids[to] ?? null;
+    this.hovered = id;
     this.scroll.scroll_to_item(this.sections()
-      .findIndex((group) => group.issues.some((issue) => issue.id === ids[to])));
+      .findIndex((group) => group.issues.some((issue) => issue.id === id)));
     cx.notify();
   }
 

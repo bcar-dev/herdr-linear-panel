@@ -1,7 +1,7 @@
 {
   "// why": [
     "This file is the project's. Herdr wrote a first version and never replaces",
-    "one that exists. `npm run typecheck` and the editor both read it.",
+    "one that exists. `pnpm run typecheck` and the editor both read it.",
     "gpui-kit.d.ts beside it is Herdr's: generated, never edited, not in git.",
     "",
     "`target` and `module`: the files are ES2022 modules, and Herdr loads them",
@@ -19,6 +19,7 @@
     "view in main.js. Herdr builds a view through `init`, not a constructor, so",
     "its field (`part`) cannot be assigned where this check looks. Every other",
     "class assigns its fields in its constructor and passes with the check on.",
+    "`noUncheckedIndexedAccess`: a value read by index from a list or a record may be missing, and is handled so.",
     "`noEmit`: the check only reads, nothing is built."
   ],
   "compilerOptions": {
@@ -28,6 +29,7 @@
     "lib": ["ES2022"],
     "checkJs": true,
     "strict": true,
+    "noUncheckedIndexedAccess": true,
     "strictPropertyInitialization": false,
     "noEmit": true
   }

@@ -149,7 +149,7 @@ export function cycleCard(panel, issue, cycle, t) {
   const ahead = Date.parse(cycle.startsAt) > now;
   const figures = ahead ? [String(panel.store.plannedPointsByCycleId.get(cycle.id) ?? "…")]
     : [`${Math.round(cycle.progress * PERCENT)}%`, "of", String(cycle.scopeHistory.at(-1) ?? 0)];
-  const about = cycle.description?.split("\n")[0].trim() ?? "";
+  const about = cycle.description?.split("\n")[0]?.trim() ?? "";
   const last = CYCLE_ICON_PX + figures.reduce((sum, figure) => sum + CYCLE_FIGURE_GAP_PX + textWidth(figure), 0)
     + facts.reduce((sum, fact) => sum + CYCLE_FACT_GAP_PX + textWidth(fact), 0);
   const width = Math.ceil(Math.min(CYCLE_CARD_MAX_WIDTH_PX,
@@ -217,7 +217,7 @@ export function cycleCard(panel, issue, cycle, t) {
 export function section(panel, group, look) {
   const { t } = look;
   /** @param {number} nth */
-  const ticked = (nth) => Boolean(group.issues[nth]) && panel.selection.has(group.issues[nth].id);
+  const ticked = (nth) => panel.selection.has(group.issues[nth]?.id ?? "");
   /** @param {number} nth */
   const joined = (nth) => ({ above: ticked(nth) && ticked(nth - 1), below: ticked(nth) && ticked(nth + 1) });
   const rows = panel.folded.has(group.state.name) ? []
@@ -276,7 +276,7 @@ function heading(panel, group, t) {
     .child(panel.control(arrow, (cx) => panel.fold(group, cx))
       .child(svg(icon(panel.folded.has(group.state.name) ? "caret-right" : "caret-down"))
         .size(12)))
-    .child(statusMark(group.state, panel.store.teams.get(group.issues[0].team.id)?.states))
+    .child(statusMark(group.state, panel.store.teams.get(group.issues[0]?.team.id ?? "")?.states))
     .child(div()
       .child(group.state.name))
     .child(panel.control(figure, (cx) => panel.switchTotals(cx))

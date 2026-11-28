@@ -31,11 +31,12 @@ function progress(state, states) {
 }
 
 // Started is a pie, drawn by pieIcon
+const UNSTARTED_ICON = "status-unstarted";
 /** @type {Record<string, string>} */
 export const STATUS_ICONS = {
   [StateType.BACKLOG]: "status-backlog", [StateType.CANCELED]: "status-canceled",
   [StateType.COMPLETED]: "status-completed", [StateType.DUPLICATE]: "status-duplicate",
-  [StateType.TRIAGE]: "status-triage", [StateType.UNSTARTED]: "status-unstarted",
+  [StateType.TRIAGE]: "status-triage", [StateType.UNSTARTED]: UNSTARTED_ICON,
 };
 
 // A started state's pie is filled by eighths (status-started-1 to -7). `states` are the states of the state's team
@@ -47,7 +48,7 @@ export function statusIcon(state, states = []) {
   if (state.type === StateType.STARTED) {
     return pieIcon(progress(state, states));
   }
-  return STATUS_ICONS[state.type] ?? STATUS_ICONS[StateType.UNSTARTED];
+  return STATUS_ICONS[state.type] ?? UNSTARTED_ICON;
 }
 
 // The estimate scales: the values, and the extra ones of an extended scale. T-shirt sizes are stored as Fibonacci
@@ -105,14 +106,13 @@ export const commonMembers = (teams) =>
     .sort((first, second) => byTitle(memberName(first), memberName(second)));
 
 /** @param {Team[]} teams */
-export const commonEstimates = (teams) =>
-  estimates(teams[0])
-    .filter((value) => teams.every((team) => estimates(team)
-      .includes(value)));
+export const commonEstimates = ([first, ...rest]) => (first ? estimates(first)
+  .filter((value) => rest.every((team) => estimates(team)
+    .includes(value))) : []);
 
 // A cycle belongs to one team: only issues of a single team share any
 /** @param {Team[]} teams */
-export const commonCycles = (teams) => (teams.length === 1 ? teams[0].cycles ?? [] : []);
+export const commonCycles = ([first, ...rest]) => (first && !rest.length ? first.cycles ?? [] : []);
 
 // Without a team (none is loaded yet), only the priority, which every issue has
 /** @param {Team[]} teams */

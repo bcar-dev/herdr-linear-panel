@@ -40,9 +40,8 @@ const rank = (character) =>
 export function byTitle(first, second) {
   const lowerFirst = first.toLowerCase(), lowerSecond = second.toLowerCase();
   for (let i = 0; i < lowerFirst.length && i < lowerSecond.length; i++) {
-    if (lowerFirst[i] !== lowerSecond[i]) {
-      return rank(lowerFirst[i]) - rank(lowerSecond[i]) || (lowerFirst[i] < lowerSecond[i] ? -1 : 1);
-    }
+    const one = lowerFirst.charAt(i), other = lowerSecond.charAt(i);
+    if (one !== other) return rank(one) - rank(other) || (one < other ? -1 : 1);
   }
   return lowerFirst.length - lowerSecond.length;
 }
@@ -53,15 +52,20 @@ export function byTitle(first, second) {
  * @param {Issue} second
  */
 function byIdentifier(first, second) {
-  const [keyA, numberA] = first.identifier.split("-"), [keyB, numberB] = second.identifier.split("-");
+  const [keyA = "", numberA] = first.identifier.split("-"), [keyB = "", numberB] = second.identifier.split("-");
   return compareText(keyA, keyB) || Number(numberA) - Number(numberB);
 }
 
 /** @param {Issue} issue */
 const urgency = (issue) => issue.priority || NO_PRIORITY_URGENCY;
+/**
+ * @param {Issue} first
+ * @param {Issue} second
+ */
+const byUrgency = (first, second) => urgency(first) - urgency(second) || byIdentifier(first, second);
 /** @type {Record<string, (first: Issue, second: Issue) => number>} */
 const WITHIN_GROUP = {
-  [Ordering.PRIORITY]: (first, second) => urgency(first) - urgency(second) || byIdentifier(first, second),
+  [Ordering.PRIORITY]: byUrgency,
   [Ordering.TITLE]: (first, second) => byTitle(first.title, second.title) || byIdentifier(first, second),
 };
 
@@ -133,7 +137,7 @@ export function groups(issues, { by = Ordering.PRIORITY, reversed = false, recen
   }
   const byStatus = by === Ordering.STATUS, flip = reversed ? -1 : 1;
   const inside = byStatus ? 1 : flip, across = byStatus ? flip : 1;
-  const within = WITHIN_GROUP[by] ?? WITHIN_GROUP[Ordering.PRIORITY];
+  const within = WITHIN_GROUP[by] ?? byUrgency;
   for (const group of byState.values()) {
     const inGroup = (/** @type {Issue} */ first, /** @type {Issue} */ second) => inside * within(first, second);
     group.issues.sort(recency && FINISHED.includes(group.state.type) ? byRecency : inGroup);

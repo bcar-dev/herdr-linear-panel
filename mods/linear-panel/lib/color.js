@@ -46,7 +46,7 @@ export function brighten(color, share) {
 export function isDark(color) {
   const parts = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/i.exec(color);
   if (!parts) return true;
-  const [red, green, blue] = parts.slice(1)
+  const [red = 0, green = 0, blue = 0] = parts.slice(1)
     .map((channel) => parseInt(channel, HEX_RADIX));
   return LUMA_RED * red + LUMA_GREEN * green + LUMA_BLUE * blue < DARK_LUMA_BELOW;
 }
@@ -66,7 +66,7 @@ export function mix(from, to, share) {
       .map((channel) => parseInt(channel, HEX_RADIX));
   const start = read(from), end = read(to);
   if (!start || !end) return from;
-  const mixed = start.map((channel, i) => Math.round(channel + (end[i] - channel) * share)
+  const mixed = start.map((channel, i) => Math.round(channel + ((end[i] ?? channel) - channel) * share)
     .toString(HEX_RADIX)
     .padStart(HEX_CHANNEL_CHARS, "0"));
   return /** @type {Color} */ (`#${mixed.join("")}${from.slice(ALPHA_FROM)}`);

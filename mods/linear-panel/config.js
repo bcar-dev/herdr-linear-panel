@@ -51,16 +51,17 @@ export const ORDERINGS = [
   { id: Ordering.STATUS, label: "Status" },
 ];
 
+const NO_PRIORITY = { id: 0, label: "No priority", icon: "priority-0" };
 /** @type {{ id: number, label: string, icon: string }[]} */
 export const PRIORITIES = [
-  { id: 0, label: "No priority", icon: "priority-0" }, { id: 1, label: "Urgent", icon: "priority-1" },
+  NO_PRIORITY, { id: 1, label: "Urgent", icon: "priority-1" },
   { id: 2, label: "High", icon: "priority-2" }, { id: 3, label: "Medium", icon: "priority-3" },
   { id: 4, label: "Low", icon: "priority-4" },
 ];
 
 // An issue without a priority has the first one
 /** @param {number | null | undefined} priority */
-export const priorityEntry = (priority) => PRIORITIES.find(({ id }) => id === priority) ?? PRIORITIES[0];
+export const priorityEntry = (priority) => PRIORITIES.find(({ id }) => id === priority) ?? NO_PRIORITY;
 
 // `many` is null when it is not offered for several issues
 // `page` is its label on an issue's page, which has the entries that name one

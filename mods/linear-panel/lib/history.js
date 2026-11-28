@@ -5,10 +5,11 @@ export const DAY_MS = 24 * HOUR;
 const YEAR = 365.25 * DAY_MS, MONTH = YEAR / 12;
 // Longest first. Days go up to a month ("15d", not "2w"). A month is a twelfth of a year, so twelve months never show:
 // a year starts where they would
+const SECONDS = { unit: "s", length: SECOND };
 /** @type {{ unit: string, length: number }[]} */
 const UNITS = [
   { unit: "y", length: YEAR }, { unit: "mo", length: MONTH }, { unit: "d", length: DAY_MS },
-  { unit: "h", length: HOUR }, { unit: "min", length: MINUTE }, { unit: "s", length: SECOND },
+  { unit: "h", length: HOUR }, { unit: "min", length: MINUTE }, SECONDS,
 ];
 
 // In the order the issue first entered each status. `spans` are oldest first; the one still running lasts until `now`
@@ -32,6 +33,6 @@ export function timeInStatuses(spans, now) {
 // Cut down to whole units as the tracker does (7.6 hours read "7h"): "5s", "44min", "3d"
 /** @param {number} ms */
 export function timeLabel(ms) {
-  const age = Math.max(0, ms), { unit, length } = UNITS.find((entry) => age >= entry.length) ?? UNITS[UNITS.length - 1];
+  const age = Math.max(0, ms), { unit, length } = UNITS.find((entry) => age >= entry.length) ?? SECONDS;
   return `${Math.floor(age / length)}${unit}`;
 }
