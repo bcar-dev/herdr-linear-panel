@@ -2,7 +2,7 @@
 // propagation of a key it took
 import { VIEWS, PAGE_COPY_ORDER, copiesFor } from "../config.js";
 import { KeyAction, RequestKind } from "../enums.js";
-import { commandDown, copyShortcut, panelKey, propertyOf, unmodified } from "../lib/keys.js";
+import { PAGE_KEYS, copyShortcut, pageShortcut, panelKey, propertyOf } from "../lib/keys.js";
 import { isMac } from "../tracker.js";
 
 /**
@@ -15,15 +15,14 @@ export function detailKey(panel, page, event, context) {
   const { modifiers } = event, mac = isMac(), typing = page.focusedFieldCount > 0;
   const issue = panel.store.index()
     .get(page.issue.id) ?? page.issue;
-  const copied = copyShortcut(event, mac), property = propertyOf(event);
+  const copied = copyShortcut(event, mac), property = propertyOf(event), shortcut = pageShortcut(event, mac);
   if (event.key === "escape" && !typing) panel.closeDetail(context);
-  else if (event.key.toLowerCase() === "m" && modifiers.shift && !modifiers.alt && commandDown(modifiers, mac)) {
-    panel.openers.pickTeamByKey(issue);
-  } else if (!typing && copied && PAGE_COPY_ORDER.includes(copied)) {
+  else if (shortcut === PAGE_KEYS.TEAM) panel.openers.pickTeamByKey(issue);
+  else if (!typing && copied && PAGE_COPY_ORDER.includes(copied)) {
     panel.requests.perform({ kind: RequestKind.COPY, ids: [page.issue.id], what: copied }, context);
   } else if (!typing && !modifiers.control && !modifiers.alt && !modifiers.platform && property) {
     panel.openers.pickByKey(issue, property);
-  } else if (!typing && event.key === "l" && unmodified(modifiers) && !modifiers.shift) {
+  } else if (!typing && shortcut === PAGE_KEYS.LABELS) {
     panel.openers.chooseLabelsByKey(issue, context);
   } else return;
   context.stop_propagation();

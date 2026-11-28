@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { PROPERTIES, capHeld, commandDown, copyCaps, copyShortcut, panelKey, propertyKey, spelled,
-  unmodified } from "../../mods/linear-panel/lib/keys.js";
+import { PAGE_KEYS, PROPERTIES, capHeld, commandDown, copyCaps, copyShortcut, pageShortcut, panelKey, propertyKey,
+  spelled, unmodified } from "../../mods/linear-panel/lib/keys.js";
 
 const press = (key, held = {}) =>
   ({ key, modifiers: { platform: false, control: false, shift: false, alt: false, ...held } });
@@ -60,6 +60,16 @@ describe("the shortcuts as shown", () => {
       assert.deepEqual(asked, { do: "choose", page });
     }
     assert.deepEqual(propertyKey("estimate"), { key: "E", caps: ["⇧", "E"] });
+  });
+});
+
+describe("pageShortcut", () => {
+  it("knows the page's own shortcuts: the team under the command key, the labels on a plain L", () => {
+    assert.equal(pageShortcut(press("m", { platform: true, shift: true }), true), PAGE_KEYS.TEAM);
+    assert.equal(pageShortcut(press("m", { control: true, shift: true }), false), PAGE_KEYS.TEAM);
+    assert.equal(pageShortcut(press("l"), true), PAGE_KEYS.LABELS);
+    assert.equal(pageShortcut(press("m", { shift: true }), true), null);
+    assert.equal(pageShortcut(press("l", { platform: true }), true), null);
   });
 });
 
