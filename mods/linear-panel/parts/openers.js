@@ -175,7 +175,7 @@ export class Openers {
    */
   confirmDelete(page, id) {
     const comment = page.comments.find((found) => found.id === id);
-    if (comment) openConfirmDelete(page.issue, comment);
+    if (comment) openConfirmDelete(page.issue, comment, this.panel.frame);
   }
 
   // The page of a label of the issue: for a label of a group, the group's labels, to change it or take it off; for any

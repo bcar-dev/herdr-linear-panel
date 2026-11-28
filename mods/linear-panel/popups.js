@@ -176,12 +176,20 @@ export function openChoices(targets, teams, page, myId, where, { parent, bare = 
 export const openCommands = (targets, teams, page, myId) =>
   dialog(COMMANDS_DIALOG_WIDTH_PX, COMMANDS_DIALOG_HEIGHT_PX, { part: "commands", targets, teams, page, myId });
 
+// Herdr puts a dialog in the middle of the window: in the middle of the panel it is a popup, as wide as the panel
+// allows. Until the panel's bounds are known (`frame`), a dialog
 /**
  * @param {Issue} issue
  * @param {PageComment} comment
+ * @param {Bounds} [frame]
  */
-export const openConfirmDelete = (issue, comment) =>
-  dialog(CONFIRM_DELETE_WIDTH_PX, CONFIRM_DELETE_HEIGHT_PX, { part: "confirm-delete", issue, comment });
+export function openConfirmDelete(issue, comment, frame) {
+  const props = { part: /** @type {const} */ ("confirm-delete"), issue, comment };
+  if (!frame) return dialog(CONFIRM_DELETE_WIDTH_PX, CONFIRM_DELETE_HEIGHT_PX, props);
+  const scale = zoom(), width = Math.min(CONFIRM_DELETE_WIDTH_PX, frame.width / scale - 2 * EDGE_MARGIN_PX);
+  return popupAt(width, CONFIRM_DELETE_HEIGHT_PX, { x: frame.x + (frame.width - width * scale) / 2,
+    y: frame.y + (frame.height - CONFIRM_DELETE_HEIGHT_PX * scale) / 2 }, props);
+}
 
 // In the middle of the window, over everything
 /**

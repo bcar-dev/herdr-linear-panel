@@ -6,7 +6,8 @@
 
 - `post_linear_issue_prompt` setting: the text that ends the agent's first message, after the issue. The example
   layout has one to replace.
-- Deleting a comment asks first, in a dialog. Enter or Delete deletes it; Escape or Cancel keeps it.
+- Deleting a comment asks first, in a dialog in the middle of the panel. Enter or Delete deletes it; Escape or
+  Cancel keeps it.
 - Issue page: a typed but unsent comment or reply is still there when the page opens again, until Herdr restarts.
 - `↑` and `↓` move the light through the list, and `Enter` opens the lit issue's page. The pointer moves the same
   light, and the keys that act on one issue act on the lit one.
