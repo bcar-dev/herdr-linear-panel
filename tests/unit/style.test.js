@@ -34,3 +34,33 @@ it("keeps every line within 120 characters", () => {
   }
   assert.deepEqual(long, []);
 });
+
+// The mod's JavaScript, as { path, lines }
+const modSources = () => files()
+  .filter((path) => path.startsWith("mods/") && path.endsWith(".js"))
+  .map((path) => ({ path, lines: readFileSync(join(ROOT, path), "utf8")
+    .split("\n") }));
+
+it("sizes text, corners and gaps from the shared scale in style.js", () => {
+  const bare = /\.(text_size|rounded|gap)\(\s*-?\d/;
+  const found = modSources()
+    .filter(({ path }) => !path.endsWith("/style.js"))
+    .flatMap(({ path, lines }) => lines.flatMap((line, nth) => (bare.test(line) ? [`${path}:${nth + 1}`] : [])));
+  assert.deepEqual(found, []);
+});
+
+// Inside a group sized by its content, Herdr lays the group out as if it were empty when a child has a negative
+// margin. These three sit in a box of fixed width or a column, where the margin is safe
+const SAFE_NEGATIVE_MARGINS = [
+  "mods/linear-panel/parts/commands.js: .mx(-PADDING_PX / 2)",
+  "mods/linear-panel/parts/issue-page.js: .mx(-10)",
+  "mods/linear-panel/ui.js: .ml(-half)",
+];
+
+it("draws no negative margin but the ones known to be safe", () => {
+  const negative = /\.m[xytblr]?\(\s*-/;
+  const found = modSources()
+    .flatMap(({ path, lines }) => lines.filter((line) => negative.test(line))
+      .map((line) => `${path}: ${line.trim()}`));
+  assert.deepEqual(found, SAFE_NEGATIVE_MARGINS);
+});

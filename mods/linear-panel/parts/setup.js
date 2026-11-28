@@ -3,6 +3,7 @@ import { div, svg } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
 import { icon } from "../config.js";
 import { HOST, KEY_PAGE, KEY_PAGE_PATH, NAME, openLink, keySetup } from "../tracker.js";
+import { Radius, Space, Text } from "../style.js";
 
 export class Setup {
   copied = false;
@@ -16,8 +17,8 @@ export class Setup {
       .child(text);
     return v_flex()
       .p(14)
-      .gap(8)
-      .text_size(12)
+      .gap(Space.M)
+      .text_size(Text.SMALL)
       .child(div()
         .font_semibold()
         .child(`Connect ${NAME}`))
@@ -32,11 +33,11 @@ export class Setup {
       .child(h_flex()
         .id("copy-command")
         .p(8)
-        .gap(8)
+        .gap(Space.M)
         .items_center()
-        .rounded(6)
+        .rounded(Radius.ROW)
         .bg(theme.raised)
-        .text_size(11)
+        .text_size(Text.CAPTION)
         .cursor_pointer()
         .hover((style) => style.bg(theme.hover))
         .on_click((_event, context) => { context.write_to_clipboard(command); this.copied = true; context.notify(); })
@@ -46,10 +47,10 @@ export class Setup {
           .child(command))
         .child(div()
           .flex_none()
-          .text_color(this.copied ? theme.done : theme.dim)
+          .text_color(this.copied ? theme.success : theme.dim)
           .child(this.copied ? "Copied" : "Copy")))
       .child(h_flex()
-        .gap(5)
+        .gap(Space.S)
         .items_center()
         .text_color(theme.muted)
         .child("3. Press")

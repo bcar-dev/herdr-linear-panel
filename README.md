@@ -134,6 +134,7 @@ pnpm run lint       # ESLint: its recommended rules, two-space indent, one call 
 pnpm run check      # Herdr's own check of the mod
 pnpm run link       # link mods/linear-panel into your Herdr folder, once
 pnpm run reload     # make Herdr load your changes
+pnpm run shot       # save a picture of Herdr's window in .scratch/, to compare a change before and after
 ```
 
 Herdr loads a linked folder but does not watch it, hence `reload`.
@@ -152,6 +153,7 @@ mods/linear-panel/
   tracker.js    everything that names Linear
   api.js        the GraphQL queries
   ui.js         the shared building blocks: pill rows, round buttons, marks, key caps
+  style.js      the scale of text sizes, gaps, corners and heights, and the theme's colors by purpose
   channel.js    how the popups ask the panel for work
   popups.js     every popup's size, place and props
   types.d.ts    the shapes the files pass around, for the type check

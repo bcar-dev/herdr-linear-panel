@@ -4,6 +4,7 @@ import { submit } from "../channel.js";
 import { RequestKind } from "../enums.js";
 import { takeKeyboard } from "../ui.js";
 import { caption, frame, searchField } from "./menu.js";
+import { Radius, Space, Text } from "../style.js";
 
 export class StartPrompt {
   /**
@@ -33,9 +34,9 @@ export class StartPrompt {
         .mb(5)
         .pl(8)
         .pr(4)
-        .gap(6)
+        .gap(Space.S)
         .items_center()
-        .rounded(7)
+        .rounded(Radius.CONTROL)
         .border_1()
         .border_color(theme.accent)
         .bg(theme.background)
@@ -48,13 +49,13 @@ export class StartPrompt {
           .flex()
           .items_center()
           .justify_center()
-          .rounded(5)
+          .rounded(Radius.CHIP)
           .cursor_pointer()
           .bg(theme.solid)
           .text_color(theme.solid_foreground)
           .hover((style) => style.bg(theme.accent)
             .text_color(theme.accent_foreground))
-          .text_size(12)
+          .text_size(Text.SMALL)
           .on_click(() => this.start())
           .child("Start")));
   }

@@ -4,10 +4,10 @@
 import { div, svg } from "gpui-kit";
 import { v_flex, h_flex, Input, InputState, ScrollHandle, Textarea } from "gpui-base";
 import { litAnchor } from "../channel.js";
-import { ERROR_TEXT_PX, PROPERTY_COLUMNS, icon, pageCopies, priorityEntry } from "../config.js";
+import { PROPERTY_COLUMNS, icon, pageCopies, priorityEntry } from "../config.js";
 import { Property, RequestKind, Side } from "../enums.js";
 import { NAME, openLink } from "../tracker.js";
-import { chordCaps, cycleMark, face, lit, mergeMark, pillRow, priorityMark, statusMark,
+import { button, chordCaps, cycleMark, face, lit, mergeMark, pillRow, priorityMark, statusMark,
   teamMark, zoom } from "../ui.js";
 import { mix } from "../lib/color.js";
 import { cycleName, tense } from "../lib/cycles.js";
@@ -21,6 +21,7 @@ import { cycleCard, timeInStatus } from "./issue-list.js";
 import { Comments } from "./comments.js";
 import { markdownView } from "./markdown-view.js";
 import { mergeCardOf } from "./merge-card.js";
+import { Radius, Space, Text } from "../style.js";
 
 /** @typedef {import("gpui-base").TextareaState} Field */
 
@@ -155,7 +156,7 @@ export class IssuePage {
       .flex_none()
       .pt(14)
       .pb(5)
-      .text_size(12)
+      .text_size(Text.SMALL)
       .text_color(theme.muted)
       .child(text);
   }
@@ -201,7 +202,7 @@ export class IssuePage {
       .self_start()
       .max_w_full()
       .mx(-10)
-      .text_size(14)
+      .text_size(Text.LARGE)
       .when(litAnchor() === id, (row) => row.bg(theme.hover));
   }
 
@@ -305,7 +306,7 @@ export class IssuePage {
     // The lines fill the columns one after the other, each column down before the next
     return [this.heading(theme, "Properties"), h_flex()
       .w_full()
-      .gap(8)
+      .gap(Space.M)
       .items_start()
       .children(arrange(lines, this.columns)
         .map((column) => v_flex()
@@ -334,12 +335,12 @@ export class IssuePage {
       .h(LABEL_CHIP_HEIGHT_PX)
       .flex_none()
       .px(9)
-      .gap(6)
+      .gap(Space.S)
       .items_center()
-      .rounded(12)
+      .rounded_full()
       .border_1()
       .border_color(theme.border)
-      .text_size(12.5)
+      .text_size(Text.BODY)
       .cursor_pointer()
       .hover((style) => style.bg(theme.hover))
       .when(litAnchor() === chipId(label), (chip) => chip.bg(theme.hover)),
@@ -347,7 +348,7 @@ export class IssuePage {
       .child(div()
         .size(9)
         .flex_none()
-        .rounded(5)
+        .rounded(Radius.CHIP)
         .bg(label.color))
       .child(label.name)
       .when(Boolean(label.parent), (element) => element.child(svg(icon("caret-down"))
@@ -357,7 +358,7 @@ export class IssuePage {
     return [this.heading(theme, "Labels"),
       nodes.length ? h_flex()
         .flex_wrap()
-        .gap(6)
+        .gap(Space.S)
         .items_center()
         .children([...chips, plus])
       : this.panel.control(this.panel.hints.on(this.pageLine(theme, "page-add")
@@ -380,7 +381,7 @@ export class IssuePage {
    * @param {NativeElement} element
    */
   box(theme, element) {
-    return element.rounded(12)
+    return element.rounded_full()
       .border_1()
       .border_color(this.edge(theme))
       .bg(this.surface(theme))
@@ -404,14 +405,14 @@ export class IssuePage {
       .flex_none()
       .px(12)
       .py(6)
-      .gap(8)
+      .gap(Space.M)
       .items_center()
       .on_mouse_down("left", pressFocuses(state))
       .children(mine ? [faceOf(this.panel.store.viewer, COMPOSER_AVATAR_PX)] : [])
       .child(Textarea.new(state)
         .flex_1()
         .min_w(0)
-        .text_size(13)
+        .text_size(Text.BODY)
         .text_color(theme.foreground))
       .child(this.panel.iconButton(theme, { id: `${id}-send`, name: "send", label: "Send",
         glyph: PAGE_BUTTON_GLYPH_PX, size: ICON_BUTTON_PX, ring: false,
@@ -428,7 +429,7 @@ export class IssuePage {
       .flex_none()
       .px(4)
       .text_color(theme.muted)
-      .text_size(18)
+      .text_size(Text.HEADLINE)
       .font_light()
       .child(issue.identifier);
   }
@@ -440,7 +441,7 @@ export class IssuePage {
   copies(theme, issue) {
     return h_flex()
       .flex_none()
-      .gap(4)
+      .gap(Space.XS)
       .items_center()
       .children([
         ...pageCopies()
@@ -472,61 +473,24 @@ export class IssuePage {
         });
     }
     const { field } = edited;
-    /**
-     * @param {string} id
-     * @param {string} label
-     * @param {OnClick} action
-     */
-    const plainButton = (id, label, action) => div()
-      .id(id)
-      .h(30)
-      .px(12)
-      .flex()
-      .items_center()
-      .rounded(18)
-      .cursor_pointer()
-      .text_size(14)
-      .on_click(action)
-      .text_color(theme.foreground)
-      .hover((style) => style.bg(theme.hover))
-      .child(label);
-    /**
-     * @param {string} id
-     * @param {string} label
-     * @param {OnClick} action
-     */
-    const primaryButton = (id, label, action) => div()
-      .id(id)
-      .h(36)
-      .px(18)
-      .flex()
-      .items_center()
-      .rounded(18)
-      .cursor_pointer()
-      .text_size(14)
-      .on_click(action)
-      .text_color(theme.foreground)
-      .bg(this.surface(theme))
-      .border_1()
-      .border_color(theme.border)
-      .hover((style) => style.bg(theme.hover))
-      .child(label);
     return v_flex()
-      .gap(14)
+      .gap(Space.XL)
       .child(h_flex()
         .w_full()
         .on_mouse_down("left", pressFocuses(field))
         .child(Textarea.new(field)
           .flex_1()
           .min_w(0)
-          .text_size(13)
+          .text_size(Text.BODY)
           .text_color(theme.foreground)))
       .child(h_flex()
-        .gap(8)
+        .gap(Space.M)
         .items_center()
         .justify_end()
-        .child(plainButton("edit-cancel", "Cancel", (_event, context) => this.comments.stopEdit(context)))
-        .child(primaryButton("edit-save", "Save", (_event, context) => this.comments.saveEdit(context))));
+        .child(button(theme, { id: "edit-cancel", label: "Cancel", tone: "quiet",
+          action: (_event, context) => this.comments.stopEdit(context) }))
+        .child(button(theme, { id: "edit-save", label: "Save",
+          action: (_event, context) => this.comments.saveEdit(context) })));
   }
 
   /**
@@ -542,24 +506,24 @@ export class IssuePage {
       .px(12)
       .pt(first ? 8 : 10)
       .pb(10)
-      .gap(8)
+      .gap(Space.M)
       .when(!first, (element) => element.border_t(1)
         .border_color(this.edge(theme)))
       .child(h_flex()
-        .gap(8)
+        .gap(Space.M)
         .items_center()
         .child(faceOf(user, COMMENT_AVATAR_PX))
         .child(div()
           .font_medium()
-          .text_size(13)
+          .text_size(Text.BODY)
           .child(author(comment)))
         .child(div()
-          .text_size(12)
+          .text_size(Text.SMALL)
           .text_color(theme.dim)
           .child(`${timeLabel(Date.now() - Date.parse(comment.createdAt))} ago`))
         .when(Boolean(comment.resolvedAt),
           (element) => element.child(div()
-            .text_size(12)
+            .text_size(Text.SMALL)
             .text_color(theme.dim)
             .child("Resolved")))
         .child(div()
@@ -610,7 +574,7 @@ export class IssuePage {
     const body = v_flex()
       .id("page-body")
       .w_full()
-      .text_size(13)
+      .text_size(Text.BODY)
       .children(this.comments.description ? [markdownView("description", this.comments.description)] : []);
     const back = this.panel.control(pillRow(theme, "page-back", 32, { lit: false })
       .w(40)
@@ -645,7 +609,7 @@ export class IssuePage {
           .h(46)
           .flex_none()
           .px(8)
-          .gap(10)
+          .gap(Space.L)
           .items_center()
           .child(this.panel.hints.on(back, "Back to the issues", { caps: ["Esc"], key: "page-back",
             hover: (on, context) => this.panel.hoverControl("page-back", on, context) }))
@@ -661,7 +625,7 @@ export class IssuePage {
           .child(Input.new(this.title)
             .w_full()
             .h(30)
-            .text_size(16)
+            .text_size(Text.TITLE)
             .font_semibold()
             .text_color(theme.foreground))))
       .children(this.panel.requests.failed ? [div()
@@ -669,8 +633,8 @@ export class IssuePage {
         .flex_none()
         .px(16)
         .pt(6)
-        .text_size(ERROR_TEXT_PX)
-        .text_color(theme.ansi1)
+        .text_size(Text.SMALL)
+        .text_color(theme.danger)
         .cursor_pointer()
         .on_click((_event, context) => { this.panel.requests.failed = null; context.notify(); })
         .child(this.panel.requests.failed)] : [])
@@ -699,7 +663,7 @@ export class IssuePage {
           [root, ...this.comments.posted.filter((comment) => comment.parent?.id === root.id)])))
         .when(!this.comments.loaded, (element) => element.child(div()
           .pt(10)
-          .text_size(12)
+          .text_size(Text.SMALL)
           .text_color(theme.dim)
           .child("Loading…")))
         .child(this.box(theme, v_flex()

@@ -15,7 +15,8 @@
     "typecheck": "tsc -p mods/linear-panel/jsconfig.json",
     "lint": "eslint .",
     "link": "ln -s \"$PWD/mods/linear-panel\" \"${HERDR_APP_HOME:-$HOME/.config/herdr-app}/mods/linear-panel\"",
-    "reload": "touch -h \"${HERDR_APP_HOME:-$HOME/.config/herdr-app}/mods/linear-panel\""
+    "reload": "touch -h \"${HERDR_APP_HOME:-$HOME/.config/herdr-app}/mods/linear-panel\"",
+    "shot": "mkdir -p .scratch && herdr-app shot \".scratch/shot-$(date +%Y%m%d-%H%M%S).png\""
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

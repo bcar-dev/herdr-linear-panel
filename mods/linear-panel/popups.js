@@ -1,6 +1,6 @@
 // Opens the mod's popups: each one's size, where it goes, and the props its part is built from (see main.js)
 import { openOverlay } from "herdr";
-import { MENU_ROW_HEIGHT_PX, MOD, PICK_MAX_ROWS, copiesFor } from "./config.js";
+import { MOD, PICK_MAX_ROWS, copiesFor } from "./config.js";
 import { light, opened, projectMembersOf } from "./channel.js";
 import { Side } from "./enums.js";
 import { choiceRows } from "./lib/choices.js";
@@ -12,6 +12,7 @@ import { placeholderFor, shownLabels } from "./lib/labels.js";
 import { FRAME_PADDING_PX } from "./parts/menu.js";
 import { chromeFor, copyHeightFor, listHeightFor, menuHeightFor } from "./parts/sizes.js";
 import { heightFor as teamsHeightFor } from "./parts/team-picker.js";
+import { Height } from "./style.js";
 
 const COMMANDS_DIALOG_HEIGHT_PX = 380, COMMANDS_DIALOG_WIDTH_PX = 460;
 const COMMENT_MENU_WIDTH_PX = 240;
@@ -144,7 +145,7 @@ export function openChoices(targets, teams, page, myId, where, { parent, bare = 
   if (where?.below && where.frame) {
     const { below: control, frame } = where, scale = zoom();
     const fit = listFit({ below: (frame.y + frame.height - control.y - control.height) / scale - CONTROL_GAP_PX,
-      above: (control.y - frame.y) / scale - CONTROL_GAP_PX }, rows, MENU_ROW_HEIGHT_PX, extra,
+      above: (control.y - frame.y) / scale - CONTROL_GAP_PX }, rows, Height.MENU_ROW, extra,
     PICK_LEAST_ROWS);
     visible = fit.visible;
     if (fit.side === Side.ABOVE) where = { above: control, frame, gap: where.gap };
@@ -154,10 +155,10 @@ export function openChoices(targets, teams, page, myId, where, { parent, bare = 
     if (!narrow) where = { ...where, lead: choicesLeadFor({ bare }) * zoom() };
     const room = (narrow ? (frame.y + frame.height - beside.y) / zoom() - CONTROL_GAP_PX : frame.height / zoom())
       - extra;
-    visible = Math.max(Math.min(PICK_LEAST_ROWS, rows), Math.min(rows, Math.floor(room / MENU_ROW_HEIGHT_PX)));
+    visible = Math.max(Math.min(PICK_LEAST_ROWS, rows), Math.min(rows, Math.floor(room / Height.MENU_ROW)));
   } else if (where?.frame) {
     const room = where.frame.height / zoom() - extra;
-    visible = Math.max(Math.min(PICK_LEAST_ROWS, rows), Math.min(rows, Math.floor(room / MENU_ROW_HEIGHT_PX)));
+    visible = Math.max(Math.min(PICK_LEAST_ROWS, rows), Math.min(rows, Math.floor(room / Height.MENU_ROW)));
   }
   const height = choicesHeightFor({ breaksPx, bare, visible });
   const width = fitWidth(labels, PICK_LABEL_REST_PX, PICK_MIN_WIDTH_PX, PICK_MAX_WIDTH_PX);
@@ -226,7 +227,7 @@ export function openLabels(issue, labels, frequent, where, { group, parent, anch
   const width = fitWidth(texts, LABELS_REST_PX, LABELS_MIN_WIDTH_PX, LABELS_MAX_WIDTH_PX);
   const chrome = chromeFor({ group, searchable });
   // The panel's whole height: `place` moves the picker up rather than shrink it
-  const room = !where.frame ? PICK_MAX_ROWS * MENU_ROW_HEIGHT_PX
+  const room = !where.frame ? PICK_MAX_ROWS * Height.MENU_ROW
     : where.beside && where.narrow
       ? (where.frame.y + where.frame.height - where.beside.y) / zoom() - CONTROL_GAP_PX - chrome
       : where.frame.height / zoom() - chrome;

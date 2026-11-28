@@ -3,14 +3,15 @@
 // panel at once and the picker stays open, so several can be changed in one visit
 import { div, svg } from "gpui-kit";
 import { v_flex, InputState } from "gpui-base";
-import { MENU_ROW_HEIGHT_PX, shipped } from "../config.js";
+import { shipped } from "../config.js";
 import { ask, dismiss, wear, wornLabels } from "../channel.js";
 import { RequestKind } from "../enums.js";
 import { openLabels } from "../popups.js";
 import { chevron, labelMark, pillRow, takeKeyboard } from "../ui.js";
 import { blocks, childrenOf, groupOf, matching, placeholderFor, wornRows } from "../lib/labels.js";
-import { MENU_ROW_RADIUS_PX, caption, frame, item, rule, searchRow } from "./menu.js";
+import { caption, frame, item, rule, searchRow } from "./menu.js";
 import { SubmenuHost } from "./submenu-host.js";
+import { Height, Radius, Text } from "../style.js";
 
 const NO_BOUNDS = { x: 0, y: 0, width: 0, height: 0 };
 
@@ -85,8 +86,8 @@ export class LabelPicker {
     const ticked = this.worn()
         .includes(label.id), note = noted ? groupOf(label, all) : "";
     if (label.isGroup) {
-      return pillRow(theme, `label-${label.id}`, MENU_ROW_HEIGHT_PX)
-        .rounded(MENU_ROW_RADIUS_PX)
+      return pillRow(theme, `label-${label.id}`, Height.MENU_ROW)
+        .rounded(Radius.ROW)
         .bg(this.pages.lit === label.id ? theme.selected : theme.popover)
         .on_mouse_move((event, context) => this.rest(label.id, /** @type {Bounds} */ (event.bounds), context))
         .child(dot)
@@ -104,7 +105,7 @@ export class LabelPicker {
         .child(label.name), div()
         .flex_none()
         .text_color(theme.dim)
-        .text_size(11.5)
+        .text_size(Text.SMALL)
         .child(note)], () => this.toggle(label), ticked)
       .on_mouse_move((_event, context) => this.rest(null, NO_BOUNDS, context));
   }
@@ -122,15 +123,15 @@ export class LabelPicker {
       .flex()
       .items_center()
       .justify_center()
-      .rounded(4)
+      .rounded(Radius.MARK)
       .bg(theme.accent)
       .cursor_pointer()
       .on_click((_event, context) => { context.stop_propagation(); this.toggle(child ?? label); })
       .child(svg(shipped("check"))
         .size(10)
         .text_color(theme.accent_foreground));
-    const row = pillRow(theme, `worn-${label.id}`, MENU_ROW_HEIGHT_PX)
-      .rounded(MENU_ROW_RADIUS_PX)
+    const row = pillRow(theme, `worn-${label.id}`, Height.MENU_ROW)
+      .rounded(Radius.ROW)
       .child(box)
       .child(labelMark(label))
       .child(div()
