@@ -45,8 +45,8 @@ const TICKED_ALPHA = 0.2;
 const TICKED_HOVER_ALPHA = 0.3;
 
 // Colors a small mark and brightens it under the pointer. A hover style would not do: it recolors text, but an icon
-// takes its color when it is described. So the panel notes which mark is under the pointer (`hot`) and draws again.
-// `still` keeps it from answering the pointer
+// takes its color when it is described. So the panel notes which mark is under the pointer (`hoveredControl`) and
+// draws again. `still` keeps it from answering the pointer
 /**
  * @param {Panel} panel
  * @param {NativeElement} mark
@@ -54,16 +54,16 @@ const TICKED_HOVER_ALPHA = 0.3;
  * @param {Color} color
  * @param {Color} bright
  * @param {{
- *   still?: boolean, tip?: { label: string, caps: string[], body?: Tip["body"] }, entered?: (cx: Context) => void,
+ *   still?: boolean, tip?: { label: string, caps: string[], body?: Tip["body"] }, entered?: (context: Context) => void,
  * }} options
  */
 export function warming(panel, mark, id, color, bright, { still = false, tip, entered } = {}) {
   const colored = mark.id(id)
-    .text_color(panel.hot === id && !still ? bright : color);
-  /** @type {(hovered: boolean, cx: Context) => void} */
-  const hover = (hovered, cx) => {
-    panel.heat(id, hovered, cx);
-    if (hovered) entered?.(cx);
+    .text_color(panel.hoveredControl === id && !still ? bright : color);
+  /** @type {(hovered: boolean, context: Context) => void} */
+  const hover = (hovered, context) => {
+    panel.hoverControl(id, hovered, context);
+    if (hovered) entered?.(context);
   };
   return tip ? panel.hints.on(colored, tip.label, { caps: tip.caps, body: tip.body, key: id, hover })
     : colored.on_hover(hover);
@@ -72,11 +72,11 @@ export function warming(panel, mark, id, color, bright, { still = false, tip, en
 // A rounded pill on a row, with a mark and a figure in it: it is colored and warmed like the row's other controls
 /**
  * @param {Panel} panel
- * @param {Theme} t
+ * @param {Theme} theme
  * @param {string} id
  * @param {Parameters<typeof warming>[5]} options
  */
-const chip = (panel, t, id, options) => warming(panel,
+const chip = (panel, theme, id, options) => warming(panel,
   h_flex()
     .h(20)
     .px(6)
@@ -85,25 +85,25 @@ const chip = (panel, t, id, options) => warming(panel,
     .items_center()
     .rounded(10)
     .border_1()
-    .border_color(t.border)
+    .border_color(theme.border)
     .text_size(11),
-  id, t.muted, t.foreground, options);
+  id, theme.muted, theme.foreground, options);
 
 // Answers the element with its size, which places the tooltip, or null until the tracker has answered
 /**
  * @param {Panel} panel
  * @param {Issue} issue
- * @param {Theme} t
+ * @param {Theme} theme
  * @returns {TipBody | null}
  */
-export function timeInStatus(panel, issue, t) {
+export function timeInStatus(panel, issue, theme) {
   const spans = panel.store.historyByIssueId.get(issue.id), states = panel.store.teams.get(issue.team.id)?.states;
   if (!spans) return null;
   const times = timeInStatuses(spans, Date.now());
   // Beside a status's name: its icon, the time and the gaps between them
   const width = fitWidth(times.map(({ state }) => state.name), STATUS_TIP_LABEL_REST_PX, STATUS_TIP_MIN_WIDTH_PX,
     STATUS_TIP_MAX_WIDTH_PX);
-  const el = v_flex()
+  const card = v_flex()
     .w(width)
     .pt(7)
     .pb(5)
@@ -118,7 +118,7 @@ export function timeInStatus(panel, issue, t) {
       .flex_none()
       .gap(8)
       .items_center()
-      .text_color(current ? t.foreground : t.muted)
+      .text_color(current ? theme.foreground : theme.muted)
       .child(statusMark(state, states))
       .child(div()
         .flex_1()
@@ -128,7 +128,7 @@ export function timeInStatus(panel, issue, t) {
       .child(div()
         .flex_none()
         .child(timeLabel(ms)))));
-  return { el, width, height: STATUS_TIP_HEIGHT_PX + STATUS_TIP_ROW_HEIGHT_PX * times.length };
+  return { element: card, width, height: STATUS_TIP_HEIGHT_PX + STATUS_TIP_ROW_HEIGHT_PX * times.length };
 }
 
 // The first line of a cycle's description is where a team writes its capacity
@@ -136,10 +136,10 @@ export function timeInStatus(panel, issue, t) {
  * @param {Panel} panel
  * @param {Issue} issue
  * @param {IssueCycle} cycle
- * @param {Theme} t
+ * @param {Theme} theme
  * @returns {TipBody}
  */
-export function cycleCard(panel, issue, cycle, t) {
+export function cycleCard(panel, issue, cycle, theme) {
   const now = Date.now(), when = tense(cycle, panel.store.teams.get(issue.team.id)?.cycles ?? [], now),
     left = weekdaysLeft(cycle, now);
   const facts = [TENSES[when] ?? "", when === CycleTense.CURRENT ? `${left} ${left === 1 ? "weekday" : "weekdays"} left`
@@ -154,7 +154,7 @@ export function cycleCard(panel, issue, cycle, t) {
     + facts.reduce((sum, fact) => sum + CYCLE_FACT_GAP_PX + textWidth(fact), 0);
   const width = Math.ceil(Math.min(CYCLE_CARD_MAX_WIDTH_PX,
     CYCLE_CARD_PADDING_PX + Math.max(CYCLE_TITLE_INDENT_PX + textWidth(cycleName(cycle)), textWidth(about), last)));
-  const el = v_flex()
+  const card = v_flex()
     .w(width)
     .px(6)
     .pt(9)
@@ -164,7 +164,7 @@ export function cycleCard(panel, issue, cycle, t) {
       .flex_none()
       .gap(8)
       .items_center()
-      .child(cycleMark(when, CYCLE_ICON_PX, t.muted))
+      .child(cycleMark(when, CYCLE_ICON_PX, theme.muted))
       .child(div()
         .flex_1()
         .min_w(0)
@@ -174,13 +174,13 @@ export function cycleCard(panel, issue, cycle, t) {
       .h(ABOUT_HEIGHT_PX)
       .flex_none()
       .truncate()
-      .text_color(t.muted)
+      .text_color(theme.muted)
       .child(about)] : [])
     .child(div()
       .h(1)
       .my(7)
       .flex_none()
-      .bg(t.border))
+      .bg(theme.border))
     .child(h_flex()
       .h(CYCLE_CARD_ROW_HEIGHT_PX)
       .flex_none()
@@ -193,7 +193,7 @@ export function cycleCard(panel, issue, cycle, t) {
         .child(ahead ? svg(icon("estimate"))
           .size(14)
           .flex_none()
-          .text_color(t.muted)
+          .text_color(theme.muted)
         : svg(icon(progressIcon(cycle.progress)))
           .size(14)
           .flex_none()
@@ -201,12 +201,12 @@ export function cycleCard(panel, issue, cycle, t) {
         .children(figures.map((figure) => div()
           .flex_none()
           .when(figure === "of",
-            (element) => element.text_color(t.muted))
+            (element) => element.text_color(theme.muted))
           .child(figure))))
       .children(facts.map((fact) => div()
         .flex_none()
         .child(fact))));
-  return { el, width, height: CYCLE_CARD_HEIGHT_PX + (about ? ABOUT_HEIGHT_PX : 0) };
+  return { element: card, width, height: CYCLE_CARD_HEIGHT_PX + (about ? ABOUT_HEIGHT_PX : 0) };
 }
 
 /**
@@ -215,7 +215,7 @@ export function cycleCard(panel, issue, cycle, t) {
  * @param {Look} look
  */
 export function section(panel, group, look) {
-  const { t } = look;
+  const { theme } = look;
   /** @param {number} nth */
   const ticked = (nth) => panel.selection.has(group.issues[nth]?.id ?? "");
   /** @param {number} nth */
@@ -227,8 +227,8 @@ export function section(panel, group, look) {
     .mt(6)
     .rounded(8)
     .border_1()
-    .border_color(panel.drag.over === group.state.name ? t.accent : t.background)
-    .child(heading(panel, group, t))
+    .border_color(panel.drag.over === group.state.name ? theme.accent : theme.background)
+    .child(heading(panel, group, theme))
     .children(rows);
 }
 
@@ -236,9 +236,9 @@ export function section(panel, group, look) {
 /**
  * @param {Panel} panel
  * @param {Group} group
- * @param {Theme} t
+ * @param {Theme} theme
  */
-function heading(panel, group, t) {
+function heading(panel, group, theme) {
   const counting = panel.totals === "count";
   const note = group.state.type === StateType.COMPLETED
     ? completedNote(panel.display.completed, panel.display.recency) : "";
@@ -250,7 +250,7 @@ function heading(panel, group, t) {
     .items_center()
     .rounded(5)
     .cursor_pointer(),
-  `total-${group.state.id}`, t.muted, t.foreground);
+  `total-${group.state.id}`, theme.muted, theme.foreground);
   const arrow = warming(panel, div()
     .w(FOLD_BUTTON_WIDTH_PX)
     .h(FOLD_BUTTON_HEIGHT_PX)
@@ -260,7 +260,7 @@ function heading(panel, group, t) {
     .justify_center()
     .rounded(4)
     .cursor_pointer(),
-  `fold-${group.state.id}`, t.dim, t.foreground);
+  `fold-${group.state.id}`, theme.dim, theme.foreground);
   return h_flex()
     .h(30)
     .flex_none()
@@ -270,16 +270,16 @@ function heading(panel, group, t) {
     .rounded(7)
     .text_size(13)
     .font_semibold()
-    .text_color(t.foreground)
-    .on_mouse_move((_e, cx) => panel.aim(group, cx))
-    .on_mouse_up("left", (_e, cx) => panel.drop(group, cx))
-    .child(panel.control(arrow, (cx) => panel.fold(group, cx))
+    .text_color(theme.foreground)
+    .on_mouse_move((_event, context) => panel.aim(group, context))
+    .on_mouse_up("left", (_event, context) => panel.drop(group, context))
+    .child(panel.control(arrow, (context) => panel.fold(group, context))
       .child(svg(icon(panel.folded.has(group.state.name) ? "caret-right" : "caret-down"))
         .size(12)))
     .child(statusMark(group.state, panel.store.teams.get(group.issues[0]?.team.id ?? "")?.states))
     .child(div()
       .child(group.state.name))
-    .child(panel.control(figure, (cx) => panel.switchTotals(cx))
+    .child(panel.control(figure, (context) => panel.switchTotals(context))
       .when(!counting, (element) => element.child(svg(icon("estimate"))
         .size(14)))
       .child(String(counting ? group.issues.length : points(group.issues, panel.store.teams))))
@@ -289,7 +289,7 @@ function heading(panel, group, t) {
       .truncate()
       .text_size(11)
       .font_normal()
-      .text_color(t.dim)
+      .text_color(theme.dim)
       .child(note));
 }
 
@@ -300,7 +300,7 @@ function heading(panel, group, t) {
  * @param {Look} look
  * @param {{ above: boolean, below: boolean }} joined
  */
-function row(panel, issue, group, { t, identifierWidth, estimateWidth, lit }, joined) {
+function row(panel, issue, group, { theme, identifierWidth, estimateWidth, lit }, joined) {
   const { selection, drag } = panel;
   const team = panel.store.teams.get(issue.team.id), estimate = estimateLabel(team, issue.estimate),
     ticked = selection.has(issue.id);
@@ -313,7 +313,7 @@ function row(panel, issue, group, { t, identifierWidth, estimateWidth, lit }, jo
   const hovers = (element, style) => (still ? element : element.hover(style));
   const { pressed } = drag;
   const carried = drag.carrying && pressed !== null && (pressed === issue.id || (ticked && selection.has(pressed)));
-  const boxShows = ticked || (!still && panel.hovered === issue.id);
+  const boxShows = ticked || (!still && panel.litId === issue.id);
   const box = panel.hints.on(
     hovers(div()
       .id(`tick-${issue.id}`)
@@ -324,9 +324,9 @@ function row(panel, issue, group, { t, identifierWidth, estimateWidth, lit }, jo
       .justify_center()
       .rounded(3)
       .border_1()
-      .border_color(ticked ? t.accent : t.input)
-      .bg(ticked ? t.accent : t.background),
-    (style) => style.border_color(t.accent))
+      .border_color(ticked ? theme.accent : theme.input)
+      .bg(ticked ? theme.accent : theme.background),
+    (style) => style.border_color(theme.accent))
       .when(!boxShows, (element) => element.invisible()),
     "Select issue", { caps: ["X"], key: `tick-${issue.id}` });
   const stateColor = drawnColor(issue.state.color);
@@ -340,19 +340,20 @@ function row(panel, issue, group, { t, identifierWidth, estimateWidth, lit }, jo
   `status-${issue.id}`, stateColor, brighten(stateColor, STATUS_HOVER_BRIGHTNESS), {
     still,
     tip: {
-      label: "Change status", caps: propertyKey(Property.STATUS).caps, body: (t) => timeInStatus(panel, issue, t),
+      label: "Change status", caps: propertyKey(Property.STATUS).caps,
+      body: (theme) => timeInStatus(panel, issue, theme),
     },
-    entered: (cx) => panel.loadStatusHistory(issue, cx),
+    entered: (context) => panel.loadStatusHistory(issue, context),
   });
   const urgent = issue.priority === 1 && !isFinished(issue),
-    plain = priorityColor(t, issue.priority, isFinished(issue));
+    plain = priorityColor(theme, issue.priority, isFinished(issue));
   const urgency = warming(panel, div()
     .size(14)
     .flex_none()
     .flex()
     .items_center()
     .justify_center(),
-  `priority-${issue.id}`, plain, urgent ? plain : t.foreground,
+  `priority-${issue.id}`, plain, urgent ? plain : theme.foreground,
   { still, tip: { label: "Change priority", caps: propertyKey(Property.PRIORITY).caps } });
   const size = warming(panel, h_flex()
     .h(20)
@@ -362,19 +363,19 @@ function row(panel, issue, group, { t, identifierWidth, estimateWidth, lit }, jo
     .items_center()
     .rounded(5)
     .text_size(11),
-  `estimate-${issue.id}`, t.muted, t.foreground,
+  `estimate-${issue.id}`, theme.muted, theme.foreground,
   { still, tip: { label: "Change estimate", caps: propertyKey(Property.ESTIMATE).caps } });
   const { cycle } = issue;
-  const term = cycle && chip(panel, t, `cycle-${issue.id}`, {
+  const term = cycle && chip(panel, theme, `cycle-${issue.id}`, {
     still,
-    tip: { label: "", caps: [], body: (t) => cycleCard(panel, issue, cycle, t) },
-    entered: (cx) => { if (Date.parse(cycle.startsAt) > Date.now()) panel.loadPlannedPoints(cycle, cx); },
+    tip: { label: "", caps: [], body: (theme) => cycleCard(panel, issue, cycle, theme) },
+    entered: (context) => { if (Date.parse(cycle.startsAt) > Date.now()) panel.loadPlannedPoints(cycle, context); },
   });
   const linked = merges(issue);
-  const requests = linked.length > 0 && chip(panel, t, `merges-${issue.id}`, {
+  const requests = linked.length > 0 && chip(panel, theme, `merges-${issue.id}`, {
     still,
-    tip: { label: "", caps: [], body: (t) => mergeCard(panel, issue, t) },
-    entered: (cx) => panel.loadMergeDetails(issue, cx),
+    tip: { label: "", caps: [], body: (theme) => mergeCard(panel, issue, theme) },
+    entered: (context) => panel.loadMergeDetails(issue, context),
   });
   return h_flex()
     .id(`issue-${issue.id}`)
@@ -386,27 +387,27 @@ function row(panel, issue, group, { t, identifierWidth, estimateWidth, lit }, jo
     .cursor_pointer()
     .rounded_t(joined.above ? 0 : 7)
     .rounded_b(joined.below ? 0 : 7)
-    .when(ticked, (element) => element.bg(withAlpha(t.accent, TICKED_ALPHA)))
-    .when(lit === issue.id && !ticked, (element) => element.bg(t.hover))
-    // One row is lit, the one the keys act on: the pointer and the arrow keys both move it (`hovered`)
-    .when(!still && panel.hovered === issue.id,
-      (element) => element.bg(ticked ? withAlpha(t.accent, TICKED_HOVER_ALPHA) : t.hover))
+    .when(ticked, (element) => element.bg(withAlpha(theme.accent, TICKED_ALPHA)))
+    .when(lit === issue.id && !ticked, (element) => element.bg(theme.hover))
+    // One row is lit, the one the keys act on: the pointer and the arrow keys both move it (`litId`)
+    .when(!still && panel.litId === issue.id,
+      (element) => element.bg(ticked ? withAlpha(theme.accent, TICKED_HOVER_ALPHA) : theme.hover))
     .when(carried, (element) => element.opacity(CARRIED_OPACITY))
-    .on_hover((hovered, cx) => panel.hover(issue, hovered, cx))
+    .on_hover((hovered, context) => panel.hover(issue, hovered, context))
     .on_mouse_down("left", (event) => drag.press(issue.id, event.position))
-    .on_mouse_move((_e, cx) => {
-      panel.hover(issue, true, cx);
-      panel.aim(group, cx);
+    .on_mouse_move((_event, context) => {
+      panel.hover(issue, true, context);
+      panel.aim(group, context);
     })
-    .on_mouse_up("left", (event, cx) => panel.release(issue, group, cx, event))
-    .on_mouse_down("right", (event, cx) => {
-      cx.stop_propagation();
+    .on_mouse_up("left", (event, context) => panel.release(issue, group, context, event))
+    .on_mouse_down("right", (event, context) => {
+      context.stop_propagation();
       panel.openers.openMenu(issue, event.position, event.bounds);
     })
-    .child(panel.control(box, (cx, event) => panel.tick(issue, event.modifiers.shift, cx))
+    .child(panel.control(box, (context, event) => panel.tick(issue, event.modifiers.shift, context))
       .when(ticked, (element) => element.child(svg(shipped("check"))
         .size(10)
-        .text_color(t.accent_foreground))))
+        .text_color(theme.accent_foreground))))
     .child(panel.control(urgency, () => panel.openers.pick(issue, Property.PRIORITY))
       .child(svg(icon(priorityEntry(issue.priority).icon))
         .size(14)))
@@ -418,7 +419,7 @@ function row(panel, issue, group, { t, identifierWidth, estimateWidth, lit }, jo
         .w(identifierWidth)
         .flex_none()
         .text_size(11)
-        .text_color(t.dim)
+        .text_color(theme.dim)
         .child(issue.identifier))
       .child(panel.control(status, () => panel.openers.pick(issue, Property.STATUS))
         .child(svg(icon(statusIcon(issue.state, team?.states)))
@@ -433,12 +434,12 @@ function row(panel, issue, group, { t, identifierWidth, estimateWidth, lit }, jo
       .gap(3)
       .items_center()
       .children(requests ? [panel.control(requests, () => { for (const merge of linked) openLink(merge.url); })
-        .on_mouse_down("right", (_e, cx) => cx.stop_propagation())
+        .on_mouse_down("right", (_event, context) => context.stop_propagation())
         .child(mergeMark(tinted(linked), ROW_MARK_PX))
         .child(chipLabel(linked))] : [])
       .children(term && cycle ? [panel.control(term, () => openCycle(issue, cycle))
-        .on_mouse_down("right", (event, cx) => {
-          cx.stop_propagation();
+        .on_mouse_down("right", (event, context) => {
+          context.stop_propagation();
           panel.handle.focus();
           panel.openers.pick(issue, Property.CYCLE, event.bounds);
         })
@@ -462,9 +463,9 @@ function row(panel, issue, group, { t, identifierWidth, estimateWidth, lit }, jo
 // It sits beside the pointer, not under it: the group beneath must still get the release
 /**
  * @param {Panel} panel
- * @param {Theme} t
+ * @param {Theme} theme
  */
-export function carried(panel, t) {
+export function carried(panel, theme) {
   const { selection } = panel, { pressed, ghost } = panel.drag;
   // Both are set while an issue is carried, which is when this is drawn
   if (pressed === null || ghost === null) return div();
@@ -484,16 +485,16 @@ export function carried(panel, t) {
     .gap(8)
     .items_center()
     .rounded(8)
-    .bg(t.popover)
+    .bg(theme.popover)
     .border_1()
-    .border_color(t.accent)
+    .border_color(theme.accent)
     .shadow_md()
     .text_size(13)
-    .child(priorityMark(t, issue.priority, isFinished(issue)))
+    .child(priorityMark(theme, issue.priority, isFinished(issue)))
     .child(div()
       .flex_none()
       .text_size(11)
-      .text_color(t.dim)
+      .text_color(theme.dim)
       .child(issue.identifier))
     .child(div()
       .min_w(0)
@@ -503,8 +504,8 @@ export function carried(panel, t) {
       .flex_none()
       .px(5)
       .rounded(8)
-      .bg(t.accent)
+      .bg(theme.accent)
       .text_size(11)
-      .text_color(t.accent_foreground)
+      .text_color(theme.accent_foreground)
       .child(`+${others}`)));
 }

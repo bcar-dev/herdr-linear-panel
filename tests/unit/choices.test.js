@@ -8,7 +8,7 @@ const ADA = { id: "ada", name: "Ada", displayName: "ada", initials: "A", avatarB
 const ME = { id: "me", name: "Me", displayName: "me", initials: "M", avatarBackgroundColor: null };
 const NOW = Date.now();
 const rows = (page, targets = [fixLogin, auditLog], more = {}) =>
-  choiceRows(page, { targets, teams: [BACK], me: "me", projectMembers: [], now: NOW, ...more });
+  choiceRows(page, { targets, teams: [BACK], myId: "me", projectMembers: [], now: NOW, ...more });
 
 describe("choiceRows, status", () => {
   it("lists the team's statuses in workflow order, the first nine by digit, and what the issues hold", () => {

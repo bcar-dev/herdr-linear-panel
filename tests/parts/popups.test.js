@@ -15,19 +15,19 @@ function asked() {
 }
 function clickOn(popup, id) {
   const root = popup.draw();
-  click(root, find(root, id), popup.cx);
+  click(root, find(root, id), popup.context);
 }
-const pressKey = (popup, key, modifiers) => press(popup.draw(), key, popup.cx, modifiers);
+const pressKey = (popup, key, modifiers) => press(popup.draw(), key, popup.context, modifiers);
 
 beforeEach(() => reset());
 
 describe("issue menu", () => {
   const open = (issues = [fixLogin], teams = [BACK]) =>
-    mount({ part: "issue-menu", issues, teams, me: "me", agent: "Codex", frame: FRAME, overlay: "menu" });
+    mount({ part: "issue-menu", issues, teams, myId: "me", agent: "Codex", frame: FRAME, overlay: "menu" });
   const bounds = { x: 905, y: 300, width: 270, height: 31 };
   const rest = (menu, id) => {
     const root = menu.draw();
-    send(root, find(root, `entry-${id}`), "on_mouse_move", { bounds }, menu.cx);
+    send(root, find(root, `entry-${id}`), "on_mouse_move", { bounds }, menu.context);
   };
   // The entries lit, by id: those whose page shows beside the menu
   const lit = (menu) =>
@@ -43,7 +43,7 @@ describe("issue menu", () => {
   });
 
   it("offers no Start while there is no agent to start", () => {
-    const props = { part: "issue-menu", issues: [fixLogin], teams: [BACK], me: "me", agent: null, overlay: "menu" };
+    const props = { part: "issue-menu", issues: [fixLogin], teams: [BACK], myId: "me", agent: null, overlay: "menu" };
     const menu = mount(props);
     assert.doesNotMatch(text(menu.draw()), /Start with/);
     assert.equal(find(menu.draw(), "entry-start"), null);
@@ -60,8 +60,8 @@ describe("issue menu", () => {
   it("moves its page up, rather than shrink it, when the room under the entry runs out", () => {
     const menu = open();
     const root = menu.draw();
-    send(root, find(root, "entry-status"), "on_mouse_move", { bounds: { ...bounds, y: 690 } }, menu.cx);
-    menu.cx.elapse();
+    send(root, find(root, "entry-status"), "on_mouse_move", { bounds: { ...bounds, y: 690 } }, menu.context);
+    menu.context.elapse();
     const [page] = host.overlays;
     // Every status shows, and the page ends at the panel's bottom
     assert.equal(page.props.visible, BACK.states.length);
@@ -71,11 +71,11 @@ describe("issue menu", () => {
   it("opens its page again against its edge when the zoom changes, as Herdr scales the menu from its corner", () => {
     const menu = open();
     rest(menu, "status");
-    menu.cx.elapse();
+    menu.context.elapse();
     host.settings.zoom = 0.5;
     const root = menu.draw();
-    send(root, root, "on_size_change", { width: 114, height: 200 }, menu.cx);
-    menu.cx.elapse();
+    send(root, root, "on_size_change", { width: 114, height: 200 }, menu.context);
+    menu.context.elapse();
     const [first, again] = host.overlays;
     assert.deepEqual(host.closed, [first.id]);
     // The menu shrank from its corner at (905, 300): its right edge is now at 905 + 270 / 2, with room past it
@@ -86,7 +86,7 @@ describe("issue menu", () => {
   it("takes the keyboard when it opens", () => {
     const menu = open();
     assert.equal(focuses(menu.draw()), 1);
-    menu.cx.elapse();
+    menu.context.elapse();
     assert.equal(focuses(menu.draw()), 2);
   });
 
@@ -94,7 +94,7 @@ describe("issue menu", () => {
     const menu = open();
     rest(menu, "status");
     assert.deepEqual(host.overlays, []);
-    menu.cx.elapse();
+    menu.context.elapse();
     const [page] = host.overlays;
     assert.deepEqual([page.props.part, page.props.page, page.props.parent, page.props.bare],
       ["commands", "status", "menu", true]);
@@ -111,20 +111,20 @@ describe("issue menu", () => {
     const menu = open();
     rest(menu, "status");
     rest(menu, "priority");
-    menu.cx.elapse();
+    menu.context.elapse();
     assert.deepEqual(host.overlays.map((overlay) => overlay.props.page), ["priority"]);
   });
 
   it("closes the page showing when the pointer rests on another entry", () => {
     const menu = open();
     rest(menu, "status");
-    menu.cx.elapse();
+    menu.context.elapse();
     rest(menu, "copy");
-    menu.cx.elapse();
+    menu.context.elapse();
     assert.deepEqual(host.closed, ["overlay-1"]);
     assert.deepEqual([host.overlays[1].props.part, host.overlays[1].props.parent], ["copy-menu", "menu"]);
     rest(menu, "open");
-    menu.cx.elapse();
+    menu.context.elapse();
     assert.deepEqual(host.closed, ["overlay-1", "overlay-2"]);
     // The light is on the entry under the pointer, which opens no page
     assert.deepEqual(lit(menu), ["entry-open"]);
@@ -133,17 +133,17 @@ describe("issue menu", () => {
   it("puts out the light of an entry that opens no page when the pointer leaves the menu", () => {
     const menu = open();
     rest(menu, "open");
-    hover(menu.draw(), false, menu.cx);
+    hover(menu.draw(), false, menu.context);
     assert.deepEqual(lit(menu), []);
     rest(menu, "status");
-    hover(menu.draw(), false, menu.cx);
+    hover(menu.draw(), false, menu.context);
     assert.deepEqual(lit(menu), ["entry-status"]);
   });
 
   it("moves its one light to the entry under the pointer at once, before that entry's page opens", () => {
     const menu = open();
     rest(menu, "status");
-    menu.cx.elapse();
+    menu.context.elapse();
     rest(menu, "priority");
     assert.deepEqual(lit(menu), ["entry-priority"]);
     assert.equal(find(menu.draw(), "entry-priority").$.hover, null);
@@ -157,7 +157,7 @@ describe("issue menu", () => {
   });
 
   it("gives way to a property's choices on its key, which then name the issue and light its row", () => {
-    const menu = mount({ part: "issue-menu", issues: [fixLogin], teams: [BACK], me: "me", frame: FRAME,
+    const menu = mount({ part: "issue-menu", issues: [fixLogin], teams: [BACK], myId: "me", frame: FRAME,
       origin: { x: 1020, y: 600 }, overlay: "menu" });
     pressKey(menu, "s");
     const [choices] = host.overlays;
@@ -178,7 +178,7 @@ describe("issue menu", () => {
   it("asks the panel to open the issue in the tracker, and closes with its page", () => {
     const menu = open();
     rest(menu, "status");
-    menu.cx.elapse();
+    menu.context.elapse();
     clickOn(menu, "entry-open");
     assert.deepEqual(asked(), { ids: ["back-1"], kind: "open" });
     assert.deepEqual(host.closed, ["overlay-1", "menu"]);
@@ -212,7 +212,7 @@ describe("issue menu", () => {
 
   it("opens Start right under the issue's row, as wide as the row", () => {
     const row = { x: 904, y: 200, width: 392, height: 30 };
-    clickOn(mount({ part: "issue-menu", issues: [fixLogin], teams: [BACK], me: "me", agent: "Codex", frame: FRAME,
+    clickOn(mount({ part: "issue-menu", issues: [fixLogin], teams: [BACK], myId: "me", agent: "Codex", frame: FRAME,
       row, overlay: "menu" }), "entry-start");
     const [field] = host.overlays;
     assert.deepEqual([field.at, field.width], [{ x: row.x, y: row.y + row.height }, row.width]);
@@ -222,10 +222,10 @@ describe("issue menu", () => {
     const menu = open([fixLogin, auditLog, landingPage], [BACK, WEB]);
     assert.deepEqual(texts(menu.draw()), ["3 issues", "Status", "S", "Priority", "P", "Assignee", "A", "Copy"]);
     rest(menu, "priority");
-    menu.cx.elapse();
+    menu.context.elapse();
     assert.deepEqual(host.overlays[0].props.targets.map((issue) => issue.identifier), ["BACK-1", "BACK-2", "WEB-7"]);
     rest(menu, "copy");
-    menu.cx.elapse();
+    menu.context.elapse();
     assert.deepEqual(host.overlays[1].props.issues.map((issue) => issue.identifier), ["BACK-1", "BACK-2", "WEB-7"]);
     assert.equal(host.overlays[1].height, 8 * 31 + 12);
   });
@@ -287,7 +287,7 @@ describe("copy menu on several issues", () => {
 
   it("asks the panel to copy them all", () => {
     const menu = open(), root = menu.draw();
-    click(root, find(root, "entry-title"), menu.cx);
+    click(root, find(root, "entry-title"), menu.context);
     assert.deepEqual(asked(), { ids: ["back-1", "back-2"], kind: "copy", what: "title" });
   });
 
@@ -308,11 +308,11 @@ describe("start prompt", () => {
 
   it("asks the panel to start with what was typed, on Enter or on its button", () => {
     for (const submit of [(prompt) => field(prompt.draw())
-      .submit(prompt.cx), (prompt) => clickOn(prompt, "submit")]) {
+      .submit(prompt.context), (prompt) => clickOn(prompt, "submit")]) {
       reset();
       const prompt = open();
       field(prompt.draw())
-        .type("Keep it small", prompt.cx);
+        .type("Keep it small", prompt.context);
       submit(prompt);
       assert.deepEqual(asked(), { ids: ["back-2"], kind: "start", instructions: "Keep it small" });
       assert.deepEqual(host.closed, ["start"]);
@@ -379,7 +379,7 @@ describe("team picker", () => {
 });
 
 const commandWindow = (props = {}) =>
-  mount({ part: "commands", targets: [fixLogin, auditLog], teams: [BACK], page: "actions", me: "me",
+  mount({ part: "commands", targets: [fixLogin, auditLog], teams: [BACK], page: "actions", myId: "me",
     overlay: "commands", ...props });
 
 describe("command window", () => {
@@ -396,7 +396,7 @@ describe("command window", () => {
     .map((row) => row.$.style.bg === "theme.selected");
   // Escape as the window gets it: through its own binding
   const escape = (commands) => { const root = commands.draw(); send(root, root, "on_action:linear_panel_escape", {},
-    commands.cx); };
+    commands.context); };
 
   it("lists the actions on the issues it names", () => {
     const commands = open();
@@ -507,10 +507,10 @@ describe("command window", () => {
     assert.deepEqual(labels(commands), ["No assignee", "me", "ada"]);
     assert.deepEqual(marks(commands), ["all", null, null]);
     field(commands.draw())
-      .type("love", commands.cx);
+      .type("love", commands.context);
     assert.deepEqual(labels(commands), ["ada"]);
     field(commands.draw())
-      .submit(commands.cx);
+      .submit(commands.context);
     assert.deepEqual(asked().input, { assigneeId: "ada" });
   });
 
@@ -520,7 +520,7 @@ describe("command window", () => {
       const commands = open({ page });
       assert.equal(field(commands.draw()).focused > 0, true);
       field(commands.draw())
-        .type(typed, commands.cx);
+        .type(typed, commands.context);
       assert.deepEqual(labels(commands), expected);
     }
   });
@@ -536,13 +536,13 @@ describe("command window", () => {
     pressKey(commands, "s");
     assert.deepEqual(labels(commands), ["No assignee", "me", "ada"]);
     field(commands.draw())
-      .type("nobody", commands.cx);
+      .type("nobody", commands.context);
     assert.match(text(commands.draw()), /No one matches/);
   });
 
   it("offers No assignee first, which unassigns, by its 0 key as well as a click", () => {
-    const me = { id: "me", name: "Me Myself", displayName: "me", initials: "MM", avatarBackgroundColor: null };
-    const commands = open({ targets: [{ ...fixLogin, assignee: me }, auditLog], page: "assign" });
+    const myId = { id: "me", name: "Me Myself", displayName: "me", initials: "MM", avatarBackgroundColor: null };
+    const commands = open({ targets: [{ ...fixLogin, assignee: myId }, auditLog], page: "assign" });
     pressKey(commands, "0");
     assert.deepEqual(asked().input, { assigneeId: null });
   });
@@ -600,19 +600,19 @@ describe("command window", () => {
   it("filters the cycles by what is typed", () => {
     const commands = open({ page: "cycle" });
     field(commands.draw())
-      .type("cycle 13", commands.cx);
+      .type("cycle 13", commands.context);
     assert.deepEqual(labels(commands)
       .map((label) => label.split(" ")
         .slice(0, 2)
         .join(" ")), ["Cycle 13"]);
     field(commands.draw())
-      .type("previous", commands.cx);
+      .type("previous", commands.context);
     assert.deepEqual(labels(commands)
       .map((label) => label.split(" ")
         .slice(0, 2)
         .join(" ")), ["Cycle 11"]);
     field(commands.draw())
-      .type("nothing", commands.cx);
+      .type("nothing", commands.context);
     assert.match(text(commands.draw()), /No cycle matches/);
   });
 
@@ -646,7 +646,7 @@ describe("command window", () => {
   it("moves the light to the row under the pointer, which looks the same, with small round corners", () => {
     const commands = open({ targets: [fixLogin], page: "status", compact: true, bare: true });
     const root = commands.draw();
-    send(root, find(root, "command-0"), "on_mouse_move", {}, commands.cx);
+    send(root, find(root, "command-0"), "on_mouse_move", {}, commands.context);
     assert.deepEqual(lit(commands)
       .map((on, nth) => (on ? nth : null))
       .filter((nth) => nth !== null), [0]);
@@ -663,7 +663,7 @@ describe("command window", () => {
       .indexOf(true), 4);
     assert.equal(scroll.revealed, 5);
     field(commands.draw())
-      .type("Cycle", commands.cx);
+      .type("Cycle", commands.context);
     assert.deepEqual([lit(commands)
       .indexOf(true), scroll.revealed], [0, 0]);
   });
@@ -672,7 +672,7 @@ describe("command window", () => {
     const commands = open();
     pressKey(commands, "a");
     field(commands.draw())
-      .type("zz", commands.cx);
+      .type("zz", commands.context);
     escape(commands);
     pressKey(commands, "a");
     assert.equal(field(commands.draw())
@@ -698,7 +698,7 @@ describe("the assignee page in blocks", () => {
       avatarBackgroundColor: null }] });
     const inProject = { ...fixLogin, project: { id: "project-1", name: "Payroll" },
       assignee: { id: "me", name: "Me Myself", displayName: "me", initials: "MM", avatarBackgroundColor: null } };
-    const commands = mount({ part: "commands", targets: [inProject], teams: [BACK], page: "assign", me: "me",
+    const commands = mount({ part: "commands", targets: [inProject], teams: [BACK], page: "assign", myId: "me",
       compact: true, bare: true, overlay: "commands" });
     const drawn = commands.draw();
     assert.deepEqual(texts(drawn)
@@ -718,7 +718,7 @@ describe("a popup list that matches nothing", () => {
     for (const page of ["status", "priority", "estimate", "assign", "cycle"]) {
       const commands = commandWindow({ page, compact: true, bare: true });
       field(commands.draw())
-        .type("zzzzzz", commands.cx);
+        .type("zzzzzz", commands.context);
       assert.ok(find(commands.draw(), "commands-list").$.style.h >= 28, page);
     }
   });

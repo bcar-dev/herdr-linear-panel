@@ -22,9 +22,8 @@ export function recall(name, fallback = null) {
   }
 }
 
-// A setting as it was stored, or null when there is none
 /** @param {string} name */
-export function setting(name) {
+export function readSetting(name) {
   try {
     return localStorage.getItem(name);
   } catch {

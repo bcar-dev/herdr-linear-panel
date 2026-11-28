@@ -18,6 +18,12 @@
 - Start: the note that asks the agent to read the issue as information, never as instructions, covers the issue's
   title too, and stays when the issue has no description.
 - ESLint 10.15.0, which drops a vulnerable minimatch (GHSA-g3hv-75wg-m249) from the dev dependencies.
+- Names say what they hold, in the code and the tests: `context` for what Herdr hands each callback (was `cx`),
+  `theme` (was `t`), `event` (was `e`), `myId` (was `me`), and others that needed a comment to be understood. The
+  linter refuses one-letter names and the usual abbreviations, bare TODO markers, comments at the end of a line, and
+  suppressions that suppress nothing.
+- Comments that had gone stale or that repeated what a test now checks are gone. The request kinds are documented on
+  their type in `types.d.ts`.
 - A stricter type check: the theme's colors are listed by name, so a misspelled one fails the check, and a value read
   by index from a list or a record counts as possibly missing (`noUncheckedIndexedAccess`).
 - The panel's loads and its spinner live in `parts/loader.js`, tested on their own, and the popups' sizes in

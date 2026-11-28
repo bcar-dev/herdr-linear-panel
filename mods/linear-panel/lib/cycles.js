@@ -1,5 +1,4 @@
-// A team's cycles in time: the one running, those to come and those ended, and how each is worded.
-// Pure rules with no calls to Herdr, so node can test them (tests/unit)
+// A team's cycles in time: the one running, those to come and those ended, and how each is worded
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const PIE_STEPS = 8, SATURDAY = 6, SUNDAY = 0;
@@ -98,7 +97,6 @@ export const PIE_ICONS = [
   "status-started-6", "status-started-7",
 ];
 
-// `fraction` is 0 to 1
 /** @param {number} fraction */
 export const pieIcon = (fraction) =>
   PIE_ICONS[Math.min(PIE_STEPS - 1, Math.max(1, Math.round(fraction * PIE_STEPS))) - 1] ?? "status-started-1";

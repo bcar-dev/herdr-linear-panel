@@ -1,4 +1,4 @@
-// How a list of lines is set out in columns. Pure, so node can test it (tests/unit)
+// How a list of lines is set out in columns
 
 // The items in `columns` columns, filled down each column before the next: six items in 3 columns make 2 rows,
 // [[1, 2], [3, 4], [5, 6]]. A column holds as many as the rows need, the last ones fewer; no empty column

@@ -16,7 +16,7 @@ import { SubmenuHost } from "./submenu-host.js";
 export class IssueMenu {
   /** @type {Issue[]} */ issues;
   /** @type {Team[]} */ teams;
-  /** @type {string} */ me;
+  /** @type {string} */ myId;
   /** @type {string | null} */ agent;
   /** @type {Bounds | undefined} */ frame;
   /** @type {Point | undefined} */ origin;
@@ -29,20 +29,20 @@ export class IssueMenu {
   // pages opened from here stay inside, and `origin` where the menu itself opened in it
   /**
    * @param {Opened<IssueMenuProps>} props
-   * @param {Context} cx
+   * @param {Context} context
    */
-  constructor({ issues, teams, me, agent, frame, origin, row, overlay }, cx) {
+  constructor({ issues, teams, myId, agent, frame, origin, row, overlay }, context) {
     this.issues = issues;
     this.teams = teams;
-    this.me = me;
+    this.myId = myId;
     this.agent = agent ?? null;
     this.frame = frame;
     this.origin = origin;
     this.row = row;
     this.overlay = overlay;
-    this.handle = cx.focus_handle();
+    this.handle = context.focus_handle();
     this.pages = new SubmenuHost();
-    takeKeyboard(this.handle, cx);
+    takeKeyboard(this.handle, context);
   }
 
   properties() {
@@ -61,20 +61,20 @@ export class IssueMenu {
 
   /**
    * @param {KeyEvent} event
-   * @param {Context} cx
+   * @param {Context} context
    */
-  key(event, cx) {
+  key(event, context) {
     const modifiers = event.modifiers, property = this.properties()
       .find(({ key }) => key === spelled(event));
     if (property && unmodified(modifiers)) {
-      cx.stop_propagation();
-      this.replaceWith((where) => openChoices(this.issues, this.teams, property.page, this.me, where));
+      context.stop_propagation();
+      this.replaceWith((where) => openChoices(this.issues, this.teams, property.page, this.myId, where));
     }
   }
 
-  /** @param {Theme} t */
-  render(t) {
-    const { issues, teams, me, agent, overlay } = this, [issue] = issues;
+  /** @param {Theme} theme */
+  render(theme) {
+    const { issues, teams, myId, agent, overlay } = this, [issue] = issues;
     const single = issue !== undefined && issues.length === 1;
     /** @param {Bounds} [bounds] */
     const beside = (bounds) => ({ beside: bounds, frame: this.frame, gap: 0 });
@@ -86,9 +86,9 @@ export class IssueMenu {
      * @param {(bounds?: Bounds) => string} opens
      */
     const paged = (id, icon, label, caps, opens) =>
-      entry(t, id, icon, label, { caps, arrow: true, lit: this.pages.lit === id })
-        .on_mouse_move((event, cx) => this.pages.rest(id, event.bounds, opens, cx))
-        .on_click((_e, cx) => this.pages.turnTo(id, opens, cx));
+      entry(theme, id, icon, label, { caps, arrow: true, lit: this.pages.lit === id })
+        .on_mouse_move((event, context) => this.pages.rest(id, event.bounds, opens, context))
+        .on_click((_event, context) => this.pages.turnTo(id, opens, context));
     /**
      * @param {string} id
      * @param {NativeElement} icon
@@ -96,31 +96,31 @@ export class IssueMenu {
      * @param {OnClick} action
      * @param {string[]} [caps]
      */
-    const plain = (id, icon, label, action, caps) => entry(t, id, icon, label, { caps, lit: this.pages.lit === id })
-      .on_mouse_move((event, cx) => this.pages.rest(id, event.bounds, null, cx))
+    const plain = (id, icon, label, action, caps) => entry(theme, id, icon, label, { caps, lit: this.pages.lit === id })
+      .on_mouse_move((event, context) => this.pages.rest(id, event.bounds, null, context))
       .on_click(action);
-    return frame(t, "issue-menu", this.handle)
+    return frame(theme, "issue-menu", this.handle)
       .on_mouse_move(this.pages.noteMenuBounds)
-      .on_size_change((_size, cx) => this.pages.followZoom(cx))
-      .on_hover((hovered, cx) => { if (!hovered) this.pages.leave(cx); })
-      .on_key_down((event, cx) => this.key(event, cx))
-      .child(caption(t, single ? `${issue.identifier} · ${issue.title}` : issuesName(issues)))
+      .on_size_change((_size, context) => this.pages.followZoom(context))
+      .on_hover((hovered, context) => { if (!hovered) this.pages.leave(context); })
+      .on_key_down((event, context) => this.key(event, context))
+      .child(caption(theme, single ? `${issue.identifier} · ${issue.title}` : issuesName(issues)))
       .children(this.properties()
         .map(({ page, icon: name, label, caps }) =>
-          paged(page, glyph(t, name), label, caps,
-            (bounds) => openChoices(issues, teams, page, me, beside(bounds), { parent: overlay }))))
-      .child(rule(t))
-      .child(paged("copy", glyph(t, "clipboard"), "Copy", null,
+          paged(page, glyph(theme, name), label, caps,
+            (bounds) => openChoices(issues, teams, page, myId, beside(bounds), { parent: overlay }))))
+      .child(rule(theme))
+      .child(paged("copy", glyph(theme, "clipboard"), "Copy", null,
         (bounds) => openCopyMenu(issues, beside(bounds), overlay)))
       .when(single, (element) => element
-        .child(plain("open", glyph(t, "external-link"), `Open in ${NAME}`,
+        .child(plain("open", glyph(theme, "external-link"), `Open in ${NAME}`,
           () => { this.pages.close(); submit({ overlay }, issues, { kind: RequestKind.OPEN }); },
           chordCaps(["Click"]))))
       .children(single && agent !== null ? [
-        rule(t),
+        rule(theme),
         plain("start", svg(shipped("terminal"))
           .size(GLYPH_SIZE_PX)
-          .text_color(t.muted), `Start with ${agent}…`,
+          .text_color(theme.muted), `Start with ${agent}…`,
         // shortcut: the row's place is the one at the right-click, so a list that reloads meanwhile and moves the row
         // opens the field where the row was; ask the panel for the row's place then if it shows
         () => this.replaceWith((where) =>
@@ -132,13 +132,13 @@ export class IssueMenu {
 export class CopyMenu {
   /**
    * @param {Opened<CopyMenuProps>} props
-   * @param {Context} cx
+   * @param {Context} context
    */
-  constructor(props, cx) {
+  constructor(props, context) {
     this.props = props;
     this.entries = copiesFor(props.issues.length);
-    this.handle = cx.focus_handle();
-    takeKeyboard(this.handle, cx);
+    this.handle = context.focus_handle();
+    takeKeyboard(this.handle, context);
   }
 
   /** @param {CopyWhat} what */
@@ -148,19 +148,19 @@ export class CopyMenu {
 
   /**
    * @param {KeyEvent} event
-   * @param {Context} cx
+   * @param {Context} context
    */
-  key(event, cx) {
+  key(event, context) {
     const what = copyShortcut(event, isMac());
-    if (what && this.entries.some((offered) => offered.what === what)) { cx.stop_propagation(); this.copy(what); }
+    if (what && this.entries.some((offered) => offered.what === what)) { context.stop_propagation(); this.copy(what); }
   }
 
-  /** @param {Theme} t */
-  render(t) {
-    return frame(t, "copy-menu", this.handle)
-      .on_key_down((event, cx) => this.key(event, cx))
+  /** @param {Theme} theme */
+  render(theme) {
+    return frame(theme, "copy-menu", this.handle)
+      .on_key_down((event, context) => this.key(event, context))
       .children(this.entries.map(({ what, icon: name, label, keys }) =>
-        entry(t, what, glyph(t, name), label, { caps: keys && chordCaps(keys) })
+        entry(theme, what, glyph(theme, name), label, { caps: keys && chordCaps(keys) })
           .on_click(() => this.copy(what))));
   }
 }

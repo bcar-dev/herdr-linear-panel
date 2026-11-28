@@ -17,16 +17,16 @@ const NO_BOUNDS = { x: 0, y: 0, width: 0, height: 0 };
 export class LabelPicker {
   /**
    * @param {Opened<LabelsProps>} props
-   * @param {Context} cx
+   * @param {Context} context
    */
-  constructor(props, cx) {
+  constructor(props, context) {
     this.props = props;
-    this.handle = cx.focus_handle();
+    this.handle = context.focus_handle();
     this.query = "";
     // The page of a group shows beside the picker
     this.pages = new SubmenuHost();
     this.input = InputState.new({ placeholder: placeholderFor(props.issue, props.labels, props.group) });
-    this.input.on("change", (_event, cx) => { this.query = this.input.value(); cx.notify(); });
+    this.input.on("change", (_event, context) => { this.query = this.input.value(); context.notify(); });
     this.input.on("submit", () => {
       if (!this.query.trim()) return;
       const [first] = matching(this.scope(), this.query);
@@ -34,7 +34,7 @@ export class LabelPicker {
     });
     // The picker itself starts from what the issue wears; its pages go on from what the picker made it
     if (!props.group || props.searchable) wear(props.issue.id, props.issue.labels.nodes.map((label) => label.id));
-    takeKeyboard(props.group && !props.searchable ? this.handle : this.input, cx);
+    takeKeyboard(props.group && !props.searchable ? this.handle : this.input, context);
   }
 
   worn() {
@@ -65,56 +65,56 @@ export class LabelPicker {
   /**
    * @param {string | null} group
    * @param {Bounds} bounds
-   * @param {Context} cx
+   * @param {Context} context
    */
-  rest(group, bounds, cx) {
+  rest(group, bounds, context) {
     const { issue, labels, frequent, frame, overlay } = this.props;
     const opens = group ? (/** @type {Bounds | undefined} */ beside) =>
       openLabels(issue, labels, frequent, { beside, frame, gap: 0 }, { group, parent: overlay }) : null;
-    this.pages.rest(group, bounds, opens, cx);
+    this.pages.rest(group, bounds, opens, context);
   }
 
   /**
-   * @param {Theme} t
+   * @param {Theme} theme
    * @param {AnyLabel} label
    * @param {AnyLabel[]} all
    * @param {boolean} noted
    */
-  row(t, label, all, noted) {
+  row(theme, label, all, noted) {
     const dot = labelMark(label);
     const ticked = this.worn()
         .includes(label.id), note = noted ? groupOf(label, all) : "";
     if (label.isGroup) {
-      return pillRow(t, `label-${label.id}`, MENU_ROW_HEIGHT_PX)
+      return pillRow(theme, `label-${label.id}`, MENU_ROW_HEIGHT_PX)
         .rounded(MENU_ROW_RADIUS_PX)
-        .bg(this.pages.lit === label.id ? t.selected : t.popover)
-        .on_mouse_move((event, cx) => this.rest(label.id, /** @type {Bounds} */ (event.bounds), cx))
+        .bg(this.pages.lit === label.id ? theme.selected : theme.popover)
+        .on_mouse_move((event, context) => this.rest(label.id, /** @type {Bounds} */ (event.bounds), context))
         .child(dot)
         .child(div()
           .flex_1()
           .min_w(0)
           .truncate()
           .child(label.name))
-        .child(chevron(t));
+        .child(chevron(theme));
     }
-    return item(t, label.id,
+    return item(theme, label.id,
       [dot, div()
         .min_w(0)
         .truncate()
         .child(label.name), div()
         .flex_none()
-        .text_color(t.dim)
+        .text_color(theme.dim)
         .text_size(11.5)
         .child(note)], () => this.toggle(label), ticked)
-      .on_mouse_move((_event, cx) => this.rest(null, NO_BOUNDS, cx));
+      .on_mouse_move((_event, context) => this.rest(null, NO_BOUNDS, context));
   }
 
   // The box takes the label off; the rest of a group's row opens its page
   /**
-   * @param {Theme} t
+   * @param {Theme} theme
    * @param {{ label: AnyLabel, child?: AnyLabel }} entry
    */
-  wornRow(t, { label, child }) {
+  wornRow(theme, { label, child }) {
     const box = div()
       .id(`untick-${label.id}`)
       .size(16)
@@ -123,13 +123,13 @@ export class LabelPicker {
       .items_center()
       .justify_center()
       .rounded(4)
-      .bg(t.accent)
+      .bg(theme.accent)
       .cursor_pointer()
-      .on_click((_event, cx) => { cx.stop_propagation(); this.toggle(child ?? label); })
+      .on_click((_event, context) => { context.stop_propagation(); this.toggle(child ?? label); })
       .child(svg(shipped("check"))
         .size(10)
-        .text_color(t.accent_foreground));
-    const row = pillRow(t, `worn-${label.id}`, MENU_ROW_HEIGHT_PX)
+        .text_color(theme.accent_foreground));
+    const row = pillRow(theme, `worn-${label.id}`, MENU_ROW_HEIGHT_PX)
       .rounded(MENU_ROW_RADIUS_PX)
       .child(box)
       .child(labelMark(label))
@@ -138,20 +138,20 @@ export class LabelPicker {
         .truncate()
         .child(label.name));
     if (!child) return row.on_click(() => this.toggle(label))
-      .on_mouse_move((_event, cx) =>
-        this.rest(null, NO_BOUNDS, cx));
-    return row.on_mouse_move((event, cx) => this.rest(label.id, /** @type {Bounds} */ (event.bounds), cx))
+      .on_mouse_move((_event, context) =>
+        this.rest(null, NO_BOUNDS, context));
+    return row.on_mouse_move((event, context) => this.rest(label.id, /** @type {Bounds} */ (event.bounds), context))
       .child(div()
         .flex_1()
         .min_w(0)
         .truncate()
-        .text_color(t.dim)
+        .text_color(theme.dim)
         .child(child.name))
-      .child(chevron(t));
+      .child(chevron(theme));
   }
 
-  /** @param {Theme} t */
-  render(t) {
+  /** @param {Theme} theme */
+  render(theme) {
     const { labels, group, searchable } = this.props;
     const list = v_flex()
       .id("label-list")
@@ -160,29 +160,29 @@ export class LabelPicker {
       .overflow_y_scroll();
     if (group) {
       const found = this.query.trim() ? matching(this.scope(), this.query) : this.scope();
-      const rows = found.map((label) => this.row(t, label, labels, false));
-      if (!searchable) return frame(t, "label-group", this.handle)
+      const rows = found.map((label) => this.row(theme, label, labels, false));
+      if (!searchable) return frame(theme, "label-group", this.handle)
         .child(list.children(rows));
-      return frame(t, "label-group", this.handle)
-        .child(searchRow(t, this.input))
-        .child(rule(t))
+      return frame(theme, "label-group", this.handle)
+        .child(searchRow(theme, this.input))
+        .child(rule(theme))
         .child(list.children(rows));
     }
     const found = this.query.trim() ? matching(labels, this.query) : null;
     const worn = wornRows(labels, this.worn());
-    return frame(t, "label-picker", this.handle)
+    return frame(theme, "label-picker", this.handle)
       .on_mouse_move(this.pages.noteMenuBounds)
-      .on_size_change((_size, cx) => this.pages.followZoom(cx))
-      .child(searchRow(t, this.input, ["L"]))
-      .child(rule(t))
-      .child(found ? list.children(found.map((label) => this.row(t, label, labels, true)))
+      .on_size_change((_size, context) => this.pages.followZoom(context))
+      .child(searchRow(theme, this.input, ["L"]))
+      .child(rule(theme))
+      .child(found ? list.children(found.map((label) => this.row(theme, label, labels, true)))
       : list.children([
-        ...(worn.length ? [...worn.map((entry) => this.wornRow(t, entry)), rule(t)] : []),
+        ...(worn.length ? [...worn.map((entry) => this.wornRow(theme, entry)), rule(theme)] : []),
         ...blocks(labels, this.props.frequent)
           .flatMap(({ title, labels: shown }, nth) => [
-            ...(nth ? [rule(t)] : []),
-            caption(t, title),
-            ...shown.map((label) => this.row(t, label, labels, title === "Frequently used")),
+            ...(nth ? [rule(theme)] : []),
+            caption(theme, title),
+            ...shown.map((label) => this.row(theme, label, labels, title === "Frequently used")),
           ])]));
   }
 }

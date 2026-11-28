@@ -1,5 +1,4 @@
-// An issue's merge requests: how its row and their card name them and color them. Pure rules with no calls to Herdr,
-// so node can test them (tests/unit)
+// An issue's merge requests: how its row and their card name them and color them
 import { SourceType } from "../enums.js";
 import { timeLabel } from "./history.js";
 
@@ -86,13 +85,12 @@ export function when(merge, now) {
   return `${verb} ${timeLabel(now - Date.parse(at ?? merge.createdAt))} ago`;
 }
 
-// `most` includes the three dots
 /**
  * @param {string} title
- * @param {number} most
+ * @param {number} maxLengthWithEllipsis
  */
-export function clipped(title, most) {
+export function clipped(title, maxLengthWithEllipsis) {
   const letters = [...title];
-  return letters.length > most ? `${letters.slice(0, most - ELLIPSIS.length)
+  return letters.length > maxLengthWithEllipsis ? `${letters.slice(0, maxLengthWithEllipsis - ELLIPSIS.length)
     .join("")}${ELLIPSIS}` : title;
 }

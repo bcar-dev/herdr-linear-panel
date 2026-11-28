@@ -26,7 +26,7 @@ const START_PROMPT_HEIGHT_PX = 80, START_PROMPT_WIDTH_PX = 280;
 const TEAM_PICKER_ISSUE_MAX_WIDTH_PX = 320, TEAM_PICKER_ISSUE_MIN_WIDTH_PX = 220, TEAM_PICKER_ISSUE_REST_PX = 120;
 const TEAM_PICKER_MAX_WIDTH_PX = 300, TEAM_PICKER_MIN_WIDTH_PX = 200, TEAM_PICKER_REST_PX = 96;
 
-// `where` is { point, frame } or { beside, frame }, as lib/placement.js reads it. Without one, at the pointer
+// Without `where`, at the pointer
 /**
  * @param {number} width
  * @param {number} height
@@ -84,17 +84,17 @@ function lightRow(issue, overlay, parent, anchor) {
 /**
  * @param {Issue[]} issues
  * @param {Team[]} teams
- * @param {string} me
+ * @param {string} myId
  * @param {Where} where
  * @param {string | null} agent
  * @param {Bounds} [row] the row pressed, which Start opens under
  */
-export function openIssueMenu(issues, teams, me, where, agent, row) {
+export function openIssueMenu(issues, teams, myId, where, agent, row) {
   const height = menuHeightFor({ issues, teams, agent });
   // The menu is told where it opened: a page asked for by its key takes the menu's place there
   const at = where ? spot(where, ISSUE_MENU_WIDTH_PX, height) : "pointer";
   const origin = at === "pointer" ? undefined : at;
-  const props = { part: /** @type {const} */ ("issue-menu"), issues, teams, me, agent, frame: where?.frame, origin,
+  const props = { part: /** @type {const} */ ("issue-menu"), issues, teams, myId, agent, frame: where?.frame, origin,
     row };
   const overlay = popupAt(ISSUE_MENU_WIDTH_PX, height, at, props);
   const [only] = issues;
@@ -129,12 +129,12 @@ export function openStartPrompt(issue, where, agent) {
  * @param {Issue[]} targets
  * @param {Team[]} teams
  * @param {Property} page
- * @param {string} me
+ * @param {string} myId
  * @param {Where} where
  * @param {{ parent?: string, bare?: boolean, anchor?: string }} options
  */
-export function openChoices(targets, teams, page, me, where, { parent, bare = Boolean(parent), anchor } = {}) {
-  const list = choiceRows(page, { targets, teams, me, projectMembers: projectMembersOf(targets) });
+export function openChoices(targets, teams, page, myId, where, { parent, bare = Boolean(parent), anchor } = {}) {
+  const list = choiceRows(page, { targets, teams, myId, projectMembers: projectMembersOf(targets) });
   const labels = list.map((row) => [row.label, row.note].filter(Boolean)
     .join(" "));
   const breaksPx = breaksHeight(list);
@@ -162,7 +162,7 @@ export function openChoices(targets, teams, page, me, where, { parent, bare = Bo
   const height = choicesHeightFor({ breaksPx, bare, visible });
   const width = fitWidth(labels, PICK_LABEL_REST_PX, PICK_MIN_WIDTH_PX, PICK_MAX_WIDTH_PX);
   const overlay = popup(width, height, where,
-    { part: "commands", targets, teams, page, me, compact: true, bare, parent, visible });
+    { part: "commands", targets, teams, page, myId, compact: true, bare, parent, visible });
   const [only] = targets;
   return only && targets.length === 1 ? lightRow(only, overlay, parent, anchor) : overlay;
 }
@@ -171,10 +171,10 @@ export function openChoices(targets, teams, page, me, where, { parent, bare = Bo
  * @param {Issue[]} targets
  * @param {Team[]} teams
  * @param {Page} page
- * @param {string} me
+ * @param {string} myId
  */
-export const openCommands = (targets, teams, page, me) =>
-  dialog(COMMANDS_DIALOG_WIDTH_PX, COMMANDS_DIALOG_HEIGHT_PX, { part: "commands", targets, teams, page, me });
+export const openCommands = (targets, teams, page, myId) =>
+  dialog(COMMANDS_DIALOG_WIDTH_PX, COMMANDS_DIALOG_HEIGHT_PX, { part: "commands", targets, teams, page, myId });
 
 /**
  * @param {Issue} issue
@@ -232,12 +232,12 @@ export function openLabels(issue, labels, frequent, where, { group, parent, anch
 /**
  * @param {Issue} issue
  * @param {PageComment} comment
- * @param {boolean} own
+ * @param {boolean} isMine
  * @param {Where} where
  */
-export const openCommentMenu = (issue, comment, own, where) =>
-  popup(COMMENT_MENU_WIDTH_PX, commentHeightFor({ comment, own }), where,
-    { part: "comment-menu", issue, comment, own });
+export const openCommentMenu = (issue, comment, isMine, where) =>
+  popup(COMMENT_MENU_WIDTH_PX, commentHeightFor({ comment, isMine }), where,
+    { part: "comment-menu", issue, comment, isMine });
 
 /**
  * @param {MyTeam[]} teams

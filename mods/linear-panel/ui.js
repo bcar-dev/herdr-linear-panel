@@ -35,11 +35,11 @@ const WHITE = "#ffffff";
 export const zoom = () => Number(settings().zoom) || 1;
 
 /**
- * @param {Theme} t
+ * @param {Theme} theme
  * @param {string[]} keys
  * @param {(key: string) => boolean} [lit] whether a key is held down now: it is drawn brighter
  */
-export const keycaps = (t, keys, lit = () => false) => h_flex()
+export const keycaps = (theme, keys, lit = () => false) => h_flex()
   .flex_none()
   .gap(KEYCAP_GAP_PX)
   .items_center()
@@ -53,10 +53,10 @@ export const keycaps = (t, keys, lit = () => false) => h_flex()
     .justify_center()
     .rounded(KEYCAP_RADIUS_PX)
     .border_1()
-    .border_color(t.border)
-    .bg(lit(key) ? mix(t.raised, WHITE, KEYCAP_LIT_WHITE_MIX) : t.raised)
+    .border_color(theme.border)
+    .bg(lit(key) ? mix(theme.raised, WHITE, KEYCAP_LIT_WHITE_MIX) : theme.raised)
     .text_size(KEYCAP_TEXT_SIZE_PX)
-    .text_color(lit(key) ? t.foreground : t.muted)
+    .text_color(lit(key) ? theme.foreground : theme.muted)
     .child(key)));
 
 /** @param {string[]} keys */
@@ -64,23 +64,23 @@ export const chordCaps = (keys) =>
   (isMac() ? ["⌘", ...keys] : ["Ctrl", ...keys.map((key) => (key === "⌥" ? "Alt" : key))]);
 
 /**
- * @param {Theme} t
+ * @param {Theme} theme
  * @param {number} priority
  * @param {boolean} finished
  * @returns {Color}
  */
-export const priorityColor = (t, priority, finished) => (priority === 1 && !finished ? URGENT_ORANGE : t.muted);
+export const priorityColor = (theme, priority, finished) => (priority === 1 && !finished ? URGENT_ORANGE : theme.muted);
 
 /**
- * @param {Theme} t
+ * @param {Theme} theme
  * @param {number} priority
  * @param {boolean} finished
  */
-export const priorityMark = (t, priority, finished) =>
+export const priorityMark = (theme, priority, finished) =>
   svg(icon(priorityEntry(priority).icon))
     .size(14)
     .flex_none()
-    .text_color(priorityColor(t, priority, finished));
+    .text_color(priorityColor(theme, priority, finished));
 
 // `states`, the states of its team, set how full a started state's pie is
 /**
@@ -161,12 +161,12 @@ export const face = (initials, color, size = FACE_SIZE_PX) => div()
   .child(initials);
 
 /**
- * @param {Theme} t
+ * @param {Theme} theme
  * @param {string} id
  * @param {number} height
  * @param {{ px?: number, gap?: number, lit?: boolean }} [options] `lit` false leaves it as it is under the pointer
  */
-export const pillRow = (t, id, height, { px = 10, gap = 9, lit = true } = {}) => h_flex()
+export const pillRow = (theme, id, height, { px = 10, gap = 9, lit = true } = {}) => h_flex()
   .id(id)
   .h(height)
   .flex_none()
@@ -175,7 +175,7 @@ export const pillRow = (t, id, height, { px = 10, gap = 9, lit = true } = {}) =>
   .items_center()
   .rounded(height / 2)
   .cursor_pointer()
-  .when(lit, (row) => row.hover((style) => style.bg(t.hover)));
+  .when(lit, (row) => row.hover((style) => style.bg(theme.hover)));
 
 /**
  * @param {string} id
@@ -203,17 +203,17 @@ export const labelMark = (label) => (label.isGroup
     .rounded(5)
     .bg(label.color));
 
-/** @param {Theme} t */
-export const chevron = (t) => svg(shipped("chevron-right"))
+/** @param {Theme} theme */
+export const chevron = (theme) => svg(shipped("chevron-right"))
   .size(12)
   .flex_none()
-  .text_color(t.dim);
+  .text_color(theme.dim);
 
 /**
- * @param {Theme} t
+ * @param {Theme} theme
  * @param {boolean} on
  */
-export const lit = (t, on) => (on ? t.foreground : t.muted);
+export const lit = (theme, on) => (on ? theme.foreground : theme.muted);
 
 // The tracker's other icons come as names of its own set, and a workspace's custom emoji as a picture: neither can
 // be drawn from the API
@@ -237,29 +237,29 @@ export function teamMark(team, size) {
 }
 
 /**
- * @param {Theme} t
+ * @param {Theme} theme
  * @param {string} name
  */
-export const glyph = (t, name) => svg(icon(name))
+export const glyph = (theme, name) => svg(icon(name))
   .size(GLYPH_SIZE_PX)
-  .text_color(t.muted);
+  .text_color(theme.muted);
 
 // Asked again after the delay of `FOCUS_RETRY_MS`, as many of them as `retries` says: `focus` is run each time
 /**
- * @param {Context} cx
+ * @param {Context} context
  * @param {() => void} focus
  * @param {number} [retries]
  */
-export function focusSoon(cx, focus, retries = FOCUS_RETRY_MS.length) {
-  for (const wait of FOCUS_RETRY_MS.slice(0, retries)) cx.timer.after(wait, focus);
+export function focusSoon(context, focus, retries = FOCUS_RETRY_MS.length) {
+  for (const wait of FOCUS_RETRY_MS.slice(0, retries)) context.timer.after(wait, focus);
 }
 
 // Asked twice: the second call is for a popup that was not ready for the first
 /**
  * @param {{ focus(): void }} target
- * @param {Context} cx
+ * @param {Context} context
  */
-export function takeKeyboard(target, cx) {
+export function takeKeyboard(target, context) {
   target.focus();
-  cx.timer.after(KEYBOARD_RETAKE_DELAY_MS, () => target.focus());
+  context.timer.after(KEYBOARD_RETAKE_DELAY_MS, () => target.focus());
 }

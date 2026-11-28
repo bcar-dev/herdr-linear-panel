@@ -1,4 +1,4 @@
-// Colors as the API and the theme give them: "#rrggbb", with an optional alpha. Pure, so node can test it (tests/unit)
+// Colors as the API and the theme give them: "#rrggbb", with an optional alpha
 
 const ALPHA_FROM = 7;
 const CHANNEL_MAX = 255;
@@ -66,7 +66,7 @@ export function mix(from, to, share) {
       .map((channel) => parseInt(channel, HEX_RADIX));
   const start = read(from), end = read(to);
   if (!start || !end) return from;
-  const mixed = start.map((channel, i) => Math.round(channel + ((end[i] ?? channel) - channel) * share)
+  const mixed = start.map((channel, nth) => Math.round(channel + ((end[nth] ?? channel) - channel) * share)
     .toString(HEX_RADIX)
     .padStart(HEX_CHANNEL_CHARS, "0"));
   return /** @type {Color} */ (`#${mixed.join("")}${from.slice(ALPHA_FROM)}`);

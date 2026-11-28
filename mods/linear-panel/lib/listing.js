@@ -1,5 +1,4 @@
-// What the list shows: which issues are asked for, how they are grouped and ordered, and what a group adds up to.
-// Pure rules with no calls to Herdr, so node can test them (tests/unit)
+// What the list shows: which issues are asked for, how they are grouped and ordered, and what a group adds up to
 import { Completed, Ordering, StateType } from "../enums.js";
 import { DAY_MS } from "./history.js";
 import { compareText } from "./text.js";
@@ -39,8 +38,8 @@ const rank = (character) =>
  */
 export function byTitle(first, second) {
   const lowerFirst = first.toLowerCase(), lowerSecond = second.toLowerCase();
-  for (let i = 0; i < lowerFirst.length && i < lowerSecond.length; i++) {
-    const one = lowerFirst.charAt(i), other = lowerSecond.charAt(i);
+  for (let nth = 0; nth < lowerFirst.length && nth < lowerSecond.length; nth++) {
+    const one = lowerFirst.charAt(nth), other = lowerSecond.charAt(nth);
     if (one !== other) return rank(one) - rank(other) || (one < other ? -1 : 1);
   }
   return lowerFirst.length - lowerSecond.length;

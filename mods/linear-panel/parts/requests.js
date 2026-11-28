@@ -24,21 +24,21 @@ export const MUTATES = {
 /**
  * @param {Panel} panel
  * @param {PanelRequest} request
- * @param {Context} cx
+ * @param {Context} context
  */
-export function serve(panel, request, cx) {
+export function serve(panel, request, context) {
   switch (request.kind) {
-    case RequestKind.DISPLAY: return panel.redisplay(request.change, cx);
+    case RequestKind.DISPLAY: return panel.redisplay(request.change, context);
     case RequestKind.COMPOSE: return void composeIssue(request.team);
     case RequestKind.CLIPBOARD: {
       const { text, label } = request;
-      return cx.timer.after(0, (cx) => {
-        cx.write_to_clipboard(text);
+      return context.timer.after(0, (context) => {
+        context.write_to_clipboard(text);
         notify({ title: label, timeout: TOAST_MS });
       });
     }
-    case RequestKind.COMMENT: return panel.changeComment(request, cx);
-    default: return panel.perform(request, cx);
+    case RequestKind.COMMENT: return panel.changeComment(request, context);
+    default: return panel.perform(request, context);
   }
 }
 
@@ -46,9 +46,9 @@ export function serve(panel, request, cx) {
  * @param {Panel} panel
  * @param {Performed} request
  * @param {Issue[]} targets
- * @param {Context} cx
+ * @param {Context} context
  */
-export async function carryOut(panel, request, targets, cx) {
+export async function carryOut(panel, request, targets, context) {
   switch (request.kind) {
     case RequestKind.START: {
       const [issue] = targets;
@@ -59,7 +59,7 @@ export async function carryOut(panel, request, targets, cx) {
       return void await start(issue, states, panel.agent(), { preIssuePrompt: promptText(before),
         instructions: request.instructions, postIssuePrompt: promptText(after) });
     }
-    case RequestKind.COPY: return void await copy(panel.inListOrder(targets), request.what, cx);
+    case RequestKind.COPY: return void await copy(panel.inListOrder(targets), request.what, context);
     case RequestKind.OPEN: return void (targets[0] && await openPage(targets[0].url));
     case RequestKind.STATUS:
       for (const [stateId, ids] of moves(targets, panel.store.teams, request.name)) await api.update(ids, { stateId });

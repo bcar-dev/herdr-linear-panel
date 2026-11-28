@@ -1,5 +1,4 @@
-// Which labels the label picker lists, and in what order. Pure rules with no calls to Herdr, so node can test them
-// (tests/unit)
+// Which labels the label picker lists, and in what order
 import { compareText } from "./text.js";
 
 const FREQUENT_MOST = 3, WORN_MORE_THAN_ONCE = 1;

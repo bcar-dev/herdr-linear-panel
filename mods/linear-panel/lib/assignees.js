@@ -1,4 +1,4 @@
-// Who the assignee picker lists, in blocks. Pure rules with no calls to Herdr, so node can test them (tests/unit)
+// Who the assignee picker lists, in blocks
 import { byTitle } from "./listing.js";
 import { commonMembers, memberName } from "./teams.js";
 
@@ -8,12 +8,13 @@ import { commonMembers, memberName } from "./teams.js";
  * @param {Issue[]} targets
  * @param {Team[]} teams
  * @param {Member[]} projectMembers
- * @param {string} me my user id
+ * @param {string} myId
  * @returns {{ member: Member | null, group: number, title?: string }[]}
  */
-export function assigneeRows(targets, teams, projectMembers, me) {
+export function assigneeRows(targets, teams, projectMembers, myId) {
   const team = commonMembers(teams);
-  const self = team.find((member) => member.id === me) ?? targets.find((issue) => issue.assignee?.id === me)?.assignee;
+  const self = team.find((member) => member.id === myId)
+    ?? targets.find((issue) => issue.assignee?.id === myId)?.assignee;
   /** @type {Map<string, Member>} */
   const current = new Map(self ? [[self.id, self]] : []);
   for (const { assignee } of targets) if (assignee) current.set(assignee.id, assignee);

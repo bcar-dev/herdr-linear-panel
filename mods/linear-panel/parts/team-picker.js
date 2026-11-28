@@ -21,15 +21,15 @@ export const heightFor = ({ teams, issue }) =>
 export class TeamPicker {
   /**
    * @param {Opened<TeamPickerProps>} props
-   * @param {Context} cx
+   * @param {Context} context
    */
-  constructor(props, cx) {
+  constructor(props, context) {
     this.props = props;
-    this.handle = cx.focus_handle();
+    this.handle = context.focus_handle();
     this.query = "";
     this.input = InputState.new({ placeholder: "Move to team…" });
-    this.input.on("change", (_e, cx) => { this.query = this.input.value(); cx.notify(); });
-    takeKeyboard(props.issue ? this.input : this.handle, cx);
+    this.input.on("change", (_event, context) => { this.query = this.input.value(); context.notify(); });
+    takeKeyboard(props.issue ? this.input : this.handle, context);
   }
 
   /** @param {MyTeam} team */
@@ -40,8 +40,8 @@ export class TeamPicker {
     submit(this.props, [issue], { kind: RequestKind.UPDATE, input: { teamId: team.id } });
   }
 
-  /** @param {Theme} t */
-  render(t) {
+  /** @param {Theme} theme */
+  render(theme) {
     const { issue, teams } = this.props, words = this.query.trim()
       .toLowerCase();
     const shown = teams.filter((team) => `${team.name} ${team.key}`.toLowerCase()
@@ -54,21 +54,22 @@ export class TeamPicker {
         .child(team.name), div()
         .flex_none()
         .text_size(11)
-        .text_color(t.dim)
+        .text_color(theme.dim)
         .child(team.key)]
       : [div()
         .w(TEAM_KEY_COLUMN_WIDTH_PX)
         .flex_none()
         .text_size(11)
-        .text_color(t.dim)
+        .text_color(theme.dim)
         .child(team.key),
       div()
         .truncate()
         .child(team.name)]),
     ];
-    return frame(t, "team-picker", this.handle)
-      .children(issue ? [searchRow(t, this.input, chordCaps(["⇧", "M"])), rule(t)] : [caption(t, "New issue in…")])
+    return frame(theme, "team-picker", this.handle)
+      .children(issue ? [searchRow(theme, this.input, chordCaps(["⇧", "M"])), rule(theme)]
+      : [caption(theme, "New issue in…")])
       .children(shown.map((team) =>
-        item(t, team.key, label(team), () => this.choose(team), issue ? team.id === issue.team.id : false)));
+        item(theme, team.key, label(team), () => this.choose(team), issue ? team.id === issue.team.id : false)));
   }
 }

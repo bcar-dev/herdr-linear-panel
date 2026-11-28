@@ -7,12 +7,12 @@ import { HOST, KEY_PAGE, KEY_PAGE_PATH, NAME, openLink, keySetup } from "../trac
 export class Setup {
   copied = false;
 
-  /** @param {Theme} t */
-  render(t) {
+  /** @param {Theme} theme */
+  render(theme) {
     const { how, command } = keySetup();
     /** @param {string} text */
     const line = (text) => div()
-      .text_color(t.muted)
+      .text_color(theme.muted)
       .child(text);
     return v_flex()
       .p(14)
@@ -25,7 +25,7 @@ export class Setup {
       .child(div()
         .id("key-page")
         .cursor_pointer()
-        .text_color(t.accent)
+        .text_color(theme.accent)
         .on_click(() => { openLink(KEY_PAGE); })
         .child(`${HOST}/${KEY_PAGE_PATH}`))
       .child(line(`2. ${how}`))
@@ -35,23 +35,23 @@ export class Setup {
         .gap(8)
         .items_center()
         .rounded(6)
-        .bg(t.raised)
+        .bg(theme.raised)
         .text_size(11)
         .cursor_pointer()
-        .hover((style) => style.bg(t.hover))
-        .on_click((_e, cx) => { cx.write_to_clipboard(command); this.copied = true; cx.notify(); })
+        .hover((style) => style.bg(theme.hover))
+        .on_click((_event, context) => { context.write_to_clipboard(command); this.copied = true; context.notify(); })
         .child(div()
           .flex_1()
           .min_w(0)
           .child(command))
         .child(div()
           .flex_none()
-          .text_color(this.copied ? t.done : t.dim)
+          .text_color(this.copied ? theme.done : theme.dim)
           .child(this.copied ? "Copied" : "Copy")))
       .child(h_flex()
         .gap(5)
         .items_center()
-        .text_color(t.muted)
+        .text_color(theme.muted)
         .child("3. Press")
         .child(svg(icon("refresh"))
           .size(14))

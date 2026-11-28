@@ -1,5 +1,4 @@
-// Markdown split into the headings, which the mod draws itself, and the text between them. Pure, so node can test it
-// (tests/unit)
+// Markdown split into the headings, which the mod draws itself, and the text between them
 const FENCE = /^ {0,3}(`{3,}|~{3,})/;
 const HEADING = /^ {0,3}(#{1,6}) +(\S.*?)(?: +#+)? *$/;
 export const HEADING_SIZES_PX = { 1: 22, 2: 19, 3: 17, 4: 15, 5: 14, 6: 13 };

@@ -45,9 +45,9 @@ const mark = (merge) => div()
  * @param {Merge} merge
  * @param {number} lines
  * @param {string} below
- * @param {Theme} t
+ * @param {Theme} theme
  */
-const heading = (merge, lines, below, t) => [
+const heading = (merge, lines, below, theme) => [
   h_flex()
     .gap(8)
     .items_start()
@@ -70,43 +70,43 @@ const heading = (merge, lines, below, t) => [
     .flex_none()
     .pl(TITLE_INDENT_PX)
     .truncate()
-    .text_color(t.muted)
+    .text_color(theme.muted)
     .child(below),
 ];
 
 /**
  * @param {Panel} panel
  * @param {Issue} issue
- * @param {Theme} t
+ * @param {Theme} theme
  * @returns {TipBody}
  */
-export function mergeCard(panel, issue, t) {
+export function mergeCard(panel, issue, theme) {
   const list = merges(issue), [only] = list;
-  if (only && list.length === 1) return mergeCardOf(panel, issue, only, t);
+  if (only && list.length === 1) return mergeCardOf(panel, issue, only, theme);
   const answered = panel.store.mergeDetailsByIssueId.get(issue.id);
-  return several(list, (merge) => answered?.find((found) => found.url === merge.url), t);
+  return several(list, (merge) => answered?.find((found) => found.url === merge.url), theme);
 }
 
 /**
  * @param {Panel} panel
  * @param {Issue} issue
  * @param {Merge} merge
- * @param {Theme} t
+ * @param {Theme} theme
  * @returns {TipBody}
  */
-export function mergeCardOf(panel, issue, merge, t) {
+export function mergeCardOf(panel, issue, merge, theme) {
   const answered = panel.store.mergeDetailsByIssueId.get(issue.id);
-  return single(merge, answered?.find((found) => found.url === merge.url), answered === PENDING, t);
+  return single(merge, answered?.find((found) => found.url === merge.url), answered === PENDING, theme);
 }
 
 /**
  * @param {Merge} merge
  * @param {MergeDetails | undefined} details
  * @param {boolean} pending
- * @param {Theme} t
+ * @param {Theme} theme
  * @returns {TipBody}
  */
-function single(merge, details, pending, t) {
+function single(merge, details, pending, theme) {
   const said = [when(merge, Date.now()), details ? `${details.files} files` : pending && "…"].filter(Boolean)
     .join(" · ");
   const added = details ? `+${details.added}` : "", removed = details ? `-${details.removed}` : "";
@@ -115,12 +115,12 @@ function single(merge, details, pending, t) {
     TITLE_BESIDE_PX + textWidth(merge.title), TITLE_INDENT_PX + textWidth(below), TITLE_INDENT_PX + textWidth(said)
     + (details ? DETAILS_GAP_PX + textWidth(added) + textWidth(removed) : 0) + REVIEWER_WIDTH_PX * reviewers.length)));
   const lines = textWidth(merge.title) > width - TITLE_WRAP_MARGIN_PX ? 2 : 1;
-  const el = v_flex()
+  const card = v_flex()
     .w(width)
     .px(6)
     .pt(9)
     .pb(8)
-    .children(heading(merge, lines, below, t))
+    .children(heading(merge, lines, below, theme))
     .child(h_flex()
       .h(FACTS_ROW_HEIGHT_PX)
       .mt(8)
@@ -130,7 +130,7 @@ function single(merge, details, pending, t) {
       .items_center()
       .child(div()
         .flex_none()
-        .text_color(t.muted)
+        .text_color(theme.muted)
         .child(said))
       .children(details ? [div()
         .flex_none()
@@ -151,16 +151,16 @@ function single(merge, details, pending, t) {
           ? [svg(shipped("check"))
             .size(12)
             .text_color(MERGE_COLORS[MergeStanding.OPEN])] : []))));
-  return { el, width, height: SINGLE_HEIGHT_PX + LINE_HEIGHT_PX * lines };
+  return { element: card, width, height: SINGLE_HEIGHT_PX + LINE_HEIGHT_PX * lines };
 }
 
 /**
  * @param {Merge[]} list
  * @param {(merge: Merge) => MergeDetails | undefined} detailsOf
- * @param {Theme} t
+ * @param {Theme} theme
  * @returns {TipBody}
  */
-function several(list, detailsOf, t) {
+function several(list, detailsOf, theme) {
   const shown = list.slice(0, MOST_BLOCKS_SHOWN), more = list.length - shown.length;
   const blocks = shown.map((merge) => ({ merge, below: [reference(merge, true),
     reviewedBy((detailsOf(merge)?.reviewers ?? []).map((reviewer) => reviewer.name))].filter(Boolean)
@@ -168,7 +168,7 @@ function several(list, detailsOf, t) {
   const width = Math.ceil(Math.min(CARD_MAX_WIDTH_PX, CARD_PADDING_PX + Math.max(...blocks
     .map(({ merge, below }) => Math.max(TITLE_BESIDE_PX + textWidth(merge.title),
       TITLE_INDENT_PX + textWidth(below))))));
-  const el = v_flex()
+  const card = v_flex()
     .w(width)
     .px(6)
     .pt(9)
@@ -176,13 +176,13 @@ function several(list, detailsOf, t) {
     .gap(BLOCK_GAP_PX)
     .children(blocks.map(({ merge, below }) => v_flex()
       .flex_none()
-      .children(heading(merge, 1, below, t))))
+      .children(heading(merge, 1, below, theme))))
     .children(more ? [div()
       .h(LINE_HEIGHT_PX)
       .flex_none()
       .pl(TITLE_INDENT_PX)
-      .text_color(t.muted)
+      .text_color(theme.muted)
       .child(`${more} more`)] : []);
   const height = SEVERAL_HEIGHT_PX + BLOCK_HEIGHT_PX * shown.length - BLOCK_GAP_PX + (more ? MORE_ROW_HEIGHT_PX : 0);
-  return { el, width, height };
+  return { element: card, width, height };
 }

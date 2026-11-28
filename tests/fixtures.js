@@ -164,9 +164,9 @@ export const at = (x, y, modifiers = {}) =>
 // that asked is done, unless `wait` is false
 export async function clickRow(panel, id = "back-1", { wait = true, held = {} } = {}) {
   const root = panel.draw(), row = find(root, `issue-${id}`);
-  send(root, row, "on_mouse_down:left", at(950, 200), panel.cx);
-  send(root, row, "on_mouse_up:left", at(950, 200, held), panel.cx);
-  if (wait) await panel.cx.idle();
+  send(root, row, "on_mouse_down:left", at(950, 200), panel.context);
+  send(root, row, "on_mouse_up:left", at(950, 200, held), panel.context);
+  if (wait) await panel.context.idle();
 }
 
 // Gives a turn to the promises that no task tracks: an `open` that falls back to the browser, for one
@@ -185,7 +185,7 @@ export async function startPanel({ load = true, app = {}, git, settings, stored,
   const panel = mount(settings);
   if (load) {
     panel.draw();
-    await panel.cx.idle();
+    await panel.context.idle();
   }
   return { ...panel, server };
 }

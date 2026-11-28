@@ -4,7 +4,7 @@ import { element } from "./elements.js";
 export const v_flex = () => element("v_flex");
 export const h_flex = () => element("h_flex");
 
-// The state of a text field. A test types with `type(text, cx)` and presses Enter with `submit(cx)`
+// The state of a text field. A test types with `type(text, context)` and presses Enter with `submit(context)`
 export const InputState = {
   new({ placeholder } = {}) {
     const listeners = {};
@@ -13,17 +13,17 @@ export const InputState = {
       text: "",
       focused: 0,
       value: () => state.text,
-      // Set `cx` on a state for its focus and blur to be told to the mod, as the host tells them
-      cx: null,
-      focus() { state.focused++; if (state.cx) listeners.focus?.({}, state.cx); },
+      // Set `context` on a state for its focus and blur to be told to the mod, as the host tells them
+      context: null,
+      focus() { state.focused++; if (state.context) listeners.focus?.({}, state.context); },
       set_value(text) { state.text = text; },
-      blur() { if (state.cx) listeners.blur?.({}, state.cx); },
+      blur() { if (state.context) listeners.blur?.({}, state.context); },
       selected: { start: 0, end: 0 },
       set_selected_range(range) { state.selected = range; },
       release() { return true; },
       on(event, listener) { listeners[event] = listener; },
-      type(text, cx) { state.text = text; listeners.change?.({}, cx); },
-      submit(cx) { listeners.submit?.({}, cx); },
+      type(text, context) { state.text = text; listeners.change?.({}, context); },
+      submit(context) { listeners.submit?.({}, context); },
     };
     return state;
   },

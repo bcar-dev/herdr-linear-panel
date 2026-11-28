@@ -14,39 +14,39 @@ const OPTIONS = { by: ORDERINGS, completed: COMPLETED };
 export class DisplayOptions {
   /**
    * @param {Opened<DisplayProps>} props
-   * @param {Context} cx
+   * @param {Context} context
    */
-  constructor({ display }, cx) {
+  constructor({ display }, context) {
     this.display = { ...display };
-    // The dropdown that is open, by field, or null
-    this.choosing = null;
-    this.handle = cx.focus_handle();
-    takeKeyboard(this.handle, cx);
+    /** @type {"by" | "completed" | null} */
+    this.openDropdown = null;
+    this.handle = context.focus_handle();
+    takeKeyboard(this.handle, context);
   }
 
   /**
    * @param {Partial<Display>} change
-   * @param {Context} cx
+   * @param {Context} context
    */
-  set(change, cx) {
+  set(change, context) {
     Object.assign(this.display, change);
-    this.choosing = null;
+    this.openDropdown = null;
     ask({ kind: RequestKind.DISPLAY, ids: [], change });
-    cx.notify();
+    context.notify();
   }
 
-  /** @param {Theme} t */
-  render(t) {
-    const display = this.display, field = this.choosing;
+  /** @param {Theme} theme */
+  render(theme) {
+    const display = this.display, field = this.openDropdown;
     /** @type {(change: Partial<Display>) => OnClick} */
-    const set = (change) => (_e, cx) => this.set(change, cx);
-    const root = frame(t, "display-options", this.handle);
+    const set = (change) => (_event, context) => this.set(change, context);
+    const root = frame(theme, "display-options", this.handle);
     // The popup cannot grow, so an open dropdown's choices replace the popup's content until one is picked
     if (field) {
       /** @param {string} value */
       const pick = (value) => set(/** @type {Partial<Display>} */ ({ [field]: value }));
       return root.children(OPTIONS[field].map(({ id: value, label }) =>
-        item(t, value, [div()
+        item(theme, value, [div()
           .child(label)], pick(value), display[field] === value)
           .h(21)));
     }
@@ -65,7 +65,7 @@ export class DisplayOptions {
         .min_w(0)
         .truncate()
         .text_size(13)
-        .text_color(t.muted)
+        .text_color(theme.muted)
         .child(label))
       .children(controls);
     /** @param {"by" | "completed"} name */
@@ -80,11 +80,11 @@ export class DisplayOptions {
       .rounded(8)
       .cursor_pointer()
       .border_1()
-      .border_color(t.border)
-      .bg(t.raised)
-      .text_color(t.foreground)
-      .hover((style) => style.bg(t.hover))
-      .on_click((_e, cx) => { this.choosing = name; cx.notify(); })
+      .border_color(theme.border)
+      .bg(theme.raised)
+      .text_color(theme.foreground)
+      .hover((style) => style.bg(theme.hover))
+      .on_click((_event, context) => { this.openDropdown = name; context.notify(); })
       .child(div()
         .flex_1()
         .min_w(0)
@@ -93,7 +93,7 @@ export class DisplayOptions {
       .child(svg(shipped("chevron-down"))
         .size(13)
         .flex_none()
-        .text_color(t.muted));
+        .text_color(theme.muted));
     const direction = div()
       .id("direction")
       .size(28)
@@ -103,8 +103,8 @@ export class DisplayOptions {
       .justify_center()
       .rounded(14)
       .cursor_pointer()
-      .text_color(t.foreground)
-      .hover((style) => style.bg(t.hover))
+      .text_color(theme.foreground)
+      .hover((style) => style.bg(theme.hover))
       .on_click(set({ reversed: !display.reversed }))
       .child(svg(icon(display.reversed ? "sort-up" : "sort-down"))
         .size(16));
@@ -112,7 +112,7 @@ export class DisplayOptions {
       .size(14)
       .flex_none()
       .rounded(7)
-      .bg(display.recency ? t.accent_foreground : t.muted);
+      .bg(display.recency ? theme.accent_foreground : theme.muted);
     const recency = h_flex()
       .id("recency")
       .w(32)
@@ -122,7 +122,7 @@ export class DisplayOptions {
       .items_center()
       .rounded(9)
       .cursor_pointer()
-      .bg(display.recency ? t.accent : t.input)
+      .bg(display.recency ? theme.accent : theme.input)
       .on_click(set({ recency: !display.recency }))
       .children(display.recency ? [div()
         .flex_1(), knob] : [knob]);
@@ -133,7 +133,7 @@ export class DisplayOptions {
         .my(7)
         .h(1)
         .flex_none()
-        .bg(t.border))
+        .bg(theme.border))
       .child(line("Completed issues", [dropdown("completed")]));
   }
 }

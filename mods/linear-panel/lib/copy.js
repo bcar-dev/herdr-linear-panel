@@ -1,4 +1,4 @@
-// What each entry of the Copy menu puts on the clipboard. Pure, so node can test it (tests/unit)
+// What each entry of the Copy menu puts on the clipboard
 import { CopyWhat } from "../enums.js";
 import { MergeStatus, merges, reference } from "./merges.js";
 
@@ -45,7 +45,7 @@ const paragraphs = (parts) => parts.filter(Boolean)
  * @param {IssueDetails} details
  * @param {string} tracker
  */
-function one(what, issue, { description, comments = [] } = {}, tracker) {
+function issueText(what, issue, { description, comments = [] } = {}, tracker) {
   const field = FIELDS[what];
   if (field) return field(issue);
   const body = (description ?? "").trim(), markdown = paragraphs([`# ${issue.title}`, body]);
@@ -68,9 +68,9 @@ function one(what, issue, { description, comments = [] } = {}, tracker) {
 export function copyText(what, issues, details = [], tracker = "") {
   if (what === CopyWhat.DIFFS) return diffLinks(issues);
   const [only] = issues;
-  if (only && issues.length === 1) return one(what, only, details[0], tracker);
+  if (only && issues.length === 1) return issueText(what, only, details[0], tracker);
   if (what === CopyWhat.TITLE) return issues.map((issue) => `${issue.identifier}: ${issue.title}`)
     .join("\n");
-  return issues.map((issue, nth) => one(what, issue, details[nth], tracker))
+  return issues.map((issue, nth) => issueText(what, issue, details[nth], tracker))
     .join(DOCUMENTS.includes(what) ? RULE : "\n");
 }

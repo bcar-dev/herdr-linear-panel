@@ -41,12 +41,12 @@ describe("wornRows", () => {
 
   it("lists a label of a group as its group, holding the label, and any other label as itself", () => {
     const rows = wornRows(all, ["late", "sec"]);
-    assert.deepEqual(rows.map(({ label: l, child }) => [l.id, child?.id ?? null]), [["g", "late"], ["sec", null]]);
+    assert.deepEqual(rows.map(({ label, child }) => [label.id, child?.id ?? null]), [["g", "late"], ["sec", null]]);
   });
 
   it("lists a group once, and leaves out a label it does not know", () => {
     assert.deepEqual(wornRows(all, ["late", "bg", "missing"])
-      .map(({ label: l }) => l.id), ["g"]);
+      .map(({ label }) => label.id), ["g"]);
   });
 });
 
