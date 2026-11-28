@@ -71,7 +71,7 @@ Click in the panel first: it then has the keyboard.
 | --- | --- |
 | `1`, `2` | Current cycle, My issues |
 | `C` | New issue |
-| `R` | Reload |
+| `R` | Reload, the teams and labels included |
 | `Shift+V` | Display options |
 | `X` | Tick the issue under the pointer; with `Shift`, every issue from the last one ticked to it |
 | `S`, `P`, `A`, `Shift+E`, `Shift+C` | Status, priority, assignee, estimate, cycle of the ticked issues, else of the issue under the pointer or the open page |

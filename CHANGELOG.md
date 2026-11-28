@@ -12,6 +12,8 @@
 ### Changed
 
 - The `start_prompt` setting is now `pre_linear_issue_prompt`. The old name still works.
+- `R` and the reload button also read the teams (states, members, cycles), projects and labels again. The panel's own
+  reload every minute still reads them once a run.
 - Start opens its field right under the issue's row, as wide as the row. The field reads "Add instructions
   (optional)…": what you type goes between the prompt before the issue and the issue. The Start button is wider and
   turns to the accent color under the pointer.
@@ -47,6 +49,9 @@
 - A comment is posted once, however often Send is pressed while it is on its way.
 - A change that gets no answer within 30 seconds fails with an error, as a load does, instead of keeping the spinner
   up until Herdr restarts.
+- A merge request's card goes without its changes and reviewers when the tracker refuses to tell them, instead of
+  showing an error in the panel at each hover.
+- The panel starts and works when its storage cannot be read or written; its settings then last until Herdr restarts.
 
 ## 2026-11-27
 

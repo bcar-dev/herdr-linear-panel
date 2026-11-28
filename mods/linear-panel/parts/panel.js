@@ -12,6 +12,7 @@ import { COMPLETED, HEADER_HEIGHT_PX, MIN_SPIN_MS, ORDERINGS, RELOAD_EVERY_MS, V
 import { Completed, Ordering, RequestKind, ViewKey } from "../enums.js";
 import { NAME, isMac, openApp, openPage } from "../tracker.js";
 import { chordCaps, lit, roundButton, zoom } from "../ui.js";
+import { keepSetting, setting } from "../lib/cache.js";
 import { isDark } from "../lib/color.js";
 import { Drag } from "../lib/drag.js";
 import { filters, groups, points } from "../lib/listing.js";
@@ -52,13 +53,13 @@ const SPINNER_TURN_MS = 900;
  * @param {string} name
  * @param {NamedOption<T>[]} options
  */
-const stored = (name, options) => options.find(({ id }) => id === localStorage.getItem(name))?.id;
+const stored = (name, options) => options.find(({ id }) => id === setting(name))?.id;
 
 // The stored list of names, or none when nothing readable is stored
 /** @param {string} name */
 function storedNames(name) {
   try {
-    const names = JSON.parse(localStorage.getItem(name) ?? "[]");
+    const names = JSON.parse(setting(name) ?? "[]");
     return Array.isArray(names) ? /** @type {string[]} */ (names) : [];
   } catch {
     return [];
@@ -121,11 +122,11 @@ export class Panel {
     this.view = stored("view", VIEWS) ?? VIEWS[0].id;
     this.display = {
       by: stored("order", ORDERINGS) ?? Ordering.PRIORITY,
-      reversed: localStorage.getItem("reversed") === "1",
-      recency: localStorage.getItem("recency") !== "0",
+      reversed: setting("reversed") === "1",
+      recency: setting("recency") !== "0",
       completed: stored("completed", COMPLETED) ?? Completed.WEEK,
     };
-    this.totals = localStorage.getItem("totals") === "count" ? "count" : "points";
+    this.totals = setting("totals") === "count" ? "count" : "points";
     this.folded = new Set(storedNames("folded"));
     this.store = new Store();
     this.openers = new Openers(this);
@@ -189,6 +190,14 @@ export class Panel {
   reload(cx) {
     this.spin();
     this.#reload(cx);
+  }
+
+  // A reload the person asked for (R, the reload button) also asks again for what is otherwise asked once a run: the
+  // teams, projects and labels
+  /** @param {Context} cx */
+  refresh(cx) {
+    this.store.forgetAsked();
+    this.reload(cx);
   }
 
   // For reloads nobody asked for (the timer, the read back of a change under a page): they show no spinner
@@ -325,10 +334,10 @@ export class Panel {
    */
   redisplay(change, cx) {
     Object.assign(this.display, change);
-    localStorage.setItem("order", this.display.by);
-    localStorage.setItem("reversed", this.display.reversed ? "1" : "0");
-    localStorage.setItem("recency", this.display.recency ? "1" : "0");
-    localStorage.setItem("completed", this.display.completed);
+    keepSetting("order", this.display.by);
+    keepSetting("reversed", this.display.reversed ? "1" : "0");
+    keepSetting("recency", this.display.recency ? "1" : "0");
+    keepSetting("completed", this.display.completed);
     if (change.completed) this.reload(cx);
   }
 
@@ -341,7 +350,7 @@ export class Panel {
     this.selection = new Selection();
     this.hovered = this.hot = null;
     this.hints.clear();
-    localStorage.setItem("view", view);
+    keepSetting("view", view);
     cx.notify();
   }
 
@@ -441,14 +450,14 @@ export class Panel {
       this.folded.add(name);
       this.selection.untick(group.issues.map((issue) => issue.id));
     }
-    localStorage.setItem("folded", JSON.stringify([...this.folded]));
+    keepSetting("folded", JSON.stringify([...this.folded]));
     cx.notify();
   }
 
   /** @param {Context} cx */
   switchTotals(cx) {
     this.totals = this.totals === "count" ? "points" : "count";
-    localStorage.setItem("totals", this.totals);
+    keepSetting("totals", this.totals);
     cx.notify();
   }
 
@@ -628,7 +637,7 @@ export class Panel {
   /** @param {Theme} t */
   reloadButton(t) {
     return this.iconButton(t, { id: "reload", label: "Reload", caps: ["R"], name: "refresh",
-      action: (cx) => { this.reload(cx); cx.notify(); } });
+      action: (cx) => { this.refresh(cx); cx.notify(); } });
   }
 
   /** @param {Theme} t */
