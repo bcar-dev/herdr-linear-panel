@@ -11,7 +11,7 @@ export default [
   {
     linterOptions: { reportUnusedDisableDirectives: "error" },
     rules: {
-      // Names say what they hold: no single letters, and none of the usual abbreviations (`cx` for a context)
+      // GPUI's habit is `cx` for a context: this project spells names out
       "id-denylist": ["error", "cb", "cx", "ctx", "el", "err", "evt", "fn", "idx", "msg", "tmp", "val"],
       "id-length": ["error", { min: 2, properties: "never", exceptions: ["_", "x", "y"] }],
       indent: ["error", 2, { MemberExpression: 1, SwitchCase: 1, flatTernaryExpressions: true }],

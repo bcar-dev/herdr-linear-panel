@@ -1,6 +1,5 @@
 // Text the tracker sends is typed by other people: a title can carry an escape sequence that rewrites the clipboard,
-// the terminal's title or what the screen shows. Everything is cleaned once, where an answer is read. Pure, so node
-// can test it (tests/unit)
+// the terminal's title or what the screen shows. Everything is cleaned once, where an answer is read
 
 /* eslint-disable no-control-regex -- these match terminal escape sequences, which are control characters */
 const CONTROLS = /[\u0000-\u001f\u007f-\u009f]/g;

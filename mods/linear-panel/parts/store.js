@@ -90,7 +90,7 @@ export class Store {
   }
 
   // A team's states, estimate scale, members and cycles change rarely: they are asked again once a run, and on a
-  // reload the person asks for (`forgetAsked`)
+  // reload the person asks for (`askAgainWhenNeeded`)
   loadTeams() {
     const ids = [...new Set([...this.index()
       .values()].map((issue) => issue.team.id))];
@@ -118,8 +118,7 @@ export class Store {
     });
   }
 
-  // The teams, projects and labels are asked again the next time they are needed
-  forgetAsked() {
+  askAgainWhenNeeded() {
     this.asked = new Asked();
   }
 

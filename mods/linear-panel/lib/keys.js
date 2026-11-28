@@ -77,8 +77,7 @@ export function copyShortcut(event, mac) {
   return COPY_KEYS.find(held)?.what ?? null;
 }
 
-// What a key press in the panel asks for, as { do, ... }, or null when the key is not the panel's. `canCopy` says
-// whether a copy shortcut has issues to act on: the ticked ones, else the lit one
+// What a key press in the panel asks for, as { do, ... }, or null when the key is not the panel's
 /**
  * @param {KeyEvent} event
  * @param {{ mac: boolean, viewCount: number, hasTicked: boolean, hasLit: boolean, canCopy: boolean }} state

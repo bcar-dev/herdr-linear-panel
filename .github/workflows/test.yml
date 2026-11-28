@@ -20,7 +20,7 @@ jobs:
           node-version-file: package.json
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      # Herdr writes this file into the mod's folder; CI has no Herdr, so it takes the copy kept in the repository
+      # CI has no Herdr to write this file: it takes the repository's copy
       - run: cp vendor/herdr/gpui-kit.d.ts mods/linear-panel/
       - run: pnpm lint
       - run: pnpm run typecheck

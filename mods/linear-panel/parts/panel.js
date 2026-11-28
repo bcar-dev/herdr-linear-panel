@@ -166,7 +166,7 @@ export class Panel {
   // teams, projects and labels
   /** @param {Context} context */
   refresh(context) {
-    this.store.forgetAsked();
+    this.store.askAgainWhenNeeded();
     this.loader.reload(context);
   }
 
@@ -325,7 +325,6 @@ export class Panel {
     context.notify();
   }
 
-  // The arrow keys move the lit row through the issues shown, from the lit one, else from the first or the last.
   // shortcut: Herdr scrolls to a child of the list only, which is a group, so in a group taller than the list the lit
   // row can stay out of sight; reveal the row itself if Herdr ever scrolls to a nested child
   /**

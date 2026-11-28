@@ -389,7 +389,7 @@ function row(panel, issue, group, { theme, identifierWidth, estimateWidth, lit }
     .rounded_b(joined.below ? 0 : 7)
     .when(ticked, (element) => element.bg(withAlpha(theme.accent, TICKED_ALPHA)))
     .when(lit === issue.id && !ticked, (element) => element.bg(theme.hover))
-    // One row is lit, the one the keys act on: the pointer and the arrow keys both move it (`litId`)
+    // No hover style: the arrow keys move the light too (`litId`), and only one row is lit
     .when(!still && panel.litId === issue.id,
       (element) => element.bg(ticked ? withAlpha(theme.accent, TICKED_HOVER_ALPHA) : theme.hover))
     .when(carried, (element) => element.opacity(CARRIED_OPACITY))
