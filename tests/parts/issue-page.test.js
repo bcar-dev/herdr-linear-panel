@@ -204,12 +204,14 @@ describe("deleting a comment", () => {
   const MINE = { id: "c3", body: "Fixed in !12", createdAt: "2026-11-22T10:00:00.000Z", parent: null, botActor: null,
     url: "u3", resolvedAt: null,
     user: { id: "me", name: "Me Myself", displayName: "me", initials: "MM", avatarBackgroundColor: null } };
-  // The page of an issue with a comment of mine, its menu open, and Delete clicked in it: the dialog that asks
-  async function askedToDelete() {
+  // The page of an issue with a comment of mine, its menu open, and Delete clicked in it: the dialog that asks. The
+  // panel knows its bounds once the pointer moved over it, unless `unmoved`
+  async function askedToDelete({ unmoved = false } = {}) {
     const panel = await startPanel({ issues: mine() });
     panel.server.comments = [...COMMENTS, MINE];
     await clickRow(panel, "back-1");
-    slideIn(panel);
+    const slid = slideIn(panel);
+    if (!unmoved) send(slid, slid, "on_mouse_move", at(950, 100), panel.context);
     clickOn(panel, "more-c3");
     const menu = mountOverlay(), root = menu.draw();
     click(root, find(root, "entry-delete"), menu.context);
@@ -222,7 +224,9 @@ describe("deleting a comment", () => {
   it("asks first in a dialog, which keeps the keyboard, and deletes once Delete is clicked", async () => {
     const { panel, menu, dialog } = await askedToDelete();
     assert.ok(host.closed.includes(menu.overlay.id));
-    assert.equal(dialog.overlay.kind, "dialog");
+    // In the middle of the panel (FRAME), not of the window
+    const { kind, at: corner, width, height } = dialog.overlay;
+    assert.deepEqual([kind, corner.x + width / 2, corner.y + height / 2], ["popup", 1100, 390]);
     // The panel, given the keyboard back by the menu, leaves it to the dialog that is open
     const before = focuses(panel.draw());
     panel.context.elapse(200);
@@ -240,20 +244,22 @@ describe("deleting a comment", () => {
       .map((request) => request.variables), [{ id: "c3" }]);
   });
 
-  it("deletes on Enter too, and nothing on Cancel", async () => {
-    const first = await askedToDelete();
-    press(first.dialog.draw(), "enter", first.dialog.context);
-    first.panel.draw();
-    await first.panel.context.idle();
-    assert.equal(deletes(first.panel).length, 1);
-    const second = await askedToDelete();
-    const box = second.dialog.draw();
-    click(box, find(box, "confirm-delete-no"), second.dialog.context);
-    assert.ok(host.closed.includes(second.dialog.overlay.id));
-    second.panel.draw();
-    await second.panel.context.idle();
-    assert.deepEqual(deletes(second.panel), []);
-  });
+  it("deletes on Enter too, and nothing on Cancel; opens in the middle of the window until the panel is placed",
+    async () => {
+      const first = await askedToDelete({ unmoved: true });
+      assert.equal(first.dialog.overlay.kind, "dialog");
+      press(first.dialog.draw(), "enter", first.dialog.context);
+      first.panel.draw();
+      await first.panel.context.idle();
+      assert.equal(deletes(first.panel).length, 1);
+      const second = await askedToDelete();
+      const box = second.dialog.draw();
+      click(box, find(box, "confirm-delete-no"), second.dialog.context);
+      assert.ok(host.closed.includes(second.dialog.overlay.id));
+      second.panel.draw();
+      await second.panel.context.idle();
+      assert.deepEqual(deletes(second.panel), []);
+    });
 });
 
 describe("editing a comment", () => {
