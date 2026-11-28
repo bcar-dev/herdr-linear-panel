@@ -53,8 +53,8 @@ export class Hints {
     this.held = NOTHING_HELD;
   }
 
-  // The panel never hears the keys let go while a popup has the keyboard. A pointer move tells the modifiers down,
-  // so they are read again, and any other key counts as let go
+  // The panel never hears the keys let go while a popup has the keyboard. A pointer move tells which modifiers are
+  // down, so the hints read them again and count any other key as let go
   /**
    * @param {KeyEvent["modifiers"]} modifiers
    * @param {Context} context
@@ -84,8 +84,8 @@ export class Hints {
 
   // The element needs an id. `key` tells the controls apart: give one when several share a label. `body(theme)` draws
   // more above the label, or answers null for nothing. Under a body, an empty label leaves the tooltip to the body
-  // alone. An element takes one hover handler, and the tooltip needs it: `hover` is run from it, for the element's own
-  // use
+  // alone. An element takes one hover handler and the tooltip needs it, so the tooltip's handler runs `hover` for the
+  // element's own use
   /**
    * @param {NativeElement} element
    * @param {string} label

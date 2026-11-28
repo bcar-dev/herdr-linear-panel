@@ -177,8 +177,8 @@ export function openChoices(targets, teams, page, myId, where, { parent, bare = 
 export const openCommands = (targets, teams, page, myId) =>
   dialog(COMMANDS_DIALOG_WIDTH_PX, COMMANDS_DIALOG_HEIGHT_PX, { part: "commands", targets, teams, page, myId });
 
-// Herdr puts a dialog in the middle of the window: in the middle of the panel it is a popup, as wide as the panel
-// allows. Until the panel's bounds are known (`frame`), a dialog
+// Herdr puts a dialog in the middle of the window, so this one is a popup in the middle of the panel, as wide as the
+// panel allows. Until the panel knows its bounds (`frame`), it is a dialog
 /**
  * @param {Issue} issue
  * @param {PageComment} comment

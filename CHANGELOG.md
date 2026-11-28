@@ -9,8 +9,8 @@
 - Deleting a comment asks first, in a dialog in the middle of the panel. Enter or Delete deletes it; Escape or
   Cancel keeps it.
 - Issue page: a typed but unsent comment or reply is still there when the page opens again, until Herdr restarts.
-- `↑` and `↓` move the light through the list, and `Enter` opens the lit issue's page. The pointer moves the same
-  light, and the keys that act on one issue act on the lit one.
+- `↑` and `↓` move the highlight through the list, and `Enter` opens the highlighted issue's page. The pointer moves
+  the same highlight, and the keys that act on one issue act on the highlighted one.
 
 ### Changed
 
@@ -26,8 +26,8 @@
   `theme` (was `t`), `event` (was `e`), `myId` (was `me`), and others that needed a comment to explain them. The
   linter refuses one-letter names and the usual abbreviations, bare TODO markers, end-of-line comments, and unused
   suppressions.
-- Stale comments and those that repeated what a test now checks are gone. The request kinds are documented on their
-  type in `types.d.ts`.
+- Stale comments and those that repeated what a test now checks are gone. `types.d.ts` documents the request kinds
+  on their type.
 - A stricter type check: the `Theme` type lists the theme's colors by name, so a misspelled one fails the check, and a
   value read by index from a list or a record counts as possibly missing (`noUncheckedIndexedAccess`).
 - The panel's loads and its spinner live in `parts/loader.js` and have their own tests; the popups' sizes live in
@@ -37,8 +37,8 @@
   px, and corners by what they round. Odd sizes moved to the nearest step, so a few gaps and texts change by 1 to
   2 px; a corner as round as its control is drawn fully round. A test keeps bare numbers out of these, and allows
   only the negative margins known to be safe.
-- One button for the comment editor and the delete dialog, in three tones; the danger and success colors are named
-  by purpose.
+- One button for the comment editor and the delete dialog, in three tones; `style.js` names the danger and success
+  colors by purpose.
 - `pnpm run shot` saves a picture of Herdr's window in `.scratch/`.
 - The panel's work, its drawing and an issue page's comments each live in a file of their own: `parts/requests.js`,
   `parts/panel-view.js` and `parts/comments.js`. `panel.js` drops from 911 to 484 lines, `issue-page.js` from 859 to
@@ -83,7 +83,7 @@
 - A tooltip's keys no longer stay lit after their shortcut opened a popup, such as `⇧` `E` for the estimates. The
   popup gets the keys' release, so the panel forgets the keys held when the keyboard comes back, and reads the
   modifiers again at each move of the pointer, however the popup closed.
-- The panel posts a comment once, however often Send is pressed while the comment is on its way.
+- The panel posts a comment once, however often you press Send while the comment is on its way.
 - A change that gets no answer within 30 seconds fails with an error, as a load does, instead of keeping the spinner
   up until Herdr restarts.
 - A merge request's card leaves out its changes and reviewers when the tracker refuses to send them, instead of showing

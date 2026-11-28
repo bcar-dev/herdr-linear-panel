@@ -18,10 +18,10 @@ export const textWidth = (text, characterPx = TEXT_CHARACTER_WIDTH_PX) => charac
  */
 const rightLimit = (frame, width) => (frame ? frame.x + frame.width - width - EDGE_MARGIN_PX : Infinity);
 
-// Pulled back inside the panel when it would pass its right or bottom edge: Herdr cuts a popup at the window's edge and
-// does not move it. Beside a menu entry, the popup opens on its right when there is room, else on its left when the
-// window has room there, as a submenu does, its first row level with the entry. Without a point or a frame it opens at
-// the pointer
+// Herdr cuts a popup off at the window's edge, so `place` pulls a popup back inside the panel when it would pass the
+// panel's right or bottom edge. Beside a menu entry, the popup opens on its right when there is room, else on its left
+// when the window has room there, as a submenu does, its first row level with the entry. Without a point or a frame it
+// opens at the pointer
 /**
  * @param {Where} where
  * @param {number} width

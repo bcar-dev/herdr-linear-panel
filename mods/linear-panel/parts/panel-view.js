@@ -1,5 +1,5 @@
-// The panel's look: the bar of views and buttons, the total, the list, the strip of ticked issues, the page over
-// them, the spinner and the tooltips. Drawing only: the panel holds what is shown and answers every press and key
+// The panel's look: the bar of views and buttons, the total, the list, the strip of ticked issues, the page over them,
+// the spinner and the tooltips. The panel holds what is shown and answers every press and key; this file only draws
 import { div, image, svg } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
 import * as api from "../api.js";

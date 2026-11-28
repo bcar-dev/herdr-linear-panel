@@ -8,10 +8,10 @@ import { it } from "node:test";
 const CHECKED = /\.(js|ts|json|md)$|^\.editorconfig$/;
 const MOST = 120;
 const ROOT = new URL("../..", import.meta.url).pathname;
-// Written by Herdr: not the project's to wrap
+// Herdr writes this file, so the project does not wrap its lines
 const SKIPPED = ["gpui-kit.d.ts"];
 
-// The project's files as git sees them, new ones included: nothing that .gitignore leaves out, such as an editor's or
+// The project's files as git sees them, new ones included. Git leaves out what .gitignore lists, such as an editor's or
 // a tool's own folder
 const files = () => execFileSync("git", ["ls-files", "--cached", "--others", "--exclude-standard"],
   { cwd: ROOT, encoding: "utf8" })

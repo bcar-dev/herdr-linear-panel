@@ -1,5 +1,5 @@
-// The menu of a comment, a popup: edit it, resolve its thread, copy it, delete it. Edit and Delete are offered on my
-// own comments only; a thread is resolved from its first comment. Delete asks the panel for the dialog that confirms it
+// A comment's menu, a popup: edit it, resolve its thread, copy it, delete it. Only my own comments offer Edit and
+// Delete, and only a thread's first comment offers to resolve it. Delete asks the panel for the dialog that confirms it
 import { MENU_RULE_HEIGHT_PX } from "../config.js";
 import { ask, dismiss } from "../channel.js";
 import { CommentChange, RequestKind } from "../enums.js";

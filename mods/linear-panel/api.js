@@ -80,10 +80,10 @@ const HISTORY = "query($id: String!, $after: String) { issue(id: $id) { "
 const LABELS = `query($team: ID!, $after: String) { issueLabels(first: ${LABELS_PER_PAGE}, after: $after, `
   + "filter: { or: [{ team: { id: { eq: $team } } }, { team: { null: true } }] }) { "
   + "nodes { id name color isGroup parent { id } team { id } } pageInfo { hasNextPage endCursor } } }";
-// The changes and reviewers of the merge requests with these numbers. Undocumented: the tracker's app reads these
-// records, which its API answers but its schema hides, so it may change them without notice; a merge request's card
-// then goes without them (Store.loadMergeDetails). Asked by numbers and repository names, each alone matching many
-// other merge requests; a filter on both repository and number inside `or` answers unrelated ones
+// The changes and reviewers of the merge requests with these numbers. The tracker's own app reads these records and its
+// API answers, but its schema hides them, so the tracker may change them without notice; a merge request's card then
+// goes without them (Store.loadMergeDetails). A filter on both repository and number inside `or` answers unrelated
+// merge requests, so the query asks by numbers and by repository names, though each alone matches many others
 const MERGES = `query($numbers: [Float!], $repos: [String!], $after: String) { pullRequests(first: ${MERGES_PER_PAGE}, `
   + "after: $after, filter: { number: { in: $numbers }, repository: { name: { in: $repos } } }) { nodes { "
   + "url diffStats { fileCount additions deletions } reviewerStates { lastSubmittedDecision reviewer { "
@@ -110,7 +110,7 @@ let cachedKey = "";
 let wait = null;
 
 // A new panel starts from its own address and asks for the key again. Herdr's fetch never gives up and the mod has no
-// timer of its own: the panel lends `pause`, its timer. Without it, a request waits as long as its answer takes
+// timer of its own, so the panel lends its timer, `pause`. Without it, a request waits as long as its answer takes
 /**
  * @param {string | undefined} address
  * @param {(ms: number) => Promise<void>} [pause]
@@ -190,7 +190,7 @@ async function request(query, variables) {
     headers: { "Content-Type": "application/json", Authorization: cachedKey },
     body: JSON.stringify({ query, variables }),
   });
-  // Given up after the timeout, the answer is ignored when it comes: the host cannot cancel a request
+  // The host cannot cancel a request, so after the timeout the mod stops waiting and ignores the answer if one comes
   const response = await (wait ? Promise.race([sent, givenUp(wait)]) : sent);
   if (response.status === UNAUTHORIZED) cachedKey = "";
   // A gateway in front of the API can answer an error page: say which HTTP status, not that the page failed to parse

@@ -1,5 +1,5 @@
-// The closed sets of strings the mod passes around, named once. The values are what is stored, sent and compared:
-// they never change
+// The closed sets of strings the mod passes around, named once. The mod stores, sends and compares these values, so a
+// value must never change
 
 export const CommentChange = Object.freeze({
   DELETE: "delete", EDIT: "edit", RESOLVE: "resolve", UNRESOLVE: "unresolve",

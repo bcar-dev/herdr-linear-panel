@@ -491,7 +491,7 @@ describe("rows", () => {
       press(panel.draw(), "down", panel.context);
       press(panel.draw(), "down", panel.context);
       assert.deepEqual(litRows(), ["BACK-3"]);
-      // The group the row is in is brought into view
+      // The list scrolls the row's group into view
       assert.equal(panel.view.part.scroll.revealed, 2);
       press(panel.draw(), "up", panel.context);
       assert.deepEqual(litRows(), ["BACK-2"]);
@@ -1171,7 +1171,6 @@ describe("header", () => {
     mountOverlay().view.close();
     rest();
     assert.deepEqual(caps(), ["theme.muted", "theme.muted"]);
-    // A popup closed by a press beside it gives no keyboard back: the next pointer move resets the keys
     press(panel.draw(), "e", panel.context, { shift: true });
     const picker = mountOverlay(), drawn = picker.draw();
     send(drawn, drawn, "on_mouse_down_out", at(100, 100), picker.context);
@@ -1365,7 +1364,7 @@ describe("header", () => {
       const failing = await startPanel({ issues: withMerges() });
       failing.server.error = "Cannot query field \"pullRequests\"";
       assert.match(text(await mergeCard(failing, "back-1")), /Merged \d+\w+ ago$/);
-      // The query is not one the tracker documents: its failure is no failure of the panel's
+      // The tracker does not document this query, so its failure shows no error in the panel
       assert.doesNotMatch(text(failing.draw()), /Could not load/);
     });
 

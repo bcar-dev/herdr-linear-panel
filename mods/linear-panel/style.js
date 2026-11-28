@@ -1,5 +1,5 @@
 // The mod's scale of sizes, and the theme's colors named by what they mean. Every text size, corner and gap comes from
-// here (tests/unit/style.test.js holds it). A corner of half its control's height is `rounded_full()` instead
+// here, and tests/unit/style.test.js checks it. A corner of half its control's height uses `rounded_full()`
 
 export const Text = Object.freeze({ CAPTION: 11, SMALL: 12, BODY: 13, LARGE: 14, TITLE: 16, HEADLINE: 18 });
 
@@ -10,8 +10,8 @@ export const Radius = Object.freeze({ MARK: 4, CHIP: 5, ROW: 6, CONTROL: 7, CARD
 
 export const Height = Object.freeze({ ICON_BUTTON: 26, ROW: 28, MENU_ROW: 31, FIELD: 32, BUTTON: 36 });
 
-// The theme as the parts draw with it: Herdr's colors, and the same ones by purpose. Read through, not copied: the
-// tests' stand-in theme is a Proxy, which a copy leaves empty
+// The theme as the parts draw with it: Herdr's colors, and the same ones by purpose. The result reads through to
+// `colors` because the tests' stand-in theme is a Proxy, and a copy of a Proxy comes out empty
 /**
  * @param {Record<string, string>} colors as Herdr gives them
  * @returns {Theme}

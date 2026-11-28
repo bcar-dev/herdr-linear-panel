@@ -142,8 +142,8 @@ export class Panel {
     return [...issues].sort((first, second) => order.indexOf(first.id) - order.indexOf(second.id));
   }
 
-  // A reload the person asked for (R, the reload button) also asks again for what is otherwise asked once a run: the
-  // teams, projects and labels
+  // A reload the person asked for (R, the reload button) also reads again what the panel otherwise reads once a run:
+  // the teams, projects and labels
   /** @param {Context} context */
   refresh(context) {
     this.store.askAgainWhenNeeded();
@@ -447,9 +447,9 @@ export class Panel {
     if (ids.length) this.requests.perform({ kind: RequestKind.STATUS, ids, name: group.state.name }, context);
   }
 
-  // A round button with an icon, a tooltip and a click: only the icon goes brighter under the pointer, not the circle
-  // around it. A hover style does not recolor an icon, which takes its color when it is described: the panel notes
-  // which button is under the pointer (`hoveredControl`). `ring` false leaves the circle without a border
+  // A round button with an icon, a tooltip and a click. Under the pointer the icon goes brighter and the circle around
+  // it stays as it is. A hover style does not recolor an icon, which takes its color when it is described, so the panel
+  // notes which button is under the pointer (`hoveredControl`). `ring` false leaves the circle without a border
   /**
    * @param {Theme} theme
    * @param {{ id: string, name: string, label: string, action: (context: Context) => void, caps?: string[],

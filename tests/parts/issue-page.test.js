@@ -204,8 +204,8 @@ describe("deleting a comment", () => {
   const MINE = { id: "c3", body: "Fixed in !12", createdAt: "2026-11-22T10:00:00.000Z", parent: null, botActor: null,
     url: "u3", resolvedAt: null,
     user: { id: "me", name: "Me Myself", displayName: "me", initials: "MM", avatarBackgroundColor: null } };
-  // The page of an issue with a comment of mine, its menu open, and Delete clicked in it: the dialog that asks. The
-  // panel knows its bounds once the pointer moved over it, unless `unmoved`
+  // Opens the page of an issue with a comment of mine, opens the comment's menu and clicks Delete, which brings up the
+  // dialog that asks. The pointer first moves over the panel so it knows its bounds, unless `unmoved`
   async function askedToDelete({ unmoved = false } = {}) {
     const panel = await startPanel({ issues: mine() });
     panel.server.comments = [...COMMENTS, MINE];
