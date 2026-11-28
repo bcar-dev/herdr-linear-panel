@@ -154,7 +154,7 @@ describe("loading", () => {
     panel.cx.elapse();
     await panel.cx.idle();
     assert.match(text(panel.draw()), /Linear did not answer in time/);
-    assert.ok(!panel.view.part.loading);
+    assert.ok(!panel.view.part.loader.loading);
     host.fetch = panel.server.fetch;
     clickOn(panel, "reload");
     await panel.cx.idle();

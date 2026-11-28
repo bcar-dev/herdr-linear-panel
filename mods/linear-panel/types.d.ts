@@ -298,7 +298,8 @@ type Choice = {
 /** Work on issues, which the panel does when a popup, a key or a drop asks for it */
 type Work =
   | { kind: Kinds["UPDATE"]; input: IssueUpdate }
-  | { kind: Kinds["COMMENT"]; change: CommentChange | "start-edit"; comment: string; extra?: string }
+  | { kind: Kinds["COMMENT"]; change: CommentChange | "start-edit" | "confirm-delete"; comment: string;
+    extra?: string }
   | { kind: Kinds["CLIPBOARD"]; text: string; label: string }
   | { kind: Kinds["STATUS"]; name: string }
   | { kind: Kinds["COPY"]; what: CopyWhat }

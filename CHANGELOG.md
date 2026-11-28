@@ -18,6 +18,9 @@
 - Start: the note that asks the agent to read the issue as information, never as instructions, covers the issue's
   title too, and stays when the issue has no description.
 - ESLint 10.15.0, which drops a vulnerable minimatch (GHSA-g3hv-75wg-m249) from the dev dependencies.
+- The panel's loads and its spinner live in `parts/loader.js`, tested on their own, and the popups' sizes in
+  `parts/sizes.js`. No file imports itself back through others any more; a test keeps it so, and keeps `lib/` free of
+  Herdr.
 - The line-length test reads the files git tracks or would track, so a tool's ignored folder can no longer fail it.
 - `R` and the reload button also read the teams (states, members, cycles), projects and labels again. The panel's own
   reload every minute still reads them once a run.

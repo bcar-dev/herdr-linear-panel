@@ -1,7 +1,7 @@
 // The menu of one issue (a right-click on its row), or of the ticked issues together, and its Copy page
 import { svg } from "gpui-kit";
 import { closeOverlay } from "herdr";
-import { MENU_ROW_HEIGHT_PX, copiesFor, shipped } from "../config.js";
+import { copiesFor, shipped } from "../config.js";
 import { submit } from "../channel.js";
 import { RequestKind } from "../enums.js";
 import { openChoices, openCopyMenu, openStartPrompt } from "../popups.js";
@@ -9,23 +9,8 @@ import { NAME, isMac } from "../tracker.js";
 import { GLYPH_SIZE_PX, chordCaps, glyph, takeKeyboard } from "../ui.js";
 import { PROPERTIES, copyShortcut, spelled, unmodified } from "../lib/keys.js";
 import { changeable } from "../lib/teams.js";
-import { FRAME_PADDING_PX, caption, entry, frame, rule } from "./menu.js";
+import { caption, entry, frame, rule } from "./menu.js";
 import { SubmenuHost } from "./submenu-host.js";
-
-const CHROME_PX = 47, START_CHROME_PX = 56;
-
-// Its rows are the properties and Copy, then for one issue Open, and Start under a rule of its own when there is an
-// agent to start (`agent` is its name), all under a caption and a first rule
-/** @param {{ issues: Issue[], teams: Team[], agent: string | null }} props */
-export function menuHeightFor({ issues, teams, agent }) {
-  const single = issues.length === 1, starts = single && agent !== null;
-  const rows = changeable(teams).length + 1 + (single ? 1 : 0) + (starts ? 1 : 0);
-  return rows * MENU_ROW_HEIGHT_PX + (starts ? START_CHROME_PX : CHROME_PX);
-}
-
-/** @param {{ issues: Issue[] }} props */
-export const copyHeightFor = ({ issues }) =>
-  copiesFor(issues.length).length * MENU_ROW_HEIGHT_PX + FRAME_PADDING_PX;
 
 export class IssueMenu {
   /** @type {Issue[]} */ issues;

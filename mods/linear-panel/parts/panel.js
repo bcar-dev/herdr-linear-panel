@@ -7,7 +7,7 @@ import * as api from "../api.js";
 import * as channel from "../channel.js";
 import * as dock from "../dock.js";
 import { knownAgents } from "herdr";
-import { COMPLETED, HEADER_HEIGHT_PX, MIN_SPIN_MS, NOTE_TEXT_PX, ORDERINGS, RELOAD_EVERY_MS, VIEWS, icon, logo,
+import { COMPLETED, HEADER_HEIGHT_PX, NOTE_TEXT_PX, ORDERINGS, RELOAD_EVERY_MS, VIEWS, icon, logo,
   shipped } from "../config.js";
 import { Completed, Ordering, RequestKind, ViewKey } from "../enums.js";
 import { NAME, isMac, openApp, openPage } from "../tracker.js";
@@ -23,6 +23,7 @@ import { pickAgent } from "../lib/start.js";
 import { estimateLabel } from "../lib/teams.js";
 import { message } from "../lib/text.js";
 import { Hints } from "./hints.js";
+import { Loader } from "./loader.js";
 import { carried, section, warming } from "./issue-list.js";
 import { IssuePage, SLIDE_MS } from "./issue-page.js";
 import { Openers } from "./openers.js";
@@ -74,9 +75,6 @@ const widest = (texts) => textWidth(
 export class Panel {
   /** @type {Agent[]} the programs people can start, as Herdr knows them. Asked once: Herdr asks a shell for them */
   agents = [];
-  again = false;
-  /** @type {string | null} */
-  error = null;
   /** @type {string | null} what the last change or lookup that failed said, until it is clicked away */
   failed = null;
   /** @type {Bounds | undefined} the panel's bounds in the window, as the pointer last told */
@@ -87,9 +85,6 @@ export class Panel {
   hot = null;
   /** @type {string | null} the issue the keys act on: the one under the pointer, or the one the arrow keys moved to */
   hovered = null;
-  loadedAt = 0;
-  loading = false;
-  needsKey = false;
   /** @type {Point | undefined} */
   pointer;
   /** @type {Point | undefined} where the last control was pressed */
@@ -98,12 +93,10 @@ export class Panel {
   pressedBounds;
   // The panel keeps its focused look while it takes the keyboard back from a popup
   retaking = false;
-  spinning = false;
-  spunAt = 0;
   /** @type {string[]} the issues in the order drawn, for a Shift+click to span: not those of a folded group */
   visibleIds = [];
   scroll = ScrollHandle.new();
-  working = 0;
+  loader = new Loader((cx) => this.load(cx));
 
   /**
    * @param {PanelProps} settings
@@ -148,8 +141,8 @@ export class Panel {
   /** @param {Context} cx */
   poll(cx) {
     if (!dock.isShown()) return;
-    if (this.loadedAt === 0) this.reload(cx);
-    else this.reloadQuietly(cx);
+    if (this.loader.loadedAt === 0) this.loader.reload(cx);
+    else this.loader.reloadQuietly(cx);
   }
 
   ticked() {
@@ -169,72 +162,12 @@ export class Panel {
     return [...issues].sort((first, second) => order.indexOf(first.id) - order.indexOf(second.id));
   }
 
-  spin() {
-    if (this.spinning) return;
-    this.spinning = true;
-    this.spunAt = Date.now();
-  }
-
-  // Stops the spinner once it has shown long enough, unless a load or a change is still under way: a quiet reload
-  // that ends must not hide the spinner of a change that has not
-  /** @param {Context} cx */
-  unspin(cx) {
-    const idle = () => !this.loading && !this.working;
-    if (!idle()) return;
-    const rest = this.spunAt + MIN_SPIN_MS - Date.now();
-    if (rest > 0) cx.timer.after(rest, (cx) => { if (idle()) { this.spinning = false; cx.notify(); } });
-    else this.spinning = false;
-  }
-
-  // A click or a key that asks for a reload must cx.notify() to show the spinner
-  /** @param {Context} cx */
-  reload(cx) {
-    this.spin();
-    this.#reload(cx);
-  }
-
   // A reload the person asked for (R, the reload button) also asks again for what is otherwise asked once a run: the
   // teams, projects and labels
   /** @param {Context} cx */
   refresh(cx) {
     this.store.forgetAsked();
-    this.reload(cx);
-  }
-
-  // For reloads nobody asked for (the timer, the read back of a change under a page): they show no spinner
-  /** @param {Context} cx */
-  reloadQuietly(cx) {
-    this.#reload(cx);
-  }
-
-  /** @param {Context} cx */
-  #reload(cx) {
-    if (this.loading) { this.again = true; return; }
-    this.loading = true;
-    this.loadedAt = Date.now();
-    cx.spawn(async (cx) => {
-      /** @type {unknown} */
-      let failure;
-      try {
-        await this.load(cx);
-      } catch (error) {
-        failure = error;
-      }
-      this.endLoad(failure, cx);
-    });
-  }
-
-  /**
-   * @param {unknown} failure undefined when the load went well
-   * @param {Context} cx
-   */
-  endLoad(failure, cx) {
-    this.needsKey = failure instanceof api.NoKey;
-    this.error = failure === undefined || this.needsKey ? null : message(failure);
-    this.loading = false;
-    if (this.again) { this.again = false; this.reloadQuietly(cx); }
-    else if (this.spinning) this.unspin(cx);
-    cx.notify();
+    this.loader.reload(cx);
   }
 
   /** @param {Context} cx */
@@ -307,10 +240,7 @@ export class Panel {
     const changes = MUTATES[request.kind];
     // With a page open, the list is out of sight: the change is read back quietly
     const quiet = Boolean(this.detail);
-    if (changes) {
-      if (!quiet) this.spin();
-      this.working++;
-    }
+    if (changes) this.loader.begin(quiet);
     this.failed = null;
     cx.spawn(async (cx) => {
       try {
@@ -320,9 +250,9 @@ export class Panel {
         undo?.();
       } finally {
         if (changes) {
-          this.working--;
-          if (quiet) this.reloadQuietly(cx);
-          else this.reload(cx);
+          this.loader.end();
+          if (quiet) this.loader.reloadQuietly(cx);
+          else this.loader.reload(cx);
         }
         cx.notify();
       }
@@ -339,7 +269,7 @@ export class Panel {
     keepSetting("reversed", this.display.reversed ? "1" : "0");
     keepSetting("recency", this.display.recency ? "1" : "0");
     keepSetting("completed", this.display.completed);
-    if (change.completed) this.reload(cx);
+    if (change.completed) this.loader.reload(cx);
   }
 
   /**
@@ -364,7 +294,7 @@ export class Panel {
    * @param {Context} cx
    */
   key(event, cx) {
-    if (this.needsKey) return;
+    if (this.loader.needsKey) return;
     if (this.detail) detailKey(this, this.detail, event, cx);
     else listKey(this, event, cx);
   }
@@ -436,7 +366,7 @@ export class Panel {
    * @param {Context} cx
    */
   loadPlannedPoints(cycle, cx) {
-    this.settle(this.store.loadPlannedPoints(cycle, this.loadedAt), "the planned points", cx);
+    this.settle(this.store.loadPlannedPoints(cycle, this.loader.loadedAt), "the planned points", cx);
   }
 
   // The tooltip of a row's merge requests tells what they changed and who reviewed them
@@ -445,7 +375,7 @@ export class Panel {
    * @param {Context} cx
    */
   loadMergeDetails(issue, cx) {
-    this.settle(this.store.loadMergeDetails(issue, this.loadedAt), "the merge request details", cx);
+    this.settle(this.store.loadMergeDetails(issue, this.loader.loadedAt), "the merge request details", cx);
   }
 
   // Answers whether it asked: the labels are not there for a picker until the answer comes
@@ -581,6 +511,7 @@ export class Panel {
   changeComment({ change, comment, extra }, cx) {
     const page = this.detail;
     if (!page) return;
+    if (change === "confirm-delete") return this.openers.confirmDelete(page, comment);
     if (change === "start-edit") {
       return cx.timer.after(0, (cx) => {
         try {
@@ -603,8 +534,7 @@ export class Panel {
    * @param {(cx: Context) => void} then
    */
   trackedWork(task, issue, cx, then) {
-    this.spin();
-    this.working++;
+    this.loader.begin();
     this.failed = null;
     cx.spawn(async (cx) => {
       try {
@@ -613,8 +543,8 @@ export class Panel {
       } catch (error) {
         this.failed = `${issue.identifier}: ${message(error)}`;
       } finally {
-        this.working--;
-        this.unspin(cx);
+        this.loader.end();
+        this.loader.unspin(cx);
         cx.notify();
       }
     });
@@ -690,7 +620,7 @@ export class Panel {
         .child(NAME))
       .child(div()
         .flex_1())
-      .when(this.needsKey, (element) => element
+      .when(this.loader.needsKey, (element) => element
         .child(this.reloadButton(t)));
   }
 
@@ -819,8 +749,8 @@ export class Panel {
       estimateWidth: widest(issues.map((issue) => estimateLabel(store.teams.get(issue.team.id), issue.estimate) ?? "")),
       lit: channel.lit(),
     };
-    const empty = this.loading ? "Loading issues…" : this.view === ViewKey.CYCLE ? "No issues in the current cycle"
-      : "No assigned issues";
+    const empty = this.loader.loading ? "Loading issues…"
+      : this.view === ViewKey.CYCLE ? "No issues in the current cycle" : "No assigned issues";
     /**
      * @param {string} text
      * @param {Color} color
@@ -895,9 +825,9 @@ export class Panel {
         this.pointer = event.position;
         if (this.drag.follow(event.position, event.local_position)) cx.notify();
       })
-      .when(this.needsKey, (element) => element.child(this.header(t)))
-      .when(this.needsKey, (element) => element.child(this.setup.render(t)))
-      .when(!this.needsKey && !covered, (element) => element
+      .when(this.loader.needsKey, (element) => element.child(this.header(t)))
+      .when(this.loader.needsKey, (element) => element.child(this.setup.render(t)))
+      .when(!this.loader.needsKey && !covered, (element) => element
         .child(h_flex()
           .flex_none()
           .px(8)
@@ -918,7 +848,7 @@ export class Panel {
           .px(11)
           .items_center()
           .child(this.totalButton(t, issues)))
-        .children(this.error ? [note(this.error, t.ansi1)] : [])
+        .children(this.loader.error ? [note(this.loader.error, t.ansi1)] : [])
         .children(this.failed ? [note(this.failed, t.ansi1)
           .id("failed")
           .cursor_pointer()
@@ -932,7 +862,7 @@ export class Panel {
           .px(6)
           .pb(6)
           .children(sections.map((group) => section(this, group, look)))
-          .when(!issues.length && !this.error, (element) =>
+          .when(!issues.length && !this.loader.error, (element) =>
             element.child(div()
               .p(8)
               .text_size(12)
@@ -945,7 +875,7 @@ export class Panel {
             .child(`Showing the first ${api.ISSUES_PER_VIEW} issues`))))
         .child(this.island(t)))
       .children(this.detail ? [this.page(t, this.detail)] : [])
-      .when(this.spinning, (element) => element
+      .when(this.loader.spinning, (element) => element
         .child(div()
           .absolute()
           .inset_0()

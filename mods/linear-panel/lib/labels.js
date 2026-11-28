@@ -84,3 +84,20 @@ export function blocks(all, frequentIds) {
     { title: "Workspace labels", labels: ordered(top.filter((label) => !label.team)) },
   ].filter((block) => block.labels.length);
 }
+
+// What a page shows: the labels of a group, or those that are in none
+/**
+ * @param {AnyLabel[]} labels
+ * @param {string | undefined} group
+ */
+export const shownLabels = (labels, group) =>
+  (group ? labels.filter((label) => label.parent?.id === group) : labels.filter((label) => !label.parent));
+
+/**
+ * @param {Issue} issue
+ * @param {AnyLabel[]} labels
+ * @param {string} [group]
+ */
+export const placeholderFor = (issue, labels, group) => (group
+  ? `${labels.find((label) => label.id === group)?.name ?? "Label"}…`
+  : issue.labels.nodes.length ? "Change or add labels…" : "Add labels…");
