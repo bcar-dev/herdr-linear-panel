@@ -257,7 +257,7 @@ describe("start prompt", () => {
       field(prompt.draw())
         .type("Keep it small", prompt.cx);
       submit(prompt);
-      assert.deepEqual(asked(), { ids: ["back-2"], kind: "start", text: "Keep it small" });
+      assert.deepEqual(asked(), { ids: ["back-2"], kind: "start", instructions: "Keep it small" });
       assert.deepEqual(host.closed, ["start"]);
     }
   });

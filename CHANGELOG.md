@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-11-28
+
+### Added
+
+- `post_linear_issue_prompt` setting: the text that ends the agent's first message, after the issue. The example
+  layout has one to replace.
+
+### Changed
+
+- The `start_prompt` setting is now `pre_linear_issue_prompt`. The old name still works.
+
 ## 2026-11-27
 
 ### Added

@@ -5,7 +5,7 @@ import { TOAST_MS, copiesFor } from "./config.js";
 import { CopyWhat } from "./enums.js";
 import { NAME } from "./tracker.js";
 import { copyText } from "./lib/copy.js";
-import { prompt, slug, startState, worktrees } from "./lib/start.js";
+import { firstMessage, slug, startState, worktrees } from "./lib/start.js";
 
 const DEFAULT_WORKTREES = "~/.herdr/worktrees";
 const GIT_TIMEOUT_MS = 30_000;
@@ -55,14 +55,13 @@ async function worktreesFolder() {
   return directory;
 }
 
-// `base` is what the person's settings open the agent's first message with
 /**
  * @param {Issue} issue
- * @param {string} text
  * @param {WorkflowState[]} states
- * @param {{ agent: Agent | null, base: string }} with
+ * @param {Agent | null} agent
+ * @param {PromptParts} parts
  */
-export async function start(issue, text, states, { agent, base }) {
+export async function start(issue, states, agent, parts) {
   if (!agent) throw new Error("No agent to start: install one, or name one in the panel's settings");
   const space = spaces()
       .find((candidate) => candidate.active), pane = focused();
@@ -95,6 +94,6 @@ export async function start(issue, text, states, { agent, base }) {
   if (state) await api.update([issue.id], { stateId: state.id });
   // Named after the issue, else it takes its checkout's folder, the whole branch. It still nests under its repo, which
   // the folder's git tells, not the name
-  const task = prompt(base, text, { ...issue, description }, NAME);
+  const task = firstMessage({ ...issue, description }, NAME, parts);
   run("space.new", { name: issue.identifier, folder: path, tab: issue.identifier, argv: agent.run, task });
 }

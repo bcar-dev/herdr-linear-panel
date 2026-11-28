@@ -20,11 +20,13 @@ it("has the panel in the right panel's stack, under the id the mod looks for", (
   assert.equal(stack.children.find((child) => child.id === SLOT).content.mod, MOD);
 });
 
-it("gives the panel one setting, a start prompt that says it is an example to replace", () => {
+it("gives the panel two settings, a prompt before the issue and one after it, each an example to replace", () => {
   const { props } = byId(SLOT).content;
-  assert.deepEqual(Object.keys(props), ["start_prompt"]);
-  assert.match(props.start_prompt[0], /example start prompt\. Replace these lines with your own/);
-  assert.ok(props.start_prompt.every((line) => typeof line === "string"));
+  assert.deepEqual(Object.keys(props), ["pre_linear_issue_prompt", "post_linear_issue_prompt"]);
+  for (const prompt of [props.pre_linear_issue_prompt, props.post_linear_issue_prompt]) {
+    assert.match(prompt[0], /example prompt\. Replace these lines with your own/);
+    assert.ok(prompt.every((line) => typeof line === "string"));
+  }
 });
 
 it("has the panel's button in the top bar, beside the tab bar", () => {

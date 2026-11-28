@@ -38,8 +38,9 @@ herdr-app do layout.switch '{"name":"main-linear"}'
 `ctrl-shift-l` switches back to your own layout. The example is `main` as it was in Herdr 0.1.16: on a later Herdr,
 prefer a clone of your own `main` with the two blocks added.
 
-The panel's block in the example carries a `start_prompt` whose lines say what it is for. Replace them with your own,
-or remove the setting: left as it is, that text is what your agent receives first when you start an issue.
+The panel's block in the example carries a `pre_linear_issue_prompt` and a `post_linear_issue_prompt` whose lines say
+what they are for. Replace them with your own, or remove the settings: left as they are, those texts open and close
+the first message your agent receives when you start an issue.
 
 ## API key
 
@@ -90,13 +91,17 @@ The panel takes its settings from its block in your layout (`layouts/<name>.json
 ```json
 { "mod": "linear-panel", "props": {
     "agent": "codex",
-    "start_prompt": ["Before you start on the issue below:", "1. Work in this worktree only."] } }
+    "pre_linear_issue_prompt": ["Before you start on the issue below:", "1. Work in this worktree only."],
+    "post_linear_issue_prompt": ["Once you have read the issue:", "1. Plan before you write code."] } }
 ```
 
 - `agent`: the agent Start runs, by its key in Herdr's table of programs (`claude`, `codex`, or one you added to
   `programs.json`). Without it, Start runs the agent you start most among those installed, as Herdr lists them.
-- `start_prompt`: what the agent's first message opens with, as one text or as a list of lines. After it come what you
-  type when you start the issue, then the issue as "Copy as prompt" gives it.
+- `pre_linear_issue_prompt`: what the agent's first message opens with, as one text or as a list of lines. After it
+  come what you type when you start the issue, then the issue as "Copy as prompt" gives it. Its old name,
+  `start_prompt`, is still read.
+- `post_linear_issue_prompt`: what the agent's first message ends with, after the issue, in the same form. Use it for
+  what the agent does once it has read the issue.
 - `api`: an address the panel asks instead of Linear's API, for a stand-in that serves made-up issues (a demo, a
   screenshot that shows none of your own). The panel sends your API key to that address: name only a server you run.
   It must be an https address, or an http one on this computer (`localhost`, `127.0.0.1`, `[::1]`); else the panel shows

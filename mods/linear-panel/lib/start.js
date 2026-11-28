@@ -21,9 +21,8 @@ export function startState(issue, states) {
   return target && now >= 0 && now < flow.indexOf(target) ? target : null;
 }
 
-// The agent's first message begins with the setting, given as a text or as its lines
 /** @param {string | string[] | undefined} setting */
-export const promptBase = (setting) => [setting ?? []].flat()
+export const promptText = (setting) => [setting ?? []].flat()
   .join("\n");
 
 // `wanted` is a key in Herdr's table of programs. Herdr lists its agents most picked first. Null when there is none
@@ -48,15 +47,14 @@ function fenced(text) {
 }
 
 /**
- * @param {string} base
- * @param {string} text
  * @param {Issue & IssueDetails} issue
  * @param {string} tracker
+ * @param {PromptParts} [parts]
  */
-export function prompt(base, text, issue, tracker) {
+export function firstMessage(issue, tracker, { preIssuePrompt = "", instructions = "", postIssuePrompt = "" } = {}) {
   const description = (issue.description ?? "").trim();
-  return [base.trim(), text.trim(), copyText(CopyWhat.PROMPT, [issue], [{}], tracker),
-    description && fenced(description)].filter(Boolean)
+  return [preIssuePrompt.trim(), instructions.trim(), copyText(CopyWhat.PROMPT, [issue], [{}], tracker),
+    description && fenced(description), postIssuePrompt.trim()].filter(Boolean)
     .join("\n\n");
 }
 

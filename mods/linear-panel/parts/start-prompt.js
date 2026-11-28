@@ -19,7 +19,7 @@ export class StartPrompt {
   }
 
   start() {
-    submit(this.props, [this.props.issue], { kind: RequestKind.START, text: this.input.value() });
+    submit(this.props, [this.props.issue], { kind: RequestKind.START, instructions: this.input.value() });
   }
 
   /** @param {Theme} t */

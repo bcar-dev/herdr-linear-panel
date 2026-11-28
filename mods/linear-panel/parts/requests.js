@@ -5,7 +5,7 @@ import { copy, start } from "../actions.js";
 import { TOAST_MS } from "../config.js";
 import { RequestKind } from "../enums.js";
 import { notify } from "herdr";
-import { promptBase } from "../lib/start.js";
+import { promptText } from "../lib/start.js";
 import { moves } from "../lib/teams.js";
 import { composeIssue, openPage } from "../tracker.js";
 
@@ -52,8 +52,10 @@ export async function carryOut(panel, request, targets, cx) {
   switch (request.kind) {
     case RequestKind.START: {
       const [issue] = targets, states = panel.store.teams.get(issue.team.id)?.states ?? [];
-      return void await start(issue, request.text, states,
-        { agent: panel.agent(), base: promptBase(panel.settings.start_prompt) });
+      const { pre_linear_issue_prompt: before = panel.settings.start_prompt, post_linear_issue_prompt: after }
+        = panel.settings;
+      return void await start(issue, states, panel.agent(), { preIssuePrompt: promptText(before),
+        instructions: request.instructions, postIssuePrompt: promptText(after) });
     }
     case RequestKind.COPY: return void await copy(panel.inListOrder(targets), request.what, cx);
     case RequestKind.OPEN: return void await openPage(targets[0].url);

@@ -171,8 +171,8 @@
                       "content": {
                         "mod": "linear-panel",
                         "props": {
-                          "start_prompt": [
-                            "This is an example start prompt. Replace these lines with your own.",
+                          "pre_linear_issue_prompt": [
+                            "This is an example prompt. Replace these lines with your own.",
                             "",
                             "The panel sends this text first to the agent that \"Start with ...\" runs on an issue.",
                             "Then comes what you type when you start the issue, then the issue itself.",
@@ -180,6 +180,15 @@
                             "Use it for what the agent must know before every issue, for example:",
                             "1. You are in a git worktree created for this issue. Work only here.",
                             "2. Say in a few lines what you plan to do before you write code."
+                          ],
+                          "post_linear_issue_prompt": [
+                            "This is an example prompt. Replace these lines with your own.",
+                            "",
+                            "The panel sends this text last, after the issue and its description.",
+                            "",
+                            "Use it for what the agent does once it has read the issue, for example:",
+                            "1. Ask me about anything the issue leaves unclear before you start.",
+                            "2. Run the tests before you say the work is done."
                           ]
                         }
                       }

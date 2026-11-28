@@ -119,7 +119,7 @@ describe("start", () => {
     + "```text\nSteps to reproduce\n```";
   async function start(id, { app = here, ...given } = {}) {
     const panel = await startPanel({ app, git: repository(given), ...given });
-    ask({ ids: [id], kind: "start", text: "Keep it small" });
+    ask({ ids: [id], kind: "start", instructions: "Keep it small" });
     panel.draw();
     await panel.cx.idle();
     return panel;
@@ -147,15 +147,26 @@ describe("start", () => {
       assert.equal(find(panel.draw(), "failed"), null);
     });
 
-  it("runs the agent the settings name, and opens its first message with their base prompt", async () => {
-    await start("back-2", { settings: { agent: "codex", start_prompt: ["Before you start:", "1. Use a worktree."] } });
+  it("runs the agent the settings name, and opens its first message with their prompt before the issue", async () => {
+    await start("back-2",
+      { settings: { agent: "codex", pre_linear_issue_prompt: ["Before you start:", "1. Use a worktree."] } });
     assert.deepEqual(host.commands[0].args.argv, ["codex", "--no-daemon"]);
     assert.equal(host.commands[0].args.task, `Before you start:\n1. Use a worktree.\n\nKeep it small\n\n${ISSUE}`);
   });
 
-  it("takes a base prompt written as one text", async () => {
-    await start("back-2", { settings: { start_prompt: "Tests first." } });
+  it("still reads the prompt before the issue under its old name, start_prompt", async () => {
+    await start("back-2", { settings: { start_prompt: "Old name." } });
+    assert.equal(host.commands[0].args.task, `Old name.\n\nKeep it small\n\n${ISSUE}`);
+  });
+
+  it("takes a prompt written as one text", async () => {
+    await start("back-2", { settings: { pre_linear_issue_prompt: "Tests first." } });
     assert.equal(host.commands[0].args.task, `Tests first.\n\nKeep it small\n\n${ISSUE}`);
+  });
+
+  it("ends the first message with the settings' prompt after the issue", async () => {
+    await start("back-2", { settings: { post_linear_issue_prompt: ["Then:", "1. Plan."] } });
+    assert.equal(host.commands[0].args.task, `Keep it small\n\n${ISSUE}\n\nThen:\n1. Plan.`);
   });
 
   it("says so, and starts nothing, when no agent is installed", async () => {

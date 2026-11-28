@@ -4,7 +4,7 @@
 //   { kind: "update", input }    the same change on every issue
 //   { kind: "status", name }     each issue to its own team's status of that name
 //   { kind: "copy", what }       one entry of the Copy menu
-//   { kind: "start", text }      a checkout and an agent on the issue
+//   { kind: "start", instructions }  a checkout and an agent on the issue
 //   { kind: "open" }             the issue's page in the tracker
 //   { kind: "compose", team }    the tracker's composer for a new issue of that team (no issue)
 //   { kind: "display", change }  display options that changed

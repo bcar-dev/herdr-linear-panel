@@ -295,7 +295,7 @@ type Work =
   | { kind: Kinds["CLIPBOARD"]; text: string; label: string }
   | { kind: Kinds["STATUS"]; name: string }
   | { kind: Kinds["COPY"]; what: CopyWhat }
-  | { kind: Kinds["START"]; text: string }
+  | { kind: Kinds["START"]; instructions: string }
   | { kind: Kinds["OPEN"] };
 
 /** What a popup asks for: work on issues, display options that changed, or the tracker's composer for a team */
@@ -303,6 +303,12 @@ type Ask = Work | { kind: Kinds["DISPLAY"]; change: Partial<Display> }
   | { kind: Kinds["COMPOSE"]; team: MyTeam };
 
 /** A request to the panel: the ids of its issues, and `at` once it is sent */
+/**
+ * What the person wrote of the agent's first message (lib/start.js): the settings' prompts before and after the issue,
+ * and the instructions typed in Start's field
+ */
+type PromptParts = { preIssuePrompt?: string; instructions?: string; postIssuePrompt?: string };
+
 type PanelRequest = Ask & { ids: string[]; at?: number };
 
 /** The issue a popup is open on, and the overlay of that popup */
@@ -354,11 +360,15 @@ type PartProps = Opened<PopupProps> | { part?: "button"; overlay?: string } | Pa
 
 /**
  * The person's settings, given to the panel's block in their layout. `agent` is the key, in Herdr's table of
- * programs, of the agent Start runs. `start_prompt` opens that agent's first message: a text, or its lines. `api` is
- * the address of a stand-in for the tracker's API
+ * programs, of the agent Start runs. `pre_linear_issue_prompt` opens that agent's first message and
+ * `post_linear_issue_prompt` ends it, after the issue: each a text, or its lines. `api` is the address of a stand-in
+ * for the tracker's API
  */
 type PanelProps = {
-  part?: undefined; overlay?: undefined; agent?: string; start_prompt?: string | string[]; api?: string;
+  part?: undefined; overlay?: undefined; agent?: string; pre_linear_issue_prompt?: string | string[];
+  post_linear_issue_prompt?: string | string[]; api?: string;
+  /** The old name of `pre_linear_issue_prompt`, read when that one is not given */
+  start_prompt?: string | string[];
 };
 
 /** An agent people can start, as Herdr lists them: its key and name in the table of programs, and how to run it */
