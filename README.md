@@ -164,8 +164,10 @@ tests/
   parts/        tests of the parts: clicks, keys, drags
 ```
 
-The linter and the tests run on every push to `main` and every pull request (`.github/workflows/test.yml`). What
-changed is in the [changelog](CHANGELOG.md).
+The linter, the type check and the tests run on every push to `main` and every pull request
+(`.github/workflows/test.yml`). CI has no Herdr, so it takes Herdr's `gpui-kit.d.ts` from `vendor/herdr/`, copied
+from Herdr 0.1.18. After a Herdr update, copy the new one there: `cp mods/linear-panel/gpui-kit.d.ts vendor/herdr/`.
+What changed is in the [changelog](CHANGELOG.md).
 
 When Herdr is installed, the stand-in reads its `gpui-kit.d.ts` and refuses any element method that Herdr does not have.
 
