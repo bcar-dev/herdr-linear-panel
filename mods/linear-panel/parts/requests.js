@@ -34,8 +34,8 @@ export class Requests {
     this.lastServedAt = channel.pending()?.at ?? 0;
   }
 
-  // The requests the popups left since the last drawing. Served from a drawing, where nothing may be written: a
-  // clipboard write waits for a timer
+  // The requests the popups left since the last drawing. The panel serves them from a drawing, where it may write
+  // nothing, so a clipboard write waits for a timer
   /** @param {Context} context */
   serveAsked(context) {
     for (const request of channel.requestsAfter(this.lastServedAt)) {

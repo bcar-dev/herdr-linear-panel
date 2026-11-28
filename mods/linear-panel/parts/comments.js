@@ -1,6 +1,6 @@
-// An issue page's comments: what the tracker says of them and of the description, and the fields that write, reply
-// and edit. Text typed and not sent stays in the store as a draft, and a field is sent once, however often submitted.
-// No drawing: the page draws from here
+// An issue page's comments: what the tracker says of them and of the description, and the fields that write, reply and
+// edit. Text typed and not sent stays in the store as a draft, and the panel sends a field once, however often the
+// person submits it. The page draws from here; this file draws nothing
 import { TextareaState } from "gpui-base";
 import * as api from "../api.js";
 import { CommentChange } from "../enums.js";
@@ -49,7 +49,7 @@ export class Comments {
     });
   }
 
-  // Sends what the field holds: the composer's for `replyTo` "", else the reply's to that comment
+  // Sends the composer's text when `replyTo` is "", else the text of the reply to that comment
   /**
    * @param {string} replyTo
    * @param {Context} context

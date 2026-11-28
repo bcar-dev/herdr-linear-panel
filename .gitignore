@@ -1,4 +1,4 @@
-# Written by Herdr into a mod folder. CI uses the copy in vendor/herdr/
+# Herdr writes this file into a mod folder. CI uses the copy in vendor/herdr/
 gpui-kit.d.ts
 !vendor/herdr/gpui-kit.d.ts
 *.error

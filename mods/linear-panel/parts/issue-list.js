@@ -34,7 +34,7 @@ const GHOST_OFFSET_X_PX = 14;
 const GHOST_OFFSET_Y_PX = 10;
 const PERCENT = 100;
 const ROW_MARK_PX = 13;
-// The least target WCAG 2.2 asks. No negative margin to win back the width: in a group sized by its content, Herdr
+// The least target WCAG 2.2 asks. A negative margin would win back the width, but in a group sized by its content Herdr
 // then lays the group out as if it were empty, and the title draws over the identifier
 const STATUS_BUTTON_PX = 24;
 const STATUS_HOVER_BRIGHTNESS = 0.32;
@@ -391,7 +391,7 @@ function row(panel, issue, group, { theme, identifierWidth, estimateWidth, lit }
     .rounded_b(joined.below ? 0 : 7)
     .when(ticked, (element) => element.bg(withAlpha(theme.accent, TICKED_ALPHA)))
     .when(lit === issue.id && !ticked, (element) => element.bg(theme.hover))
-    // No hover style: the arrow keys move the light too (`litId`), and only one row is lit
+    // The arrow keys move the light too (`litId`), and only one row is lit, so the row has no hover style
     .when(!still && panel.litId === issue.id,
       (element) => element.bg(ticked ? withAlpha(theme.accent, TICKED_HOVER_ALPHA) : theme.hover))
     .when(carried, (element) => element.opacity(CARRIED_OPACITY))

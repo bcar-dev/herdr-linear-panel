@@ -1,5 +1,5 @@
-// How the mod's popups and its panel talk: through Herdr's shared state, as each is its own copy of the mod. What a
-// popup asks for is a `PanelRequest`, and types.d.ts lists the kinds
+// Each popup and the panel is its own copy of the mod, so they talk through Herdr's shared state. A popup asks with a
+// `PanelRequest`, and types.d.ts lists the kinds
 import { shared, setShared, closeOverlay } from "herdr";
 import { MOD } from "./config.js";
 

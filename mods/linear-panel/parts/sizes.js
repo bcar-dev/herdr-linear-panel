@@ -1,5 +1,5 @@
-// How tall the issue menu, its Copy page and the label picker are, which popups.js reckons before it opens them. Kept
-// apart from those parts, which open popups themselves: popups.js importing them would import itself back
+// How tall the issue menu, its Copy page and the label picker are, which popups.js reckons before it opens them. Those
+// parts open popups themselves, so popups.js importing them would import itself back
 import { MENU_RULE_HEIGHT_PX, copiesFor } from "../config.js";
 import { shownLabels, wornRows } from "../lib/labels.js";
 import { changeable } from "../lib/teams.js";

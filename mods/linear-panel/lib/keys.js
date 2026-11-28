@@ -34,7 +34,7 @@ export const PROPERTIES = [
   { page: Property.CYCLE, label: "Cycle", tooltip: "Change cycle", key: "C", caps: ["⇧", "C"], icon: "cycle" },
 ];
 
-// The issue page's own shortcuts, beside the properties'. With `command`, the command key comes before `caps`
+// The issue page's shortcuts outside PROPERTIES. With `command`, the command key comes before `caps`
 export const PAGE_KEYS = Object.freeze({
   TEAM: { key: "m", shift: true, command: true, caps: ["⇧", "M"], tooltip: "Move to a different team" },
   LABELS: { key: "l", shift: false, command: false, caps: ["L"], tooltip: "Add labels" },

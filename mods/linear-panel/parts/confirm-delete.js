@@ -1,5 +1,5 @@
-// The dialog that asks before a comment is deleted, which cannot be undone. No handler for Escape: Herdr closes the
-// dialog on it before the mod sees the key
+// The dialog that asks before the panel deletes a comment, which cannot be undone. Herdr closes the dialog on Escape
+// before the mod sees the key, so the dialog has no handler for it
 import { div } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
 import { ask, dismiss } from "../channel.js";

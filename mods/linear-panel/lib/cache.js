@@ -1,5 +1,5 @@
-// What the panel keeps in its storage between runs: its settings (a view, an ordering), and what the tracker tells
-// that hardly ever changes (a team's states, members and cycles, the labels). Storage can be missing or full: nothing
+// What the panel keeps in its storage between runs: its settings (a view, an ordering), and what the tracker tells that
+// hardly ever changes (a team's states, members and cycles, the labels). Storage can be missing or full, so nothing
 // here may throw
 
 // Bumped with any change to what is kept: older entries are never read
@@ -39,7 +39,7 @@ export function keepSetting(name, value) {
   try {
     localStorage.setItem(name, value);
   } catch {
-    // Not kept: the next run starts from the default
+    // Storage refused the setting, so the next run starts from the default
   }
 }
 

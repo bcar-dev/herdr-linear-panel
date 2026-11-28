@@ -89,8 +89,8 @@ export class Store {
       .values()].some((issue) => !this.teams.has(issue.team.id));
   }
 
-  // A team's states, estimate scale, members and cycles change rarely: they are asked again once a run, and on a
-  // reload the person asks for (`askAgainWhenNeeded`)
+  // A team's states, estimate scale, members and cycles change rarely, so the store asks for them once a run, and again
+  // on a reload the person asks for (`askAgainWhenNeeded`)
   loadTeams() {
     const ids = [...new Set([...this.index()
       .values()].map((issue) => issue.team.id))];
@@ -143,7 +143,7 @@ export class Store {
    */
   loadMergeDetails(issue, since) {
     const list = merges(issue), urls = new Set(list.map((merge) => merge.url));
-    // The query is not one the tracker documents (api.js): when it fails, the card goes without what it would add
+    // The tracker does not document this query (api.js), so when it fails, the card goes without what it would add
     return this.mergeDetailsByIssueId.ask(issue.id, async () => {
       const found = await api.mergeDetails(list.map((merge) => merge.number),
         [...new Set(list.map((merge) => merge.repoName))])
