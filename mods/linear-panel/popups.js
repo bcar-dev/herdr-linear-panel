@@ -8,9 +8,9 @@ import { CONTROL_GAP_PX, EDGE_MARGIN_PX, SUBMENU_GAP_PX, fitWidth, listFit, plac
 import { zoom } from "./ui.js";
 import { breaksHeight, heightFor as choicesHeightFor, leadFor as choicesLeadFor } from "./parts/commands.js";
 import { heightFor as commentHeightFor } from "./parts/comment-menu.js";
-import { chromeFor, listHeightFor, placeholderFor, shownLabels } from "./parts/label-picker.js";
-import { copyHeightFor, menuHeightFor } from "./parts/issue-menu.js";
+import { placeholderFor, shownLabels } from "./lib/labels.js";
 import { FRAME_PADDING_PX } from "./parts/menu.js";
+import { chromeFor, copyHeightFor, listHeightFor, menuHeightFor } from "./parts/sizes.js";
 import { heightFor as teamsHeightFor } from "./parts/team-picker.js";
 
 const COMMANDS_DIALOG_HEIGHT_PX = 380, COMMANDS_DIALOG_WIDTH_PX = 460;

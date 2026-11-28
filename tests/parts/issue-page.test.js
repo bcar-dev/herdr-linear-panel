@@ -204,8 +204,6 @@ describe("deleting a comment", () => {
   const MINE = { id: "c3", body: "Fixed in !12", createdAt: "2026-11-22T10:00:00.000Z", parent: null, botActor: null,
     url: "u3", resolvedAt: null,
     user: { id: "me", name: "Me Myself", displayName: "me", initials: "MM", avatarBackgroundColor: null } };
-  const KEYBOARD = "linear-panel.keyboard";
-
   // The page of an issue with a comment of mine, its menu open, and Delete clicked in it: the dialog that asks
   async function askedToDelete() {
     const panel = await startPanel({ issues: mine() });
@@ -214,9 +212,9 @@ describe("deleting a comment", () => {
     slideIn(panel);
     clickOn(panel, "more-c3");
     const menu = mountOverlay(), root = menu.draw();
-    delete host.shared[KEYBOARD];
     click(root, find(root, "entry-delete"), menu.cx);
     menu.view.close();
+    panel.draw();
     return { panel, menu, dialog: mountOverlay() };
   }
   const deletes = (panel) => panel.server.asked.filter((request) => request.kind === "comment-delete");
@@ -225,7 +223,10 @@ describe("deleting a comment", () => {
     const { panel, menu, dialog } = await askedToDelete();
     assert.ok(host.closed.includes(menu.overlay.id));
     assert.equal(dialog.overlay.kind, "dialog");
-    assert.equal(host.shared[KEYBOARD], undefined);
+    // The panel, given the keyboard back by the menu, leaves it to the dialog that is open
+    const before = focuses(panel.draw());
+    panel.cx.elapse(200);
+    assert.equal(focuses(panel.draw()), before);
     const box = dialog.draw();
     assert.equal(text(box), "Delete this comment? You cannot undo this action. Cancel Delete");
     panel.draw();
@@ -878,7 +879,7 @@ describe("what the page keeps from being lost", () => {
     const panel = await opened();
     slideIn(panel);
     panel.server.issues.length = 0;
-    panel.view.part.reload(panel.cx);
+    panel.view.part.loader.reload(panel.cx);
     await panel.cx.idle();
     ask({ ids: ["back-1"], kind: "update", input: { priority: 2 } });
     panel.draw();

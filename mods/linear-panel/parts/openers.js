@@ -2,7 +2,7 @@
 // a key asked
 import { HEADER_HEIGHT_PX } from "../config.js";
 import { Page } from "../enums.js";
-import { openChoices, openCommands, openCommentMenu, openDisplayOptions, openIssueMenu, openLabels,
+import { openChoices, openCommands, openCommentMenu, openConfirmDelete, openDisplayOptions, openIssueMenu, openLabels,
   openTeamPicker } from "../popups.js";
 import { composeIssue } from "../tracker.js";
 import { zoom } from "../ui.js";
@@ -167,6 +167,15 @@ export class Openers {
   commentMenu(comment) {
     const { panel } = this, page = panel.detail;
     if (page) openCommentMenu(page.issue, comment, comment.user?.id === panel.store.me, this.placed("below"));
+  }
+
+  /**
+   * @param {import("./issue-page.js").IssuePage} page
+   * @param {string} id the comment
+   */
+  confirmDelete(page, id) {
+    const comment = page.comments.find((found) => found.id === id);
+    if (comment) openConfirmDelete(page.issue, comment);
   }
 
   // The page of a label of the issue: for a label of a group, the group's labels, to change it or take it off; for any

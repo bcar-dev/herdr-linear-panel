@@ -3,54 +3,16 @@
 // panel at once and the picker stays open, so several can be changed in one visit
 import { div, svg } from "gpui-kit";
 import { v_flex, InputState } from "gpui-base";
-import { MENU_ROW_HEIGHT_PX, MENU_RULE_HEIGHT_PX, shipped } from "../config.js";
+import { MENU_ROW_HEIGHT_PX, shipped } from "../config.js";
 import { ask, dismiss, wear, wornLabels } from "../channel.js";
 import { RequestKind } from "../enums.js";
 import { openLabels } from "../popups.js";
 import { chevron, labelMark, pillRow, takeKeyboard } from "../ui.js";
-import { blocks, childrenOf, groupOf, matching, wornRows } from "../lib/labels.js";
-import { FRAME_PADDING_PX, MENU_ROW_RADIUS_PX, caption, frame, item, rule, searchRow } from "./menu.js";
+import { blocks, childrenOf, groupOf, matching, placeholderFor, wornRows } from "../lib/labels.js";
+import { MENU_ROW_RADIUS_PX, caption, frame, item, rule, searchRow } from "./menu.js";
 import { SubmenuHost } from "./submenu-host.js";
 
-const LEAST_ROWS = 4;
 const NO_BOUNDS = { x: 0, y: 0, width: 0, height: 0 };
-const ROOT_CHROME_PX = 52;
-const ROOT_EXTRA_PX = 60;
-const SEARCH_CHROME_PX = 55;
-
-// What a page shows: the labels of a group, or those that are in none
-/**
- * @param {AnyLabel[]} labels
- * @param {string | undefined} group
- */
-export const shownLabels = (labels, group) =>
-  (group ? labels.filter((label) => label.parent?.id === group) : labels.filter((label) => !label.parent));
-
-/**
- * @param {Issue} issue
- * @param {AnyLabel[]} labels
- * @param {string} [group]
- */
-export const placeholderFor = (issue, labels, group) => (group
-  ? `${labels.find((label) => label.id === group)?.name ?? "Label"}…`
-  : issue.labels.nodes.length ? "Change or add labels…" : "Add labels…");
-
-// What the page has besides its list: the frame, and for a group opened from the issue's labels a search line
-/** @param {{ group?: string, searchable: boolean }} props */
-export const chromeFor = ({ group, searchable }) =>
-  (group ? (searchable ? SEARCH_CHROME_PX : FRAME_PADDING_PX) : ROOT_CHROME_PX);
-
-/**
- * @param {{ issue: Issue, labels: AnyLabel[], frequent: string[], group?: string }} props
- * @param {number} room the height left for the list
- */
-export function listHeightFor({ issue, labels, frequent, group }, room) {
-  const rows = shownLabels(labels, group).length + (group || !frequent.length ? 0 : frequent.length + 1);
-  const entries = group ? 0 : wornRows(labels, issue.labels.nodes.map((label) => label.id)).length;
-  const worn = entries ? entries * MENU_ROW_HEIGHT_PX + MENU_RULE_HEIGHT_PX : 0;
-  const wanted = rows * MENU_ROW_HEIGHT_PX + (group ? 0 : ROOT_EXTRA_PX) + worn;
-  return Math.min(wanted, Math.max(LEAST_ROWS * MENU_ROW_HEIGHT_PX, Math.floor(room)));
-}
 
 export class LabelPicker {
   /**
