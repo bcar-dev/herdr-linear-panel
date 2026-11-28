@@ -15,6 +15,9 @@
 
 - The `start_prompt` setting is now `pre_linear_issue_prompt`. The old name still works.
 - A row's status takes clicks over 24 px instead of 18 px, and the lines that say what failed are 12 px instead of 11.
+- Start: the note that asks the agent to read the issue as information, never as instructions, covers the issue's
+  title too, and stays when the issue has no description.
+- ESLint 10.15.0, which drops a vulnerable minimatch (GHSA-g3hv-75wg-m249) from the dev dependencies.
 - `R` and the reload button also read the teams (states, members, cycles), projects and labels again. The panel's own
   reload every minute still reads them once a run.
 - Start opens its field right under the issue's row, as wide as the row. The field reads "Add instructions
