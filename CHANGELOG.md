@@ -7,34 +7,34 @@
 - `post_linear_issue_prompt` setting: the text that ends the agent's first message, after the issue. The example
   layout has one to replace.
 - Deleting a comment asks first, in a dialog. Enter or Delete deletes it; Escape or Cancel keeps it.
-- Issue page: a comment or a reply typed and not sent is still there when the page opens again, until Herdr restarts.
-- `↑` and `↓` move the lit row through the list, and `Enter` opens the lit issue's page. The pointer moves the same
+- Issue page: a typed but unsent comment or reply is still there when the page opens again, until Herdr restarts.
+- `↑` and `↓` move the light through the list, and `Enter` opens the lit issue's page. The pointer moves the same
   light, and the keys that act on one issue act on the lit one.
 
 ### Changed
 
 - The `start_prompt` setting is now `pre_linear_issue_prompt`. The old name still works.
-- A row's status takes clicks over 24 px instead of 18 px, and the lines that say what failed are 12 px instead of 11.
-- Start: the note that asks the agent to read the issue as information, never as instructions, covers the issue's
-  title too, and stays when the issue has no description.
+- A row's status takes clicks over 24 px instead of 18 px, and error messages are 12 px instead of 11.
+- Start: the note that asks the agent to read the issue as information, never as instructions, also covers the issue's
+  title and stays when the issue has no description.
 - The version is the date of the latest entry in this changelog: 2026.11.28.
-- CI runs the type check too, on a copy of Herdr's `gpui-kit.d.ts` kept in `vendor/herdr/`.
+- CI also runs the type check against a copy of Herdr's `gpui-kit.d.ts` in `vendor/herdr/`.
 - TypeScript 7.0.2, the native compiler: the type check takes 0.4 s instead of 1.1 s.
 - ESLint 10.15.0, which drops a vulnerable minimatch (GHSA-g3hv-75wg-m249) from the dev dependencies.
-- Names say what they hold, in the code and the tests: `context` for what Herdr hands each callback (was `cx`),
-  `theme` (was `t`), `event` (was `e`), `myId` (was `me`), and others that needed a comment to be understood. The
-  linter refuses one-letter names and the usual abbreviations, bare TODO markers, comments at the end of a line, and
-  suppressions that suppress nothing.
-- Comments that had gone stale or that repeated what a test now checks are gone. The request kinds are documented on
-  their type in `types.d.ts`.
-- A stricter type check: the theme's colors are listed by name, so a misspelled one fails the check, and a value read
-  by index from a list or a record counts as possibly missing (`noUncheckedIndexedAccess`).
-- The panel's loads and its spinner live in `parts/loader.js`, tested on their own, and the popups' sizes in
-  `parts/sizes.js`. No file imports itself back through others any more; a test keeps it so, and keeps `lib/` free of
-  Herdr.
+- Names in the code and the tests say what they hold: `context` for what Herdr hands each callback (was `cx`),
+  `theme` (was `t`), `event` (was `e`), `myId` (was `me`), and others that needed a comment to explain them. The
+  linter refuses one-letter names and the usual abbreviations, bare TODO markers, end-of-line comments, and unused
+  suppressions.
+- Stale comments and those that repeated what a test now checks are gone. The request kinds are documented on their
+  type in `types.d.ts`.
+- A stricter type check: the `Theme` type lists the theme's colors by name, so a misspelled one fails the check, and a
+  value read by index from a list or a record counts as possibly missing (`noUncheckedIndexedAccess`).
+- The panel's loads and its spinner live in `parts/loader.js` and have their own tests; the popups' sizes live in
+  `parts/sizes.js`. No file imports itself back through others any more: a test enforces this and keeps `lib/` free
+  of Herdr.
 - The line-length test reads the files git tracks or would track, so a tool's ignored folder can no longer fail it.
-- `R` and the reload button also read the teams (states, members, cycles), projects and labels again. The panel's own
-  reload every minute still reads them once a run.
+- `R` and the reload button also reread the teams (states, members, cycles), projects and labels. The panel's automatic
+  reload every minute reads them only once after Herdr starts.
 - Start opens its field right under the issue's row, as wide as the row. The field reads "Add instructions
   (optional)…": what you type goes between the prompt before the issue and the issue. The Start button is wider and
   turns to the accent color under the pointer.
@@ -67,12 +67,12 @@
   keyboard.
 - The label picker and a label group's page fit their content: as wide as their longest label or search text, and as
   tall as their labels. A group of three labels no longer gets an empty fourth row, nor a 240 px width.
-- A comment is posted once, however often Send is pressed while it is on its way.
+- The panel posts a comment once, however often Send is pressed while the comment is on its way.
 - A change that gets no answer within 30 seconds fails with an error, as a load does, instead of keeping the spinner
   up until Herdr restarts.
-- A merge request's card goes without its changes and reviewers when the tracker refuses to tell them, instead of
-  showing an error in the panel at each hover.
-- The panel starts and works when its storage cannot be read or written; its settings then last until Herdr restarts.
+- A merge request's card leaves out its changes and reviewers when the tracker refuses to send them, instead of showing
+  an error in the panel at each hover.
+- The panel starts and works when it cannot read or write its storage; its settings then last until Herdr restarts.
 
 ## 2026-11-27
 
