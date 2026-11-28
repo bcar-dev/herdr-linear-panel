@@ -33,6 +33,9 @@
 - The panel's loads and its spinner live in `parts/loader.js` and have their own tests; the popups' sizes live in
   `parts/sizes.js`. No file imports itself back through others any more: a test enforces this and keeps `lib/` free
   of Herdr.
+- The panel's work, its drawing and an issue page's comments each live in a file of their own: `parts/requests.js`,
+  `parts/panel-view.js` and `parts/comments.js`. `panel.js` drops from 911 to 484 lines, `issue-page.js` from 859 to
+  710.
 - The line-length test reads the files git tracks or would track, so a tool's ignored folder can no longer fail it.
 - `R` and the reload button also reread the teams (states, members, cycles), projects and labels. The panel's automatic
   reload every minute reads them only once after Herdr starts.
