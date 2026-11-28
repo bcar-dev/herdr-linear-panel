@@ -31,6 +31,15 @@ export const InputState = {
 
 export const Input = { new: (state) => element("Input", state) };
 
+// A scroll area's position, as a test sets it with `scrolled`. `revealed` is the child last asked to be shown
+export const ScrollHandle = {
+  new() {
+    const handle = { scrolled: 0, revealed: null, released: false, offset: () => ({ x: 0, y: handle.scrolled }),
+      release() { handle.released = true; return true; }, scroll_to_item(index) { handle.revealed = index; } };
+    return handle;
+  },
+};
+
 // The state of a multi-line field, as a test sees it: the same as a single line's, with the sizes it is told
 export const TextareaState = {
   new(options) {

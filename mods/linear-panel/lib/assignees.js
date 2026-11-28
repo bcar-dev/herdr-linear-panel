@@ -9,6 +9,7 @@ import { commonMembers, memberName } from "./teams.js";
  * @param {Team[]} teams
  * @param {Member[]} projectMembers
  * @param {string} me my user id
+ * @returns {{ member: Member | null, group: number, title?: string }[]}
  */
 export function assigneeRows(targets, teams, projectMembers, me) {
   const team = commonMembers(teams);
@@ -24,8 +25,8 @@ export function assigneeRows(targets, teams, projectMembers, me) {
     { member: null, group: 0 },
     ...[...current.values()].map((member) => ({ member, group: 0 })),
     ...fresh(projectMembers)
-      .map((member) => ({ member, group: 1 })),
+      .map((member) => ({ member, group: 1, title: "Project members" })),
     ...fresh(team)
-      .map((member) => ({ member, group: 2 })),
+      .map((member) => ({ member, group: 2, title: "Team members" })),
   ];
 }

@@ -56,6 +56,7 @@ export default class IssuesPanel extends View {
     if (!overlay) return;
     unlight(overlay);
     closed(overlay);
+    this.part.release?.();
     if (!this.pressedBeside && !this.part.replaced) giveBack();
   }
 

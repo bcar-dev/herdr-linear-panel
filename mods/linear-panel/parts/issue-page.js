@@ -2,13 +2,14 @@
 // text being edited and what the tracker said of the issue's description and comments. Drawing and its own text fields
 // only: a property's choices, the label picker and every change go through the panel
 import { div, svg } from "gpui-kit";
-import { v_flex, h_flex, Input, InputState, Textarea, TextareaState } from "gpui-base";
+import { v_flex, h_flex, Input, InputState, ScrollHandle, Textarea, TextareaState } from "gpui-base";
 import * as api from "../api.js";
+import { litAnchor } from "../channel.js";
 import { PROPERTY_COLUMNS, icon, pageCopies, priorityEntry } from "../config.js";
 import { CommentChange, Property, RequestKind, Side } from "../enums.js";
 import { NAME, openLink } from "../tracker.js";
 import { chordCaps, cycleMark, face, focusSoon, lit, mergeMark, pillRow, priorityMark, statusMark,
-  teamMark } from "../ui.js";
+  teamMark, zoom } from "../ui.js";
 import { mix } from "../lib/color.js";
 import { cycleName, tense } from "../lib/cycles.js";
 import { timeLabel } from "../lib/history.js";
@@ -41,6 +42,7 @@ const NAME_CHARACTER_WIDTH_PX = 7.6;
 const PAGE_BUTTON_GLYPH_PX = 13;
 const PROPERTY_ICON_PX = 14;
 const PROPERTY_PADDING_PX = 8;
+const SCROLL_ID = "page-scroll";
 const SURFACE_RAISED_MIX = 0.4;
 const TEAM_MARK_PX = 18;
 const UNKNOWN_USER_GREY = "#6b6f76";
@@ -52,6 +54,14 @@ const faceOf = (user, size = AVATAR_PX) =>
   face(user?.initials ?? "?", user?.avatarBackgroundColor ?? UNKNOWN_USER_GREY, size);
 /** @param {PageComment} comment */
 const author = (comment) => (comment.user ? memberName(comment.user) : comment.botActor?.name || "Someone");
+/** @param {{ focus(): void }} state */
+const pressFocuses = (state) => (/** @type {MouseButtonEvent} */ _e, /** @type {Context} */ cx) => {
+  cx.stop_propagation();
+  state.focus();
+};
+
+/** @param {Issue} issue */
+export const addLabelsId = (issue) => (issue.labels.nodes.length ? "page-add-label" : "page-add");
 
 export class IssuePage {
   // False while the page waits at the panel's right edge, true once it slid in
@@ -63,6 +73,7 @@ export class IssuePage {
   /** @type {boolean} */ loaded = false;
   // How many of the page's text fields have the keyboard: the panel leaves its own keys alone meanwhile
   focusedFieldCount = 0;
+  commentHasKeyboard = false;
   // How wide the property lines reach, in pixels of a style (see `properties`)
   widestLinePx = 0;
   diffsOpen = false;
@@ -71,6 +82,9 @@ export class IssuePage {
   /** @type {Field} */ composer;
   /** @type {Map<string, Field>} */ replies = new Map();
   /** @type {{ id: string, field: Field } | null} */ edited = null;
+  /** @type {Map<string, { bounds: Bounds, scrolled: number }>} */ notedBounds = new Map();
+  layoutKey = "";
+  scroll = ScrollHandle.new();
 
   /**
    * @param {Panel} panel
@@ -94,8 +108,19 @@ export class IssuePage {
    * @param {(cx: Context) => void} left
    */
   watch(field, left) {
-    field.on("focus", () => { this.focusedFieldCount++; });
-    field.on("blur", (_e, cx) => { this.focusedFieldCount = Math.max(0, this.focusedFieldCount - 1); left(cx); });
+    let counted = false;
+    field.on("focus", (_e, cx) => {
+      if (!counted) this.focusedFieldCount++;
+      counted = true;
+      this.commentHasKeyboard = false;
+      cx.notify();
+    });
+    field.on("blur", (_e, cx) => {
+      if (counted) this.focusedFieldCount = Math.max(0, this.focusedFieldCount - 1);
+      counted = false;
+      left(cx);
+      cx.notify();
+    });
   }
 
   /**
@@ -180,6 +205,24 @@ export class IssuePage {
     /** @type {{ release(): boolean }[]} */
     const fields = [this.title, this.composer, ...this.replies.values()];
     for (const state of this.edited ? [...fields, this.edited.field] : fields) state.release();
+    this.scroll.release();
+  }
+
+  // Herdr tells where an element is only on a pointer event: noted at every move, for a key to open its control's
+  // popup where a click would
+  /** @param {string} id */
+  noteBounds(id) {
+    return (/** @type {{ bounds: Bounds }} */ event) => {
+      if (this.settled) this.notedBounds.set(id, { bounds: event.bounds, scrolled: this.scroll.offset().y });
+    };
+  }
+
+  /** @param {string} id */
+  spot(id) {
+    const noted = this.notedBounds.get(id), view = this.notedBounds.get(SCROLL_ID)?.bounds;
+    if (!noted) return undefined;
+    const bounds = { ...noted.bounds, y: noted.bounds.y - (this.scroll.offset().y - noted.scrolled) * zoom() };
+    return view && (bounds.y + bounds.height <= view.y || bounds.y >= view.y + view.height) ? undefined : bounds;
   }
 
   /**
@@ -206,6 +249,7 @@ export class IssuePage {
    */
   line(t, id, mark, label, action, tip) {
     const base = this.pageLine(t, `page-${id}`)
+      .on_window_mouse_move(this.noteBounds(`page-${id}`))
       .text_color(t.foreground);
     const row = tip ? this.panel.hints.on(base, tip.label, { caps: tip.caps, body: tip.body, side: this.side(),
       key: `page-${id}`,
@@ -236,7 +280,8 @@ export class IssuePage {
       .self_start()
       .max_w_full()
       .mx(-10)
-      .text_size(14);
+      .text_size(14)
+      .when(litAnchor() === id, (row) => row.bg(t.hover));
   }
 
   /**
@@ -317,7 +362,7 @@ export class IssuePage {
         issue.team.name, () => panel.openers.pickTeam(issue)),
       this.line(t, "priority", priorityMark(t, issue.priority, false), priority, choose(Property.PRIORITY),
         { label: "Change priority", caps: propertyKey(Property.PRIORITY).caps }),
-      this.line(t, "assignee", issue.assignee ? faceOf(issue.assignee, AVATAR_PX)
+      this.line(t, "assign", issue.assignee ? faceOf(issue.assignee, AVATAR_PX)
       : svg(icon("no-assignee"))
         .size(AVATAR_PX)
         .flex_none()
@@ -352,12 +397,18 @@ export class IssuePage {
    * @param {Issue} issue
    */
   labels(t, issue) {
-    const { nodes } = issue.labels, open = (/** @type {Context} */ cx) => this.panel.openers.chooseLabels(issue, cx);
+    const { nodes } = issue.labels, adds = addLabelsId(issue);
+    const open = (/** @type {Context} */ cx) => this.panel.openers.chooseLabels(issue, cx, adds);
     const tip = { caps: ["L"], key: "page-add-labels", side: Side.RIGHT };
     const plus = this.panel.iconButton(t, { id: "page-add-label", name: "plus", label: "Add labels", caps: ["L"],
-      glyph: PAGE_BUTTON_GLYPH_PX, size: ICON_BUTTON_PX, ring: false, side: Side.RIGHT, action: open });
+      glyph: PAGE_BUTTON_GLYPH_PX, size: ICON_BUTTON_PX, ring: false, side: Side.RIGHT, action: open })
+      .on_window_mouse_move(this.noteBounds(adds))
+      .hover((style) => style.bg(t.hover))
+      .when(litAnchor() === adds, (button) => button.bg(t.hover));
+    /** @param {IssueLabel} label */
+    const chipId = (label) => `page-label-${label.id}`;
     const chips = nodes.map((label) => this.panel.control(h_flex()
-      .id(`page-label-${label.id}`)
+      .id(chipId(label))
       .h(LABEL_CHIP_HEIGHT_PX)
       .flex_none()
       .px(9)
@@ -368,7 +419,9 @@ export class IssuePage {
       .border_color(t.border)
       .text_size(12.5)
       .cursor_pointer()
-      .hover((style) => style.bg(t.hover)), (cx) => this.panel.openers.chooseLabel(issue, label, cx))
+      .hover((style) => style.bg(t.hover))
+      .when(litAnchor() === chipId(label), (chip) => chip.bg(t.hover)),
+    (cx) => this.panel.openers.chooseLabel(issue, label, cx, chipId(label)))
       .child(div()
         .size(9)
         .flex_none()
@@ -386,6 +439,7 @@ export class IssuePage {
         .items_center()
         .children([...chips, plus])
       : this.panel.control(this.panel.hints.on(this.pageLine(t, "page-add")
+        .on_window_mouse_move(this.noteBounds("page-add"))
         .text_color(t.muted), "Add labels", tip),
       open)
         .child(svg(icon("label"))
@@ -430,6 +484,7 @@ export class IssuePage {
       .py(6)
       .gap(8)
       .items_center()
+      .on_mouse_down("left", pressFocuses(state))
       .children(mine ? [faceOf(this.panel.store.viewer, COMPOSER_AVATAR_PX)] : [])
       .child(Textarea.new(state)
         .flex_1()
@@ -485,7 +540,8 @@ export class IssuePage {
    */
   text(t, comment) {
     if (this.edited?.id !== comment.id) {
-      return markdownView(`body-${comment.id}`, comment.body, true);
+      return markdownView(`body-${comment.id}`, comment.body, true)
+        .on_mouse_down("left", (_e, cx) => { cx.stop_propagation(); this.commentHasKeyboard = true; cx.notify(); });
     }
     const { field } = this.edited;
     /**
@@ -531,6 +587,7 @@ export class IssuePage {
       .gap(14)
       .child(h_flex()
         .w_full()
+        .on_mouse_down("left", pressFocuses(field))
         .child(Textarea.new(field)
           .flex_1()
           .min_w(0)
@@ -661,6 +718,13 @@ export class IssuePage {
    */
   render(t, issue, width, close) {
     this.issue = issue;
+    const layoutKey = [Boolean(this.panel.failed), this.diffsOpen, merges(issue).length, zoom(),
+      issue.labels.nodes.map((label) => label.id)
+        .join()].join("|");
+    if (layoutKey !== this.layoutKey) {
+      this.layoutKey = layoutKey;
+      this.notedBounds.clear();
+    }
     const roots = this.comments.filter((comment) => !comment.parent);
     const body = v_flex()
       .id("page-body")
@@ -685,8 +749,12 @@ export class IssuePage {
       .w_full()
       .bg(t.background)
       .transition("left", { duration: SLIDE_MS, easing: "ease-out" })
-      // A press on the page stays on it: the panel behind would take the keyboard from the fields
-      .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
+      // A press on a field stops before this one (`pressFocuses`), which gives the panel the keyboard
+      .on_mouse_down("left", (_e, cx) => {
+        cx.stop_propagation();
+        this.commentHasKeyboard = false;
+        this.panel.handle.focus();
+      })
       .on_mouse_up("left", (_e, cx) => cx.stop_propagation())
       .child(v_flex()
         .flex_none()
@@ -708,6 +776,7 @@ export class IssuePage {
           .flex_none()
           .px(16)
           .pb(10)
+          .on_mouse_down("left", pressFocuses(this.title))
           .child(Input.new(this.title)
             .w_full()
             .h(30)
@@ -725,10 +794,12 @@ export class IssuePage {
         .on_click((_e, cx) => { this.panel.failed = null; cx.notify(); })
         .child(this.panel.failed)] : [])
       .child(v_flex()
-        .id("page-scroll")
+        .id(SCROLL_ID)
+        .on_window_mouse_move(this.noteBounds(SCROLL_ID))
         .flex_1()
         .min_h(0)
         .overflow_y_scrollbar()
+        .track_scroll(this.scroll)
         .px(16)
         .pb(12)
         .children(this.diffs(t, issue))

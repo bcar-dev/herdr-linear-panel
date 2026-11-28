@@ -13,7 +13,7 @@ export class StartPrompt {
   constructor(props, cx) {
     this.props = props;
     this.handle = cx.focus_handle();
-    this.input = InputState.new({ placeholder: `Tell ${props.agent} what to do…` });
+    this.input = InputState.new({ placeholder: "Add instructions (optional)…" });
     this.input.on("submit", () => this.start());
     takeKeyboard(this.input, cx);
   }
@@ -43,14 +43,17 @@ export class StartPrompt {
         .child(div()
           .id("submit")
           .h(24)
-          .px(9)
+          .px(24)
           .flex_none()
           .flex()
           .items_center()
+          .justify_center()
           .rounded(5)
           .cursor_pointer()
           .bg(t.solid)
           .text_color(t.solid_foreground)
+          .hover((style) => style.bg(t.accent)
+            .text_color(t.accent_foreground))
           .text_size(12)
           .on_click(() => this.start())
           .child("Start")));

@@ -88,32 +88,38 @@ its emoji when its icon is one; Linear's named icons and custom emoji cannot be 
 letter of its name on a round of its color.
 
 **Popups** open at the pointer or beside the control pressed, rows 31 px high unless said, each in its own box: the
-popover color, a 1 px border, 10 px corners and a shadow, as narrow as its content allows.
+popover color, a 1 px border, 10 px corners and a shadow, as narrow as its content allows. A lit row has 6 px
+corners.
 
 - The issue menu, 228 px wide: the identifier and title, then "Status" `S`, "Priority" `P`, "Assignee" `A`,
   "Estimate" `⇧` `E` and "Cycle" `⇧` `C`, each with an icon, its keys as small key boxes and an arrow; a rule; "Copy"
   with an arrow and "Open in Linear" (`⌘` `Click`); a rule; "Start with Claude Code…", naming the agent Start will run,
   left out with its rule when there is none.
-- A property's choices, 208 to 300 px wide: a chip naming the issue ("BACK-12 · its title", cut to fit; left out beside
-  the menu and when the row's or page's own control opened the choices); a 32 px title that is also the filter field
-  ("Change status…", "Change priority to…", "Assign to…", "Change estimate to…", "Move to cycle…"; "Set" for "Change"
-  where no issue has a priority or estimate yet), the property's key boxes at its right; then 28 px rows, each an icon,
-  a label and a tick on the value held (a dash when only some issues hold it). Digits pick: `1` to `9` for statuses (by
-  their place among all statuses, even when filtered), `0` to `4` for priorities, `0` for "No assignee" and "No
-  cycle", drawn as plain dim digits in a fixed-width face. Statuses show their icon. Priorities run "No priority" to
-  "Low". Estimates: "No estimate" (a triangle reduced to its corners), then "1 Point", "2 Points"… or the T-shirt
-  sizes. Assignees, by display name, initials on their color: "No assignee", then you and the current assignees, then
-  the members of the issues' shared project, then those of their teams, a rule between blocks, each person once.
-  Cycles: "No cycle" (a dashed ring), the team's current cycle and those to come in order, then the previous one under
-  a rule, each "Cycle 88" then, dimmed, its days and where it stands ("Nov 10 - Nov 23 · Current", "· Upcoming",
-  "· Previous"); older cycles are left out. Beyond sixteen rows the list scrolls.
+- A property's choices, 208 to 300 px wide, in 12.8 px text: a chip naming the issue ("BACK-12 · its title", cut to
+  fit; left out beside the menu and when the row's or page's own control opened the choices); a 32 px title that is
+  also the filter field ("Change status…", "Change priority to…", "Assign to…", "Change estimate to…", "Move to
+  cycle…"; "Set" for "Change" where no issue has a priority or estimate yet), the property's key boxes at its right
+  except beside the issue menu, whose entry already shows them; a 1 px rule from edge to edge, 6 px above the list;
+  then 31 px rows, as in the menus, each an icon, a label and a tick on the value held (a dash when only some issues
+  hold it). Digits pick: `1` to `9` for statuses (by their place among all statuses, even when filtered), `0` to `4`
+  for priorities, `0` for "No assignee" and "No cycle", drawn as plain dim digits in a fixed-width face. Statuses show
+  their icon. Priorities run "No priority" to "Low". Estimates: "No estimate" (a triangle reduced to its corners),
+  then "1 Point", "2 Points"… or the T-shirt sizes. Assignees, by display name, initials on their color: "No
+  assignee", you and the current assignees; then, under a 26 px dim caption "Project members", the members of the
+  issues' shared project; then, under "Team members", those of their teams; each person once, alphabetical within a
+  block. Cycles: "No cycle" (a dashed ring), the team's current cycle and those to come in order, then the previous
+  one under a rule, each "Cycle 88" then, dimmed, its days and where it stands ("Nov 10 - Nov 23 · Current",
+  "· Upcoming", "· Previous"); older cycles are left out. The list shows every row the panel's height holds, and
+  scrolls, with no scroll bar, only past that.
 - Copy, 220 to 340 px wide, each entry with an icon and its shortcut as key boxes: "Copy ID" `⌘` `.`, "Copy URL" `⌘`
   `⇧` `,`, "Copy title" `⌘` `⇧` `'`, "Copy title as link" `⌘` `C`, "Copy issue as Markdown" `⌘` `⌥` `M`, "Copy
   everything as Markdown" `⌘` `⌥` `C`, "Copy git branch name" `⌘` `⇧` `.`, "Copy diff links" `⌘` `⌥` `X` (a pull
   request icon whose second end is a chain link), "Copy as prompt" `⌘` `⌥` `P`. Off macOS they read `Ctrl` and `Alt`.
   On several issues: "Copy IDs", "Copy URLs", "Copy titles", "Copy titles as links", "Copy issues as Markdown", and
   "Copy as prompt" is left out.
-- Start, 280 px wide: "Start BACK-12 with Claude Code", a one-line field and a "Start" button.
+- Start, right under the issue's row and as wide as it (280 px when no row is known): "Start BACK-12 with Claude
+  Code", then a 32 px field with an accent border, "Add instructions (optional)…", holding a 24 px "Start" button with
+  24 px of padding each side, which takes the accent color under the pointer.
 - New issue, 200 to 300 px wide: "New issue in…" and a row per team you belong to, its key then its name.
 - Move to team, 220 to 320 px wide: a 34 px search field "Move to team…" with `⌘` `⇧` `M` at its right, a rule, a row
   per team you belong to (its mark, its name, its key dim), the issue's own ticked.
@@ -122,23 +128,26 @@ popover color, a 1 px border, 10 px corners and a shadow, as narrow as its conte
   thread" (a check; a thread's first comment only); under a rule "Copy link to comment" and "Copy content as Markdown";
   under a last rule, your comments only, "Delete".
 - The command window, a centered 460 × 380 px dialog: a chip ("2 issues", or one issue's identifier and title), a title
-  line, then 28 px rows, each an icon, a label and its key in a small bordered box, the row under the keyboard cursor
-  lit. Its first page lists "Assign to…" `A`, "Un-assign from me" `I`, "Change status…" `S`, "Change priority…" `P`,
-  "Change estimate…" `⇧` `E` (when the issues' teams share estimates) and "Move to cycle…" `⇧` `C` (when the issues are
-  all of one team, which has cycles). A choice all the issues hold is ticked; one only some hold shows a dash.
+  line and a rule, then 31 px rows, each an icon, a label and its key in a small bordered box, the row under the
+  keyboard cursor or the pointer lit. Its first page lists "Assign to…" `A`, "Un-assign from me" `I`, "Change status…"
+  `S`, "Change priority…" `P`, "Change estimate…" `⇧` `E` (when the issues' teams share estimates) and "Move to
+  cycle…" `⇧` `C` (when the issues are all of one team, which has cycles). A choice all the issues hold is ticked; one
+  only some hold shows a dash. A page opens with an empty filter.
 - Display options, 280 px wide, under the row of controls at the panel's right edge: three 34 px lines, a 1 px
   separator before the third. "Ordering": a round direction button (a down arrow beside three shortening lines, an up
   arrow when reversed) and a 124 px dropdown naming the field, with a chevron. "Order completed by recency": a
   32 × 18 px switch, accent-colored with its knob right when on. "Completed issues": a dropdown naming the period. A
   dropdown swaps the popup's content for its choices in 21 px rows, the current one ticked.
 
-**Labels.** The label picker is 240 to 320 px wide: a search field ("Add labels…", or "Change or add labels…" when the
-issue has some, `L` in key boxes at its right), a rule, then 31 px rows, 4 to 12 of them high. First the labels the
+**Labels.** The label picker is as wide as its longest label or search text asks, 120 to 320 px: a search field ("Add
+labels…", or "Change or add labels…" when the issue has some, `L` in key boxes at its right), a rule, then 31 px rows,
+as many as it has (4 at least), scrolling with no scroll bar only when the panel cannot hold them. First the labels the
 issue wears, under no caption: a 16 px accent box with a check, the label with its dot (a group's label shows the
 group's name with the label dimmed after it, and an arrow); a rule. Then blocks under dim captions, rules between
 them: "Frequently used" (up to three labels worn by more than one loaded issue, most worn first, each followed by
 its group's name), "Team labels" and "Workspace labels", each with groups first (four dots, an arrow) then plain
-labels (a dot in their color), alphabetical ignoring case. A group's page, beside the picker, lists its labels in order.
+labels (a dot in their color), alphabetical ignoring case. A group's page, against the picker's edge, lists its
+labels in order.
 
 **Without a key** the panel shows the header, three setup steps and the command that stores the key, with a "Copy"
 button: the macOS Keychain command, the Linux keyring command (`secret-tool`), or on Windows `setx LINEAR_API_KEY KEY`.
@@ -195,9 +204,12 @@ open after a choice and the list reorders behind it. The view and every option a
 
 - Click opens the issue's page. `⌘`-click (Ctrl off macOS) opens the issue in the Linear app, else the browser.
 - Right-click opens the issue menu. On one of several ticked issues it reads "3 issues", offers the properties their
-  teams share and Copy, and leaves out "Open in Linear" and Start. An entry with an arrow opens its page beside the
-  menu once the pointer rests on it, right when there is room, else left; a pick there closes both. A key of the menu
-  opens that page in place of the menu.
+  teams share and Copy, and leaves out "Open in Linear" and Start. The light follows the pointer at once, in one
+  shade. An entry with an arrow opens its page 140 ms after the pointer rests on it, against the menu's edge with no
+  gap, its first choice level with the entry: on the right when there is room, else on the left when the window has
+  room there. The entry stays lit while its page shows, and when the pointer leaves the menu toward it. A pick there
+  closes both. A key of the menu opens that page in place of the menu. When the zoom changes, the page opens again
+  against the menu.
 - While a menu or choices are open on an issue its row stays lit, and other rows stop lighting up.
 - The status icon, priority mark and estimate open their choices; a pick sets the value. Marks brighten under the
   pointer with no background (the urgent mark stays orange; a status icon takes a brighter shade of its color, every
@@ -237,24 +249,34 @@ open after a choice and the list reorders behind it. The view and every option a
 - Comments and description are read again after each comment change. A property change is read back with no spinner;
   a comment's work shows one.
 - Escape goes back to the list unless a field of the page has the keyboard.
+- A press anywhere on the page gives the panel the keyboard; a press in a text field, its padding included, gives it
+  to the field. A control whose popup is open stays highlighted; the "+" after the labels lights as a circle, under
+  the pointer too.
 
 **Pickers** (a property's choices, the label picker, Move to team) open beside the control pressed and stay inside the
-panel:
+panel. A property's choices open with the value held lit and scrolled into view; the pointer and the arrow keys move
+the light, which stays in view, and a typed filter lights its first match. Picking the value every issue already holds
+closes them and sends nothing.
 
-- From a row, or from the page with its properties in columns: 6 px under the control, at its left edge. When the list
-  does not fit under it but fits above, it opens above; when it fits neither, it scrolls on the side with more room,
-  showing at least six rows.
+- From a row: 6 px under the control, at its left edge. From the page with its properties in columns: 2 px under the
+  line. When the list does not fit under it but fits above, it opens above; when it fits neither, it scrolls on the
+  side with more room, showing at least six rows.
 - From the page with its properties in one column: right of the longest property line, at one place whichever line was
   pressed, level with that line, as narrow as the room on its right asks (190 px at least), taking the room below and
   scrolling past it.
-- From a key: at the pointer.
+- The label picker, and a group's labels from its chip: 6 px right of the control, its first row level with it, or on
+  its left when the panel lacks room on its right. Beside a control or a menu, a picker moves up rather than shrink
+  when the room below runs out.
+- From a key on the list: at the pointer. From a key on the page: beside its control, as a click opens it; at the
+  pointer when that control is scrolled out of sight, when the page changed since the pointer last moved, or until
+  the pointer has moved once after the page slid in.
 
 **Labels.** "+", a plain chip or `L` opens the picker. A click wears or removes a label at once and the picker stays
 open, so several change in one visit. A group's labels are exclusive: wearing one removes its sibling. Typing lists
 labels whose name contains the text (groups are not listed), and Enter picks the first. Resting 140 ms on a group opens
-its page beside the picker; another entry replaces it. A chip of a group's label opens that group's page right under
-the chip, with its own search field; a pick there closes it. Open pages agree on what the issue wears before the list
-reloads.
+its page against the picker's edge, the group staying lit meanwhile; another entry replaces it. A chip of a group's
+label opens that group's page beside the chip, with its own search field; a pick there closes it. Open pages agree
+on what the issue wears before the list reloads.
 
 **Ticked issues.** The pill counts them and totals their points. "Actions" or `⌘` `K` opens the command window on them;
 the cross or Escape unticks all. An issue that leaves the view, or whose status is folded, is unticked.
@@ -272,9 +294,9 @@ assignee. With one team the composer opens at once.
 **The logo** (in the header without a key) brings the Linear app to the front, or opens linear.app in the browser.
 
 **Keys.** A press anywhere in the panel gives it the keyboard, and the accent outlines the panel as it outlines a
-focused pane. The outline stays while one of its popups is open, and the panel keeps the keyboard once a popup closes
-by Escape or a choice (`P` then Escape leaves the keys with the panel). A popup closed by a click beside it leaves the
-keyboard where the click puts it. On the list:
+focused pane. The outline stays while one of its popups is open or a text field or comment of the page has the
+keyboard, and the panel keeps the keyboard once a popup closes by Escape or a choice (`P` then Escape leaves the keys
+with the panel). A popup closed by a click beside it leaves the keyboard where the click puts it. On the list:
 
 - `1` "Current cycle", `2` "My issues" (a view added later answers to the next digit), `C` new issue, `R` reload,
   `⇧` `V` display options.
@@ -285,9 +307,10 @@ keyboard where the click puts it. On the list:
 - `X` ticks or unticks the issue under the pointer; `⇧` `X` ticks the range to it.
 - The copy shortcuts copy the ticked issues, else the issue under the pointer.
 
-On a page, the list's keys are off: Escape goes back; `S`, `P`, `A`, `⇧` `E`, `⇧` `C` open the page issue's choices at
-the pointer; `L` opens the label picker beside the Labels block; `⌘` `⇧` `M` opens Move to team; `⌘` `.`, `⌘` `⇧` `,`,
-`⌘` `⇧` `.` and `⌘` `⌥` `P` copy its ID, URL, branch name and prompt. No key runs while a page's field has the keyboard.
+On a page, the list's keys are off: Escape goes back; `S`, `P`, `A`, `⇧` `E`, `⇧` `C` open the page issue's choices
+beside its property line, `L` the label picker beside "+" (or "Add label"), `⌘` `⇧` `M` Move to team beside the team
+line, each where a click would (see **Pickers**); `⌘` `.`, `⌘` `⇧` `,`, `⌘` `⇧` `.` and `⌘` `⌥` `P` copy its ID, URL,
+branch name and prompt. No key runs while a page's field has the keyboard.
 
 **Tooltips** show after the pointer rests a second on a control, at once when it comes from a control whose tooltip
 showed less than half a second before. Each names the control and draws its shortcut in key boxes, which light while
@@ -331,10 +354,11 @@ repository with its owner ("worklife-io/iam!599") then " · Reviewed by amalchak
 pane's folder. It reuses the worktree that already has the issue's branch, else adds one under Herdr's worktree
 directory, checking out the branch, or creating it from HEAD. It sets the issue to the team's "In Progress" status (or
 its first started one), unless it is already there or further along. It opens a new space in the worktree, the space
-and its tab named after the identifier, running the agent with a first message in four parts, blank lines between: the
-start prompt from the settings, what you typed, the issue as "Copy as prompt" gives it without its description, then the
-description in a code fence, after a note that anyone in the workspace can edit it and it is information, not orders.
-An empty part is left out. The first failure stops it and shows its error.
+and its tab named after the identifier, running the agent with a first message in five parts, blank lines between:
+`pre_linear_issue_prompt` from the settings, the instructions you typed, the issue as "Copy as prompt" gives it without
+its description, the description in a code fence after a note that anyone in the workspace can edit it and it is
+information, not orders, then `post_linear_issue_prompt`. An empty part is left out. The first failure stops it and
+shows its error.
 
 **The agent.** Start runs the panel's `agent` setting, else the installed agent you start most, among those Herdr knows.
 The menu names it ("Start with Codex…"); with no agent there is no Start.
@@ -362,11 +386,11 @@ required, not authenticated".
 - `mod.json`: `{ "place": "none", "title": "Linear panel" }`.
 - `main.js`: the one `View`, which draws a part chosen by `props().part`. No `part`: the panel, whose props are the
   person's settings. `"button"`: the top-bar button. Popups, each a copy of the mod opened with `openOverlay`:
-  `"issue-menu"` (`issues`, `teams`, `me`, `agent`, `frame`, `origin`), `"copy-menu"` (`issues`, `parent`), `"start"`
-  (`issue`, `agent`), `"display"` (`display`), `"teams"` (`teams`, `issue` for a move), `"labels"` (`issue`, `labels`,
-  `frequent`, `group`, `parent`, `list`, `searchable`, `frame`), `"comment-menu"` (`issue`, `comment`, `own`) and
-  `"commands"` (`targets`, `teams`, `page`, `me`; `compact` shows one page as a property's choices; `bare`, `parent`,
-  `visible`).
+  `"issue-menu"` (`issues`, `teams`, `me`, `agent`, `frame`, `origin`, `row`), `"copy-menu"` (`issues`, `parent`),
+  `"start"` (`issue`, `agent`), `"display"` (`display`), `"teams"` (`teams`, `issue` for a move), `"labels"` (`issue`,
+  `labels`, `frequent`, `group`, `parent`, `list`, `searchable`, `frame`), `"comment-menu"` (`issue`, `comment`, `own`)
+  and `"commands"` (`targets`, `teams`, `page`, `me`; `compact` shows one page as a property's choices; `bare`,
+  `parent`, `visible`). Its `close()` releases the part's fields and scroll handles.
 - `parts/`: a class per part, built from `(props, cx)` with `render(t, cx)`: `panel.js` (loading, ticks, drag, the
   page's slide, drawing), `store.js` (what is known from Linear), `requests.js` (serving popups, keys and drops),
   `panel-keys.js`, `openers.js` (where each popup opens), `submenu-host.js` (a menu's hover page), `issue-list.js`
@@ -413,7 +437,7 @@ required, not authenticated".
   `sort-up`; `LUCIDE-LICENSE.txt` beside them. The tick, chevrons, spinner and terminal icons are the shipped
   `mods/workspace-chrome/` ones.
 - `examples/main-linear.json`: the layout below, whole, made from `main` at Herdr 0.1.16. Its panel block carries a
-  `start_prompt` asking to be replaced.
+  `pre_linear_issue_prompt` and a `post_linear_issue_prompt`, each asking to be replaced.
 
 **Layout.** Shipped layouts are read-only, so the mod lives in a clone of `main` (`layout.clone`), changed twice:
 
@@ -423,11 +447,12 @@ required, not authenticated".
   content `{ "mod": "linear-panel" }`.
 
 **Settings**, the `props` of the `linear` block: `agent` (a key of Herdr's program table, taken even when not installed;
-an unknown key falls back on the first installed), `start_prompt` (a text or a list of lines) and `api` (an address
-asked instead of Linear's, for a stand-in serving made-up issues; the key is sent there, so it must be https, or http on
+an unknown key falls back on the first installed), `pre_linear_issue_prompt` and `post_linear_issue_prompt` (each a
+text or a list of lines; `start_prompt`, the first one's old name, is still read) and `api` (an address asked instead
+of Linear's, for a stand-in serving made-up issues; the key is sent there, so it must be https, or http on
 `localhost`, `127.0.0.1` or `[::1]`, else every request stops before sending with "The api setting must be an https
 address, or an http one on this computer"). A popup does not see the panel's props: the panel passes the agent's name to
-the issue menu and through it to Start.
+the issue menu and through it to Start, and reads the two prompts itself when Start's request comes.
 
 **Keys.** No `keys.json` snippet: the panel's root tracks a focus handle and reads keys in `on_key_down`; the command
 window binds Escape for itself with `cx.bind_keys`.
@@ -498,13 +523,14 @@ folder (`panes()` cwd, else the pane's, else the active space's folder):
 
 **Popup to panel** (`channel.js`). A popup appends `{ at, ids, kind, ... }` to the shared key `linear-panel.requests`
 (last 20 kept, `at` raised past the previous one's) and closes. The panel serves, oldest first, each request whose `at`
-is past the last it served, ignoring those older than its own start. Kinds: `start` (`text`), `update` (`input`),
-`status` (`name`, resolved per team), `copy` (`what`), `open`, `compose` (`team`), `display` (`change`), `comment`
-(`change`: `start-edit`, `edit`, `delete`, `resolve`, `unresolve`), `clipboard` (`text`, `label`). The display options
-and label picker write this way but stay open. Other shared keys: `linear-panel.open` (the issue whose row stays lit,
-with the popup's overlay id), `linear-panel.popups` (the open popups), `linear-panel.keyboard` (a stamp asking the panel
-to take the keyboard back), `linear-panel.labels` (the labels an issue wears as the picker last made them) and
-`linear-panel.projects` (each project's members).
+is past the last it served, ignoring those older than its own start. Kinds: `start` (`instructions`), `update`
+(`input`), `status` (`name`, resolved per team), `copy` (`what`), `open`, `compose` (`team`), `display` (`change`),
+`comment` (`change`: `start-edit`, `edit`, `delete`, `resolve`, `unresolve`), `clipboard` (`text`, `label`). The
+display options and label picker write this way but stay open. Other shared keys: `linear-panel.open` (the issue whose
+row stays lit, the popup's overlay id as `owner`, and as `anchor` the page control it opened from, lit too),
+`linear-panel.popups` (the open popups), `linear-panel.keyboard` (a stamp asking the panel to take the keyboard back),
+`linear-panel.labels` (the labels an issue wears as the picker last made them) and `linear-panel.projects` (each
+project's members).
 
 **Drag and drop** (`lib/drag.js`): a row's `on_mouse_down` records the issue; `on_mouse_move` on rows and headers
 records the status under the pointer; `on_mouse_up` there drops. The panel's root is `relative()`, tracks the pointer
@@ -560,15 +586,26 @@ pushes to `main` and pull requests, actions pinned to commit SHAs.
 - **Popups draw their own box** with `frame: "none"`: Herdr's frame corners cannot be rounder. The border is inside the
   size the opener gives.
 - **Popups are as tall as their content and cut at the window's edge.** A list that only flexes collapses to nothing in
-  a popup: give it a height. Herdr does not move a popup back inside, so the opener places it (`where` in `popups.js`)
-  and needs its height first, from each part's `heightFor`: rows × 31 + 12 for Copy; rows × 31 + 56 for the issue menu
-  with Start, + 47 without; 80 for Start; 44 + rows × 28 (16 at most) + 9 a rule + 28 with a chip for choices; 38 + 31
-  a team for New issue, 52 + 31 a team for Move to team; rows × 31 + 9 a rule + 12 for the comment menu; 138 for the
-  display options; for labels 52 (12 for a group's page, 55 with its search) + rows × 31 (4 to 12, 10 in a group) + 60
-  for captions and rules outside a group page + the worn block, cut to the room below. Width: `fitWidth`, 7 px a
-  character, beside a control no wider than the room left, 190 px at least.
+  a popup: give it a height. Herdr does not move a popup back inside, so the opener places it (`where` in `popups.js`,
+  `place` in `lib/placement.js`) and needs its height first, from each part's `heightFor`: rows × 31 + 12 for Copy;
+  rows × 31 + 56 for the issue menu with Start, + 47 without; 80 for Start; for choices 2 for the border (left out, it
+  squeezes the list) + 10 + 32 the title + 7 its rule + 28 with a chip + 9 a rule or 26 a caption between blocks +
+  rows × 31; 38 + 31 a team for New issue, 52 + 31 a team for Move to team; rows × 31 + 9 a rule + 12 for the comment
+  menu; 138 for the display options; for labels 52 (12 for a group's page, 55 with its search) + rows × 31 (4 at
+  least) + 60 for captions and rules outside a group page + the worn block. A list gets every row the room allows: the
+  panel's whole height beside a menu or a control (the popup then moves up), the room below beside the one-column
+  property lines. Width: `fitWidth`, 7 px a character, beside a control no wider than the room left, 190 px at least.
 - **Two popups can be open at once** (menu and its page, picker and its group). The page gets the menu's overlay id as
   `parent` and closes it after a pick; the menu does not close its page, or a click in the page would be lost.
+- **A key knows no control's place.** Herdr gives bounds only with a pointer event, so the page notes each control's
+  bounds in `on_window_mouse_move` (with the scroll offset then) once its slide has ended, and forgets them all when
+  its layout changes (an error line, "Show more", merge requests, zoom, labels). A key opens beside a noted control
+  still in view, else at the pointer.
+- **A zoom change leaves popups behind.** Herdr keeps a popup where it opened and scales it from its top left corner,
+  so a menu's page drifts off. The menu notes its own bounds in `on_mouse_move` and, on `on_size_change` at a new
+  zoom, opens the page again against it from a 0 ms timer: no popup opens while one is laid out.
+- **A comment's selectable text reports no blur.** The page counts it as holding the keyboard from a press on it until
+  a press elsewhere (`on_mouse_down_out`), not when a key of Herdr moves the keyboard away.
 - **Hover does not reach children or icons.** `hover()` styles only the hovered element, and an `svg()` takes its color
   when described. The checkbox, the marks, a header's arrow and figure and round buttons follow the panel's own record
   of what is under the pointer (`on_hover`, `cx.notify()`); the checkbox is `invisible()` otherwise, keeping its place.
@@ -653,5 +690,11 @@ pushes to `main` and pull requests, actions pinned to commit SHAs.
 - Resting on a row's status shows "Time in status" centered under it at any zoom; the next row's status shows at once.
 - With `"agent": "codex"` the menu reads "Start with Codex…"; with no agent installed it has no Start.
 - Start leaves a worktree on the issue's branch, the issue in progress, and a new space named after it where the agent
-  received the start prompt, your text and the issue.
+  received `pre_linear_issue_prompt`, your instructions, the issue and `post_linear_issue_prompt`, in that order.
+- On the page, with the pointer moved once, `S` opens the status choices beside the status line as a click does, the
+  current status lit; picking it again closes them and sends nothing. With that line scrolled out of sight, `S` opens
+  them at the pointer.
+- From the issue menu, resting on "Assignee" opens its page against the menu's edge, its first row level with the
+  entry, the "Project members" and "Team members" captions over their blocks.
+- "Start with …" opens its field right under the row, as wide as the row.
 - A refused change shows "IDENTIFIER: message" in red in the panel.

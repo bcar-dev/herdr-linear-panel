@@ -6,6 +6,7 @@ import { chevron, keycaps, pillRow } from "../ui.js";
 
 // The frame's padding and border, above and below
 export const FRAME_PADDING_PX = 12;
+export const MENU_ROW_RADIUS_PX = 6;
 const SEARCH_ROW_HEIGHT_PX = 34;
 const SEARCH_TEXT_SIZE_PX = 12.8;
 
@@ -43,6 +44,7 @@ export const frame = (t, id, handle) =>
  */
 export const item = (t, id, label, action, ticked) =>
   pillRow(t, `item-${id}`, MENU_ROW_HEIGHT_PX)
+    .rounded(MENU_ROW_RADIUS_PX)
     .text_color(t.foreground)
     .on_click(action)
     .child(h_flex()
@@ -56,7 +58,7 @@ export const item = (t, id, label, action, ticked) =>
       .flex_none()
       .text_color(t.muted)));
 
-// `lit` keeps the row highlighted while the page it opens shows
+// A menu that passes `lit` decides which row is lit: the row then has no hover light of its own
 /**
  * @param {Theme} t
  * @param {string} id
@@ -65,7 +67,8 @@ export const item = (t, id, label, action, ticked) =>
  * @param {{ caps?: string[] | null, arrow?: boolean, lit?: boolean }} options
  */
 export const entry = (t, id, icon, label, { caps, arrow, lit } = {}) =>
-  pillRow(t, `entry-${id}`, MENU_ROW_HEIGHT_PX)
+  pillRow(t, `entry-${id}`, MENU_ROW_HEIGHT_PX, { lit: lit === undefined })
+    .rounded(MENU_ROW_RADIUS_PX)
     .text_color(t.foreground)
     .when(Boolean(lit), (element) => element.bg(t.selected))
     .child(div()

@@ -190,6 +190,16 @@ describe("place", () => {
     const beside = { x: 1010, y: 650, width: 270, height: 31 };
     assert.deepEqual(place({ beside, frame }, 300, 200), { x: 698, y: 540 });
   });
+
+  it("leaves the gap asked between the entry and the popup", () => {
+    const beside = { x: 1010, y: 300, width: 90, height: 28 };
+    assert.deepEqual(place({ beside, frame, gap: 6 }, 300, 200), { x: 704, y: 294 });
+  });
+
+  it("opens on the right, past the panel, when the window has no room on the left either", () => {
+    const beside = { x: 10, y: 300, width: 80, height: 31 };
+    assert.deepEqual(place({ beside, frame: { x: 0, y: 40, width: 300, height: 700 } }, 300, 200), { x: 102, y: 294 });
+  });
 });
 
 describe("place beside, narrow", () => {

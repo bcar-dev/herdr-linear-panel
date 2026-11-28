@@ -26,7 +26,6 @@ export const MENU_ROW_HEIGHT_PX = 31;
 export const MENU_RULE_HEIGHT_PX = 9;
 export const PICK_HEAD_HEIGHT_PX = 32;
 export const PICK_MAX_ROWS = 16;
-export const PICK_ROW_HEIGHT_PX = 28;
 // 1 is a list, 3 makes 2 rows of 3 (lib/grid.js)
 export const PROPERTY_COLUMNS = 3;
 

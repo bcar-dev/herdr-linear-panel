@@ -7,11 +7,14 @@ import { openChoices, openCommands, openCommentMenu, openDisplayOptions, openIss
 import { composeIssue } from "../tracker.js";
 import { zoom } from "../ui.js";
 import { frequent } from "../lib/labels.js";
+import { CONTROL_GAP_PX } from "../lib/placement.js";
 import { changeable } from "../lib/teams.js";
 import { compareText } from "../lib/text.js";
+import { addLabelsId } from "./issue-page.js";
 
 const CORNER_OFFSET_X_PX = 8;
 const CORNER_OFFSET_Y_PX = 4;
+const PROPERTY_GAP_PX = 2;
 
 export class Openers {
   /** @param {Panel} panel */
@@ -51,17 +54,16 @@ export class Openers {
     return { point: this.panel.pointer, frame: this.panel.frame };
   }
 
-  // Where a popup opens, from a control: right below it, or beside it (on its right, as narrow as the room asks). With
-  // no control known, at the last press
   /**
-   * @param {"below" | "beside"} how
+   * @param {"below" | "right" | "either side"} how
    * @param {Bounds} [bounds] of the control, by default the last one pressed
    * @returns {Where}
    */
   placed(how, bounds = this.panel.pressedBounds) {
     const { frame, pressedAt, pointer } = this.panel;
     if (!bounds) return { point: pressedAt ?? pointer, frame };
-    return how === "below" ? { below: bounds, frame } : { beside: bounds, frame, narrow: true };
+    if (how === "below") return { below: bounds, frame };
+    return how === "right" ? { beside: bounds, frame, narrow: true } : { beside: bounds, frame, gap: CONTROL_GAP_PX };
   }
 
   /**
@@ -86,19 +88,29 @@ export class Openers {
    * @param {Property} page
    */
   pickBeside(issue, page) {
-    this.offer(issue, page, this.propertyWhere(), { bare: true });
+    this.offer(issue, page, this.propertyWhere(), { bare: true, anchor: `page-${page}` });
+  }
+
+  /**
+   * @param {Issue} issue
+   * @param {Property} page
+   */
+  pickByKey(issue, page) {
+    const anchor = `page-${page}`, bounds = this.panel.detail?.spot(anchor);
+    if (!bounds) return this.offer(issue, page, this.atPointer(), { bare: false, anchor });
+    this.offer(issue, page, this.propertyWhere(bounds), { bare: true, anchor });
   }
 
   /**
    * @param {Issue} issue
    * @param {Property} page
    * @param {Where} where
-   * @param {{ bare: boolean }} options
+   * @param {{ bare: boolean, anchor?: string }} options
    */
-  offer(issue, page, where, { bare }) {
+  offer(issue, page, where, { bare, anchor }) {
     const { panel } = this, teams = panel.store.teamsOf([issue]);
     if (changeable(teams)
-      .includes(page)) openChoices([issue], teams, page, panel.store.me, where, { bare });
+      .includes(page)) openChoices([issue], teams, page, panel.store.me, where, { bare, anchor });
   }
 
   /** @param {Issue} issue */
@@ -108,7 +120,8 @@ export class Openers {
 
   /** @param {Issue} issue */
   pickTeamByKey(issue) {
-    this.#teamPicker(issue, this.atPointer());
+    const bounds = this.panel.detail?.spot("page-team");
+    this.#teamPicker(issue, bounds ? this.propertyWhere(bounds) : this.atPointer());
   }
 
   /**
@@ -117,15 +130,16 @@ export class Openers {
    */
   #teamPicker(issue, where) {
     const teams = this.sortedTeams();
-    if (teams.length) openTeamPicker(teams, issue, where);
+    if (teams.length) openTeamPicker(teams, issue, where, "page-team");
   }
 
   // Where a picker of a property opens, from the page: with one column of properties, on the right of the longest line;
   // with several, under the line pressed, since the next column is on its right
-  propertyWhere() {
-    const { pressedBounds, detail } = this.panel;
-    if (!pressedBounds || (detail?.columns ?? 1) > 1) return this.placed("below");
-    return this.placed("beside", this.widenedToLongestLine(pressedBounds));
+  /** @param {Bounds} [bounds] */
+  propertyWhere(bounds = this.panel.pressedBounds) {
+    const columns = this.panel.detail?.columns ?? 1;
+    if (bounds && columns === 1) return this.placed("right", this.widenedToLongestLine(bounds));
+    return { ...this.placed("below", bounds), gap: PROPERTY_GAP_PX };
   }
 
   // A property line's bounds as wide as the longest line of the page's properties: a picker opened beside it then
@@ -138,14 +152,15 @@ export class Openers {
   /**
    * @param {Issue} issue
    * @param {Point} at
+   * @param {Bounds} [row] the issue's row
    */
-  openMenu(issue, at) {
+  openMenu(issue, at, row) {
     const { panel } = this, { selection } = panel;
     panel.handle.focus();
     const together = selection.size > 1 && selection.has(issue.id);
     const issues = together ? panel.inListOrder(panel.ticked()) : [issue];
     openIssueMenu(issues, panel.store.teamsOf(issues), panel.store.me, { point: at, frame: panel.frame },
-      panel.agent()?.name ?? null);
+      panel.agent()?.name ?? null, row);
   }
 
   /** @param {PageComment} comment */
@@ -154,27 +169,29 @@ export class Openers {
     if (page) openCommentMenu(page.issue, comment, comment.user?.id === panel.store.me, this.placed("below"));
   }
 
-  // The page of a label of the issue: for a label of a group, the group's labels, to change it or take it off, under
-  // the label; for any other, the picker beside it
+  // The page of a label of the issue: for a label of a group, the group's labels, to change it or take it off; for any
+  // other, the picker
   /**
    * @param {Issue} issue
    * @param {IssueLabel} label
    * @param {Context} cx
+   * @param {string} [anchor] the label's control, kept lit while its popup is open
    */
-  chooseLabel(issue, label, cx) {
+  chooseLabel(issue, label, cx, anchor) {
     const { panel } = this, offered = panel.store.labels.get(issue.team.id);
-    if (!label.parent || !offered || !panel.pressedBounds) return this.chooseLabels(issue, cx);
+    if (!label.parent || !offered || !panel.pressedBounds) return this.chooseLabels(issue, cx, anchor);
     openLabels(issue, offered, frequent([...panel.store.index()
-      .values()], offered), this.placed("below"),
-    { group: label.parent.id });
+      .values()], offered), this.placed("either side"),
+    { group: label.parent.id, anchor });
   }
 
   /**
    * @param {Issue} issue
    * @param {Context} cx
+   * @param {string} [anchor] the page's control pressed, kept lit while the picker is open
    */
-  chooseLabels(issue, cx) {
-    this.#labels(issue, this.placed("beside"), cx);
+  chooseLabels(issue, cx, anchor) {
+    this.#labels(issue, this.placed("either side"), cx, anchor);
   }
 
   /**
@@ -182,18 +199,20 @@ export class Openers {
    * @param {Context} cx
    */
   chooseLabelsByKey(issue, cx) {
-    this.#labels(issue, this.atPointer(), cx);
+    const anchor = addLabelsId(issue), bounds = this.panel.detail?.spot(anchor);
+    this.#labels(issue, bounds ? this.placed("either side", bounds) : this.atPointer(), cx, anchor);
   }
 
   /**
    * @param {Issue} issue
    * @param {Where} where
    * @param {Context} cx
+   * @param {string} [anchor]
    */
-  #labels(issue, where, cx) {
+  #labels(issue, where, cx, anchor) {
     const { panel } = this, offered = panel.store.labels.get(issue.team.id);
     if (!offered) return panel.loadLabels(issue.team.id, cx);
     openLabels(issue, offered, frequent([...panel.store.index()
-      .values()], offered), where);
+      .values()], offered), where, { anchor });
   }
 }

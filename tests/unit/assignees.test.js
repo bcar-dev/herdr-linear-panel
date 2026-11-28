@@ -11,6 +11,8 @@ describe("assigneeRows", () => {
   it("lists nobody, me and the assignee if not me, then the project's members, then the team's, each once", () => {
     const rows = assigneeRows([{ assignee: bob }], [TEAM], [cy, bob], "ada");
     assert.deepEqual(ids(rows), [[null, 0], ["ada", 0], ["bob", 0], ["cy", 1], ["di", 2]]);
+    assert.deepEqual(rows.map((row) => row.title),
+      [undefined, undefined, undefined, "Project members", "Team members"]);
   });
 
   it("has no project block for an issue outside a project, and only nobody when it has no assignee", () => {

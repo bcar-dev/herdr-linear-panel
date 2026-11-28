@@ -393,7 +393,10 @@ function row(panel, issue, group, { t, identifierWidth, estimateWidth, lit }, jo
     .on_mouse_down("left", (event) => drag.press(issue.id, event.position))
     .on_mouse_move((_e, cx) => panel.aim(group, cx))
     .on_mouse_up("left", (event, cx) => panel.release(issue, group, cx, event))
-    .on_mouse_down("right", (event, cx) => { cx.stop_propagation(); panel.openers.openMenu(issue, event.position); })
+    .on_mouse_down("right", (event, cx) => {
+      cx.stop_propagation();
+      panel.openers.openMenu(issue, event.position, event.bounds);
+    })
     .child(panel.control(box, (cx, event) => panel.tick(issue, event.modifiers.shift, cx))
       .when(ticked, (element) => element.child(svg(shipped("check"))
         .size(10)

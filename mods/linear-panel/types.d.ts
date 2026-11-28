@@ -36,9 +36,13 @@ type Bounds = { x: number; y: number; width: number; height: number };
 /**
  * Where a popup opens (lib/placement.js): at a press inside the panel's `frame`, or `beside` a menu entry, on the right
  * of it, or with `narrow` on the right whatever the room: the popup is then made as narrow as the room needs. `below`
- * is a control the popup opens under, at its left
+ * is a control the popup opens under, at its left. `gap` is the space between the popup and the control, `lead` how far
+ * down the popup the middle of its first row is (window pixels)
  */
-type Where = { point?: Point; frame?: Bounds; beside?: Bounds; below?: Bounds; above?: Bounds; narrow?: boolean };
+type Where = {
+  point?: Point; frame?: Bounds; beside?: Bounds; below?: Bounds; above?: Bounds; narrow?: boolean; gap?: number;
+  lead?: number;
+};
 
 /** What a tooltip says above its label (parts/hints.js): the element, and its size, which places the tooltip */
 type TipBody = { el: NativeElement; width: number; height: number };
@@ -285,6 +289,8 @@ type Choice = {
   mark?: Mark | null;
   /** The block of the list it belongs to: a rule is drawn between blocks */
   group?: number;
+  /** The block's name, drawn above it instead of a rule */
+  title?: string;
   run: () => void;
 };
 
@@ -311,11 +317,12 @@ type PromptParts = { preIssuePrompt?: string; instructions?: string; postIssuePr
 
 type PanelRequest = Ask & { ids: string[]; at?: number };
 
-/** The issue a popup is open on, and the overlay of that popup */
-type OpenOn = { issue: string; owner: string };
+/** The issue a popup is open on, the overlay of that popup, and the id of the page's control that opened it */
+type OpenOn = { issue: string; owner: string; anchor?: string };
 
 type IssueMenuProps = {
   part: "issue-menu"; issues: Issue[]; teams: Team[]; me: string; agent?: string | null; frame?: Bounds; origin?: Point;
+  row?: Bounds;
 };
 type CopyMenuProps = { part: "copy-menu"; issues: Issue[]; parent: string };
 type StartProps = { part: "start"; issue: Issue; agent: string };
@@ -381,6 +388,7 @@ type Panel = import("./parts/panel.js").Panel;
 type Part = {
   render(t: Theme, cx: Context): NativeElement;
   replaced?: boolean;
+  release?(): void;
 };
 
 type PartClass = new (props: PartProps, cx: Context) => Part;

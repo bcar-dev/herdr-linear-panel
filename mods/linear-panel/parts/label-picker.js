@@ -9,15 +9,13 @@ import { RequestKind } from "../enums.js";
 import { openLabels } from "../popups.js";
 import { chevron, labelMark, pillRow, takeKeyboard } from "../ui.js";
 import { blocks, childrenOf, groupOf, matching, wornRows } from "../lib/labels.js";
-import { FRAME_PADDING_PX, caption, frame, item, rule, searchRow } from "./menu.js";
+import { FRAME_PADDING_PX, MENU_ROW_RADIUS_PX, caption, frame, item, rule, searchRow } from "./menu.js";
 import { SubmenuHost } from "./submenu-host.js";
 
-const GROUP_MAX_ROWS = 10;
 const LEAST_ROWS = 4;
 const NO_BOUNDS = { x: 0, y: 0, width: 0, height: 0 };
 const ROOT_CHROME_PX = 52;
 const ROOT_EXTRA_PX = 60;
-const ROOT_MAX_ROWS = 12;
 const SEARCH_CHROME_PX = 55;
 
 // What a page shows: the labels of a group, or those that are in none
@@ -28,12 +26,20 @@ const SEARCH_CHROME_PX = 55;
 export const shownLabels = (labels, group) =>
   (group ? labels.filter((label) => label.parent?.id === group) : labels.filter((label) => !label.parent));
 
+/**
+ * @param {Issue} issue
+ * @param {AnyLabel[]} labels
+ * @param {string} [group]
+ */
+export const placeholderFor = (issue, labels, group) => (group
+  ? `${labels.find((label) => label.id === group)?.name ?? "Label"}…`
+  : issue.labels.nodes.length ? "Change or add labels…" : "Add labels…");
+
 // What the page has besides its list: the frame, and for a group opened from the issue's labels a search line
 /** @param {{ group?: string, searchable: boolean }} props */
 export const chromeFor = ({ group, searchable }) =>
   (group ? (searchable ? SEARCH_CHROME_PX : FRAME_PADDING_PX) : ROOT_CHROME_PX);
 
-// The list shows its rows, or as many as `room` lets it, but never fewer than a few
 /**
  * @param {{ issue: Issue, labels: AnyLabel[], frequent: string[], group?: string }} props
  * @param {number} room the height left for the list
@@ -42,9 +48,8 @@ export function listHeightFor({ issue, labels, frequent, group }, room) {
   const rows = shownLabels(labels, group).length + (group || !frequent.length ? 0 : frequent.length + 1);
   const entries = group ? 0 : wornRows(labels, issue.labels.nodes.map((label) => label.id)).length;
   const worn = entries ? entries * MENU_ROW_HEIGHT_PX + MENU_RULE_HEIGHT_PX : 0;
-  const wanted = Math.min(rows, group ? GROUP_MAX_ROWS : ROOT_MAX_ROWS) * MENU_ROW_HEIGHT_PX
-    + (group ? 0 : ROOT_EXTRA_PX) + worn;
-  return Math.max(LEAST_ROWS * MENU_ROW_HEIGHT_PX, Math.min(wanted, Math.floor(room)));
+  const wanted = rows * MENU_ROW_HEIGHT_PX + (group ? 0 : ROOT_EXTRA_PX) + worn;
+  return Math.min(wanted, Math.max(LEAST_ROWS * MENU_ROW_HEIGHT_PX, Math.floor(room)));
 }
 
 export class LabelPicker {
@@ -58,9 +63,7 @@ export class LabelPicker {
     this.query = "";
     // The page of a group shows beside the picker
     this.pages = new SubmenuHost();
-    const groupName = props.labels.find((label) => label.id === props.group)?.name;
-    this.input = InputState.new({ placeholder: props.group ? `${groupName ?? "Label"}…`
-      : props.issue.labels.nodes.length ? "Change or add labels…" : "Add labels…" });
+    this.input = InputState.new({ placeholder: placeholderFor(props.issue, props.labels, props.group) });
     this.input.on("change", (_event, cx) => { this.query = this.input.value(); cx.notify(); });
     this.input.on("submit", () => {
       if (!this.query.trim()) return;
@@ -105,7 +108,7 @@ export class LabelPicker {
   rest(group, bounds, cx) {
     const { issue, labels, frequent, frame, overlay } = this.props;
     const opens = group ? (/** @type {Bounds | undefined} */ beside) =>
-      openLabels(issue, labels, frequent, { beside, frame }, { group, parent: overlay }) : null;
+      openLabels(issue, labels, frequent, { beside, frame, gap: 0 }, { group, parent: overlay }) : null;
     this.pages.rest(group, bounds, opens, cx);
   }
 
@@ -121,7 +124,8 @@ export class LabelPicker {
         .includes(label.id), note = noted ? groupOf(label, all) : "";
     if (label.isGroup) {
       return pillRow(t, `label-${label.id}`, MENU_ROW_HEIGHT_PX)
-        .bg(this.pages.page?.of === label.id ? t.selected : t.popover)
+        .rounded(MENU_ROW_RADIUS_PX)
+        .bg(this.pages.lit === label.id ? t.selected : t.popover)
         .on_mouse_move((event, cx) => this.rest(label.id, /** @type {Bounds} */ (event.bounds), cx))
         .child(dot)
         .child(div()
@@ -164,6 +168,7 @@ export class LabelPicker {
         .size(10)
         .text_color(t.accent_foreground));
     const row = pillRow(t, `worn-${label.id}`, MENU_ROW_HEIGHT_PX)
+      .rounded(MENU_ROW_RADIUS_PX)
       .child(box)
       .child(labelMark(label))
       .child(div()
@@ -190,7 +195,7 @@ export class LabelPicker {
       .id("label-list")
       .h(this.props.list)
       .flex_none()
-      .overflow_y_scrollbar();
+      .overflow_y_scroll();
     if (group) {
       const found = this.query.trim() ? matching(this.scope(), this.query) : this.scope();
       const rows = found.map((label) => this.row(t, label, labels, false));
@@ -204,6 +209,8 @@ export class LabelPicker {
     const found = this.query.trim() ? matching(labels, this.query) : null;
     const worn = wornRows(labels, this.worn());
     return frame(t, "label-picker", this.handle)
+      .on_mouse_move(this.pages.noteMenuBounds)
+      .on_size_change((_size, cx) => this.pages.followZoom(cx))
       .child(searchRow(t, this.input, ["L"]))
       .child(rule(t))
       .child(found ? list.children(found.map((label) => this.row(t, label, labels, true)))

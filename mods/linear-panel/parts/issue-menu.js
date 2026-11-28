@@ -34,6 +34,7 @@ export class IssueMenu {
   /** @type {string | null} */ agent;
   /** @type {Bounds | undefined} */ frame;
   /** @type {Point | undefined} */ origin;
+  /** @type {Bounds | undefined} */ row;
   /** @type {string} */ overlay;
   // Set when the menu only made way for another page: the keyboard does not go back to the panel
   replaced = false;
@@ -44,13 +45,14 @@ export class IssueMenu {
    * @param {Opened<IssueMenuProps>} props
    * @param {Context} cx
    */
-  constructor({ issues, teams, me, agent, frame, origin, overlay }, cx) {
+  constructor({ issues, teams, me, agent, frame, origin, row, overlay }, cx) {
     this.issues = issues;
     this.teams = teams;
     this.me = me;
     this.agent = agent ?? null;
     this.frame = frame;
     this.origin = origin;
+    this.row = row;
     this.overlay = overlay;
     this.handle = cx.focus_handle();
     this.pages = new SubmenuHost();
@@ -88,7 +90,7 @@ export class IssueMenu {
   render(t) {
     const { issues, teams, me, agent, overlay } = this, [issue] = issues, single = issues.length === 1;
     /** @param {Bounds} [bounds] */
-    const beside = (bounds) => ({ beside: bounds, frame: this.frame });
+    const beside = (bounds) => ({ beside: bounds, frame: this.frame, gap: 0 });
     /**
      * @param {string} id
      * @param {NativeElement} icon
@@ -97,7 +99,7 @@ export class IssueMenu {
      * @param {(bounds?: Bounds) => string} opens
      */
     const paged = (id, icon, label, caps, opens) =>
-      entry(t, id, icon, label, { caps, arrow: true, lit: this.pages.page?.of === id })
+      entry(t, id, icon, label, { caps, arrow: true, lit: this.pages.lit === id })
         .on_mouse_move((event, cx) => this.pages.rest(id, event.bounds, opens, cx))
         .on_click((_e, cx) => this.pages.turnTo(id, opens, cx));
     /**
@@ -107,10 +109,13 @@ export class IssueMenu {
      * @param {OnClick} action
      * @param {string[]} [caps]
      */
-    const plain = (id, icon, label, action, caps) => entry(t, id, icon, label, { caps })
+    const plain = (id, icon, label, action, caps) => entry(t, id, icon, label, { caps, lit: this.pages.lit === id })
       .on_mouse_move((event, cx) => this.pages.rest(id, event.bounds, null, cx))
       .on_click(action);
     return frame(t, "issue-menu", this.handle)
+      .on_mouse_move(this.pages.noteMenuBounds)
+      .on_size_change((_size, cx) => this.pages.followZoom(cx))
+      .on_hover((hovered, cx) => { if (!hovered) this.pages.leave(cx); })
       .on_key_down((event, cx) => this.key(event, cx))
       .child(caption(t, single ? `${issue.identifier} · ${issue.title}` : `${issues.length} issues`))
       .children(this.properties()
@@ -129,7 +134,10 @@ export class IssueMenu {
         plain("start", svg(shipped("terminal"))
           .size(GLYPH_SIZE_PX)
           .text_color(t.muted), `Start with ${agent}…`,
-        () => this.replaceWith((where) => openStartPrompt(issue, where, agent))),
+        // shortcut: the row's place is the one at the right-click, so a list that reloads meanwhile and moves the row
+        // opens the field where the row was; ask the panel for the row's place then if it shows
+        () => this.replaceWith((where) =>
+          openStartPrompt(issue, this.row ? { below: this.row, frame: this.frame, gap: 0 } : where, agent))),
       ] : []);
   }
 }

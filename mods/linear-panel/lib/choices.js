@@ -25,6 +25,7 @@ const DIGIT_KEYS_MAX = 9;
  * @property {string} words what a query is matched against
  * @property {string | null} [key] the digit that picks it
  * @property {number} group the block of the list it is in: a rule sets blocks apart
+ * @property {string} [title] the name of its block, shown above the block instead of a rule
  * @property {Choice["mark"]} mark whether all ("all"), part ("some") or none (null) of the issues hold it
  * @property {ChoiceSource} source what the row stands for
  * @property {Ask} ask what picking it asks the panel for
@@ -65,8 +66,8 @@ const ROWS = {
     source: { property: Property.ESTIMATE, value }, ask: update({ estimate: value }) })),
   [Property.ASSIGN]: ({ targets, teams, me, projectMembers, held }) =>
     assigneeRows(targets, teams, projectMembers, me)
-      .map(({ member, group }) => (member
-        ? choice({ label: memberName(member), group, words: `${member.name} ${member.displayName}`,
+      .map(({ member, group, title }) => (member
+        ? choice({ label: memberName(member), group, title, words: `${member.name} ${member.displayName}`,
           mark: held(member.id, (issue) => issue.assignee?.id ?? null),
           source: { property: Property.ASSIGN, member }, ask: update({ assigneeId: member.id }) })
         : choice({ label: "No assignee", key: "0", group, mark: held(null, (issue) => issue.assignee?.id ?? null),

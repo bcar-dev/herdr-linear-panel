@@ -10,6 +10,38 @@
 ### Changed
 
 - The `start_prompt` setting is now `pre_linear_issue_prompt`. The old name still works.
+- Start opens its field right under the issue's row, as wide as the row. The field reads "Add instructions
+  (optional)…": what you type goes between the prompt before the issue and the issue. The Start button is wider and
+  turns to the accent color under the pointer.
+- A menu's pages open flush against the menu, their first choice level with the entry that opened them. After a zoom
+  change, the page opens again against the menu.
+- The issue menu lights the entry under the pointer at once, in one shade; the entry's page opens 140 ms later.
+- A lit menu row has 6 px corners instead of round ends.
+- Pages of choices have rows as tall as the menu's, in the same text size, and a rule under their search line. A page
+  opens with the value the issues hold lit and in view. The pointer and the arrow keys move that one light, and a
+  typed filter lights its first choice.
+- Picking the value the issues already hold closes the page and sends nothing.
+- A page of choices opened beside the issue menu leaves out its key, which the menu's entry shows.
+- The assignee page titles its blocks "Project members" and "Team members" instead of separating them with rules.
+- A popup beside a menu or a control moves up, rather than shrinking, when the room below runs out. Every list shows
+  as many rows as the panel holds before it scrolls: the caps of 16 choices and 12 labels are gone. A list scrolls
+  with the wheel and the keys, and shows no scroll bar.
+- The command window opens each page with an empty filter.
+- Issue page: the label picker opens on the right of "Add label", the "+" or a label chip, or on its left when the
+  panel lacks room. A group label's chip opens the group's labels beside it, not below it.
+- Issue page: a property's picker opens 2 px under its line instead of 6 px.
+- Issue page: a control stays lit while the popup it opened is open. The "+" after the labels lights its circle under
+  the pointer too.
+
+### Fixed
+
+- Issue page: `L`, a property's key and `⌘` `⇧` `M` open their popup next to their control, as a click does. They open
+  at the pointer only until the pointer first moves after the page slides in, and while the control is out of sight.
+- Issue page: a click on an empty area gives the panel the keyboard, as on the list, and a click in a text field's
+  padding gives the field the keyboard. The panel's focus outline stays while a text field or a comment's text has the
+  keyboard.
+- The label picker and a label group's page fit their content: as wide as their longest label or search text, and as
+  tall as their labels. A group of three labels no longer gets an empty fourth row, nor a 240 px width.
 
 ## 2026-11-27
 

@@ -69,8 +69,13 @@ export function dismiss(overlay) {
  * @param {Issue[]} issues
  * @param {Ask} request
  */
-export function submit({ overlay, parent }, issues, request) {
+export function submit(popup, issues, request) {
   ask({ ids: issues.map((issue) => issue.id), ...request });
+  closeWithParent(popup);
+}
+
+/** @param {{ overlay: string, parent?: string }} popup */
+export function closeWithParent({ overlay, parent }) {
   dismiss(overlay);
   if (!parent) return;
   closed(parent);
@@ -81,13 +86,17 @@ export const pending = () => queue()
   .at(-1);
 
 // While a popup is open on an issue, the panel keeps its row lit and the other rows ignore the pointer. The popup that
-// lit the row unlights it on closing, unless a later popup took the row over
+// lit the row unlights it on closing, unless a later popup took the row over. Opened from a control of the issue's
+// page (its `anchor`), the popup keeps that control lit too
 /**
  * @param {Issue} issue
  * @param {string} overlay
+ * @param {string} [anchor]
  */
-export const light = (issue, overlay) => setShared(OPEN_ON, { issue: issue.id, owner: overlay });
+export const light = (issue, overlay, anchor) =>
+  setShared(OPEN_ON, { issue: issue.id, owner: overlay, ...(anchor && { anchor }) });
 export const lit = () => /** @type {OpenOn} */ (shared(OPEN_ON))?.issue ?? null;
+export const litAnchor = () => /** @type {OpenOn} */ (shared(OPEN_ON))?.anchor ?? null;
 /** @param {string} overlay */
 export function unlight(overlay) {
   if (/** @type {OpenOn} */ (shared(OPEN_ON))?.owner === overlay) setShared(OPEN_ON, null);

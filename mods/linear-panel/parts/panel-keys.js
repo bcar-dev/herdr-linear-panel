@@ -22,7 +22,7 @@ export function detailKey(panel, page, event, cx) {
   } else if (!typing && copied && PAGE_COPY_ORDER.includes(copied)) {
     panel.perform({ kind: RequestKind.COPY, ids: [page.issue.id], what: copied }, cx);
   } else if (!typing && !modifiers.control && !modifiers.alt && !modifiers.platform && property) {
-    panel.openers.chooseByKey(issue, property);
+    panel.openers.pickByKey(issue, property);
   } else if (!typing && event.key === "l" && unmodified(modifiers) && !modifiers.shift) {
     panel.openers.chooseLabelsByKey(issue, cx);
   } else return;

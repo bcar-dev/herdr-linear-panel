@@ -477,6 +477,7 @@ export class Panel {
           cx.stop_propagation();
           this.hints.press(cx);
           this.handle.focus();
+          if (this.detail) this.detail.commentHasKeyboard = false;
           this.drag.cancel();
           this.pressedAt = event.position;
           this.pressedBounds = event.bounds;
@@ -533,6 +534,12 @@ export class Panel {
         cx.notify();
       });
     });
+  }
+
+  // shortcut: a comment's text tells no blur, so `commentHasKeyboard` ends on a press elsewhere only, not when a key of
+  // Herdr moves the keyboard away; track its focus if Herdr ever reports it
+  pageHasKeyboard() {
+    return Boolean(this.detail && (this.detail.focusedFieldCount > 0 || this.detail.commentHasKeyboard));
   }
 
   /** @param {Context} cx */
@@ -627,7 +634,7 @@ export class Panel {
       action)
       .child(svg(icon(name))
         .size(glyph)
-        .text_color(lit(t, this.hot === id)));
+        .text_color(lit(t, this.hot === id || channel.litAnchor() === id)));
   }
 
   /** @param {Theme} t */
@@ -856,9 +863,15 @@ export class Panel {
       .text_size(13)
       // A popup opened from the panel has the keyboard for a moment: the panel keeps its focused look meanwhile, and
       // while it takes the keyboard back
-      .when(channel.popups().length > 0 || this.retaking, (element) => element.border_color(t.accent))
+      .when(channel.popups().length > 0 || this.retaking || this.pageHasKeyboard(),
+        (element) => element.border_color(t.accent))
       .on_mouse_up("left", endDrag)
       .on_mouse_down_out(endDrag)
+      .on_mouse_down_out((_e, cx) => {
+        if (!this.detail?.commentHasKeyboard) return;
+        this.detail.commentHasKeyboard = false;
+        cx.notify();
+      })
       .on_mouse_down("left", () => { this.handle.focus(); this.drag.settle(); })
       .on_mouse_down("right", () => this.handle.focus())
       .on_mouse_move((event, cx) => {

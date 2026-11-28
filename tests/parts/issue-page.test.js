@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { click, find, hover, press, send, text, texts, walk } from "../host/elements.js";
+import { click, find, focuses, hover, press, send, text, texts, walk } from "../host/elements.js";
 import { host } from "../host/herdr.js";
 import { ask } from "../../mods/linear-panel/channel.js";
 import { mountOverlay } from "../host/mount.js";
@@ -209,6 +209,119 @@ describe("the label picker", () => {
   });
 });
 
+describe("a popup opened by its key on the page", () => {
+  // The page notes where a control is as the pointer moves anywhere in the window, and where its scrolling part is:
+  // the stand-in gives one place to every element on the way, so the scrolling part is noted last, on its own
+  const VIEW = { x: 900, y: 120, width: 400, height: 620 };
+  const note = (root, id, bounds, cx) => {
+    send(root, find(root, id), "on_window_mouse_move", { ...at(100, 100), bounds }, cx);
+    send(root, find(root, "page-scroll"), "on_window_mouse_move", { ...at(100, 100), bounds: VIEW }, cx);
+  };
+  // Slid in, then settled: the page notes nothing while it slides
+  const settle = (panel) => { slideIn(panel); return slideIn(panel); };
+
+  it("opens the label picker by Add label, on its left when the panel has no room on its right", async () => {
+    const panel = await opened();
+    const root = settle(panel);
+    send(root, root, "on_mouse_move", at(950, 100), panel.cx);
+    const bounds = { x: 1150, y: 300, width: 90, height: 28 };
+    note(root, "page-add", bounds, panel.cx);
+    press(panel.draw(), "l", panel.cx);
+    const popup = host.overlays.at(-1);
+    assert.equal(popup.props.part, "labels");
+    assert.equal(popup.at.x + popup.width, bounds.x - 6);
+    assert.equal(popup.at.y, bounds.y - 6);
+  });
+
+  it("opens Move to team under the team's line on ⌘ ⇧ M", async () => {
+    const panel = await opened();
+    const root = settle(panel);
+    const bounds = { x: 1040, y: 300, width: 100, height: 28 };
+    note(root, "page-team", bounds, panel.cx);
+    press(panel.draw(), "m", panel.cx, { platform: true, shift: true });
+    const popup = host.overlays.at(-1);
+    assert.equal(popup.props.part, "teams");
+    assert.deepEqual(popup.at, { x: bounds.x, y: bounds.y + bounds.height + 2 });
+  });
+
+  it("opens at the pointer when the line is scrolled out of sight, or the page moved since it was seen", async () => {
+    const panel = await opened();
+    const root = settle(panel);
+    note(root, "page-priority", { x: 1040, y: 60, width: 100, height: 28 }, panel.cx);
+    press(panel.draw(), "p", panel.cx);
+    // At the pointer the choices name their issue
+    assert.equal(host.overlays.at(-1).props.bare, false);
+    note(panel.draw(), "page-priority", { x: 1040, y: 300, width: 100, height: 28 }, panel.cx);
+    panel.view.part.failed = "Something went wrong";
+    press(panel.draw(), "p", panel.cx);
+    assert.equal(host.overlays.at(-1).props.bare, false);
+  });
+
+  it("opens a property's picker close under its line, wherever the page scrolled since", async () => {
+    const panel = await opened();
+    const root = settle(panel);
+    const bounds = { x: 1040, y: 300, width: 100, height: 28 };
+    note(root, "page-priority", bounds, panel.cx);
+    panel.view.part.detail.scroll.scrolled = 50;
+    press(panel.draw(), "p", panel.cx);
+    const popup = host.overlays.at(-1);
+    assert.equal(popup.props.page, "priority");
+    assert.deepEqual(popup.at, { x: bounds.x, y: bounds.y - 50 + bounds.height + 2 });
+  });
+});
+
+describe("a control of the page that opened a popup", () => {
+  it("stays lit while the popup is open", async () => {
+    const panel = await opened();
+    clickOn(panel, "page-add");
+    assert.equal(find(panel.draw(), "page-add").$.style.bg, "theme.hover");
+    assert.equal(find(panel.draw(), "page-priority").$.style.bg, undefined);
+  });
+});
+
+describe("a press on the page", () => {
+  it("gives the panel the keyboard, unless it is in a text field", async () => {
+    const panel = await opened();
+    const root = slideIn(panel);
+    const before = focuses(root);
+    send(root, find(root, "page-body"), "on_mouse_down:left", at(950, 400), panel.cx);
+    assert.equal(focuses(root), before + 1);
+    send(root, [...walk(root)].find((node) => node.$.kind === "Input"), "on_mouse_down:left", at(950, 120), panel.cx);
+    assert.equal(focuses(root), before + 1);
+    // The press, on the field or in the padding around it, gives the field the keyboard
+    assert.equal(panel.view.part.detail.title.focused, 1);
+  });
+
+  it("gives the keyboard back from a comment's text to the panel on a press on a page control", async () => {
+    const panel = await opened();
+    const root = slideIn(panel);
+    const text = [...walk(root)].find((node) => node.$.kind === "TextView" && node.$.args[0] === "body-c1");
+    send(root, text, "on_mouse_down:left", at(950, 400), panel.cx);
+    assert.equal(panel.view.part.detail.commentHasKeyboard, true);
+    clickOn(panel, "page-status");
+    assert.equal(panel.view.part.detail.commentHasKeyboard, false);
+  });
+
+  it("keeps the panel's focused look while a field or a comment's text has the keyboard", async () => {
+    const panel = await opened();
+    slideIn(panel);
+    const border = () => find(panel.draw(), "issues-panel").$.style.border_color;
+    const { composer } = panel.view.part.detail;
+    assert.equal(border(), "theme.border");
+    composer.cx = panel.cx;
+    composer.focus();
+    assert.equal(border(), "theme.accent");
+    composer.blur();
+    assert.equal(border(), "theme.border");
+    const root = panel.draw();
+    const text = [...walk(root)].find((node) => node.$.kind === "TextView" && node.$.args[0] === "body-c1");
+    send(root, text, "on_mouse_down:left", at(950, 400), panel.cx);
+    assert.equal(border(), "theme.accent");
+    send(root, find(root, "issues-panel"), "on_mouse_down_out", at(100, 100), panel.cx);
+    assert.equal(border(), "theme.border");
+  });
+});
+
 describe("a property's choices from the page", () => {
   it("open on the right of the line pressed", async () => {
     const panel = await opened();
@@ -242,7 +355,7 @@ describe("a long page of choices from the page", () => {
 });
 
 describe("the label picker low in the panel", () => {
-  it("starts level with the control and shrinks to the room below", async () => {
+  it("starts level with the control while its list fits below", async () => {
     const panel = await opened();
     const root = slideIn(panel);
     send(root, root, "on_mouse_move", at(950, 100), panel.cx);
@@ -293,7 +406,7 @@ describe("the pickers of the properties", () => {
 });
 
 describe("the properties in a grid", () => {
-  const LINES = ["page-status", "page-team", "page-priority", "page-assignee", "page-estimate", "page-cycle"];
+  const LINES = ["page-status", "page-team", "page-priority", "page-assign", "page-estimate", "page-cycle"];
   // The ids of the property lines in each vertical column of the drawing, in order
   const columnsOf = (root) => [...walk(find(root, "issue-page"))]
     .filter((node) => node.$.kind === "v_flex" && node.$.children.some((child) => LINES.includes(child.$.id)))
@@ -324,7 +437,7 @@ describe("the properties in a grid", () => {
     send(root, line, "on_mouse_down:left", { ...at(1050, 310), bounds }, panel.cx);
     send(root, line, "on_click", at(1050, 310), panel.cx);
     const popup = host.overlays.at(-1);
-    assert.equal(popup.at.y, bounds.y + bounds.height + 6);
+    assert.equal(popup.at.y, bounds.y + bounds.height + 2);
     assert.ok(popup.at.x <= bounds.x && popup.at.x >= 900);
   });
 });
@@ -495,15 +608,26 @@ describe("the labels of the issue", () => {
     assert.deepEqual(find(root, "page-label-l-okr").$.hover, { bg: "theme.hover" });
   });
 
-  it("opens the group's labels under a label of a group, with a search named after the group", async () => {
+  it("opens the group's labels beside a label of a group, with a search named after the group", async () => {
     const panel = await wearing(SPEC, OKR);
     pressLabel(panel, "l-spec");
     const popup = host.overlays.at(-1);
     assert.deepEqual([popup.props.part, popup.props.group, popup.props.searchable], ["labels", "l-type", true]);
-    assert.equal(popup.at.y, 400 + 24 + 6);
+    assert.deepEqual(popup.at, { x: 940 + 90 + 6, y: 400 - 6 });
+    assert.equal(find(panel.draw(), "page-label-l-spec").$.style.bg, "theme.hover");
     const input = [...walk(mountOverlay()
       .draw())].find((node) => node.$.kind === "Input").$.args[0];
     assert.equal(input.placeholder, "Ticket type…");
+  });
+
+  it("lights the plus's circle under the pointer and while the picker it opened is open", async () => {
+    const panel = await wearing(SPEC, OKR);
+    const plus = () => find(panel.draw(), "page-add-label");
+    assert.deepEqual(plus().$.hover, { bg: "theme.hover" });
+    assert.equal(plus().$.style.bg, undefined);
+    clickOn(panel, "page-add-label");
+    assert.equal(host.overlays.at(-1).props.part, "labels");
+    assert.equal(plus().$.style.bg, "theme.hover");
   });
 
   it("opens the picker for any other label, which lists what is worn first, ticked", async () => {

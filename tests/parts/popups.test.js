@@ -1,7 +1,7 @@
 // The popups, each started with the props popups.js gives it: what they show and what they ask of the panel
 import assert from "node:assert/strict";
 import { beforeEach, describe, it } from "node:test";
-import { click, field, find, focuses, icons, press, send, text, texts, walk } from "../host/elements.js";
+import { click, field, find, focuses, hover, icons, press, send, text, texts, walk } from "../host/elements.js";
 import { host, reset } from "../host/herdr.js";
 import { mount } from "../host/mount.js";
 import { pending, shareProjects } from "../../mods/linear-panel/channel.js";
@@ -57,6 +57,32 @@ describe("issue menu", () => {
       .slice(0, 4), ["BACK-1 · Fix login", "Priority", "P", "Copy"]);
   });
 
+  it("moves its page up, rather than shrink it, when the room under the entry runs out", () => {
+    const menu = open();
+    const root = menu.draw();
+    send(root, find(root, "entry-status"), "on_mouse_move", { bounds: { ...bounds, y: 690 } }, menu.cx);
+    menu.cx.elapse();
+    const [page] = host.overlays;
+    // Every status shows, and the page ends at the panel's bottom
+    assert.equal(page.props.visible, BACK.states.length);
+    assert.equal(page.at.y + page.height, FRAME.y + FRAME.height);
+  });
+
+  it("opens its page again against its edge when the zoom changes, as Herdr scales the menu from its corner", () => {
+    const menu = open();
+    rest(menu, "status");
+    menu.cx.elapse();
+    host.settings.zoom = 0.5;
+    const root = menu.draw();
+    send(root, root, "on_size_change", { width: 114, height: 200 }, menu.cx);
+    menu.cx.elapse();
+    const [first, again] = host.overlays;
+    assert.deepEqual(host.closed, [first.id]);
+    // The menu shrank from its corner at (905, 300): its right edge is now at 905 + 270 / 2, with room past it
+    assert.equal(again.at.x, 905 + 270 / 2);
+    assert.equal(again.at.y + (1 + 5 + 32 + 7 + 31 / 2) / 2, 300 + 31 / 4);
+  });
+
   it("takes the keyboard when it opens", () => {
     const menu = open();
     assert.equal(focuses(menu.draw()), 1);
@@ -72,8 +98,11 @@ describe("issue menu", () => {
     const [page] = host.overlays;
     assert.deepEqual([page.props.part, page.props.page, page.props.parent, page.props.bare],
       ["commands", "status", "menu", true]);
-    // No room on the entry's right inside the panel: the page opens on its left
-    assert.deepEqual(page.at, { x: 685, y: 294 });
+    // No room on the entry's right inside the panel: the page opens on its left, against the menu's edge (here the
+    // entry's, which the stand-in gives the menu too)
+    assert.equal(page.at.x, 905 - page.width);
+    // Its first choice, under the border, the padding, the search line and its rule, is level with the entry
+    assert.equal(page.at.y + 1 + 5 + 32 + 7 + 31 / 2, bounds.y + bounds.height / 2);
     assert.equal(find(menu.draw(), "entry-status").$.style.bg, "theme.selected");
     assert.equal(host.shared["linear-panel.open"], undefined);
   });
@@ -97,7 +126,27 @@ describe("issue menu", () => {
     rest(menu, "open");
     menu.cx.elapse();
     assert.deepEqual(host.closed, ["overlay-1", "overlay-2"]);
+    // The light is on the entry under the pointer, which opens no page
+    assert.deepEqual(lit(menu), ["entry-open"]);
+  });
+
+  it("puts out the light of an entry that opens no page when the pointer leaves the menu", () => {
+    const menu = open();
+    rest(menu, "open");
+    hover(menu.draw(), false, menu.cx);
     assert.deepEqual(lit(menu), []);
+    rest(menu, "status");
+    hover(menu.draw(), false, menu.cx);
+    assert.deepEqual(lit(menu), ["entry-status"]);
+  });
+
+  it("moves its one light to the entry under the pointer at once, before that entry's page opens", () => {
+    const menu = open();
+    rest(menu, "status");
+    menu.cx.elapse();
+    rest(menu, "priority");
+    assert.deepEqual(lit(menu), ["entry-priority"]);
+    assert.equal(find(menu.draw(), "entry-priority").$.hover, null);
   });
 
   it("shows an entry's page at once on a click", () => {
@@ -115,7 +164,7 @@ describe("issue menu", () => {
     assert.deepEqual(host.closed, ["menu"]);
     // In the menu's place: where the menu opened, pulled up so the taller list stays inside the panel
     assert.deepEqual([choices.props.page, choices.props.parent, choices.props.bare, choices.at],
-      ["status", undefined, false, { x: 1020, y: 528 }]);
+      ["status", undefined, false, { x: 1020, y: 506 }]);
     assert.deepEqual(host.shared["linear-panel.open"], { issue: "back-1", owner: "overlay-1" });
   });
 
@@ -159,6 +208,14 @@ describe("issue menu", () => {
     const [field] = host.overlays;
     assert.deepEqual([field.props.part, field.props.issue.identifier, field.props.agent, field.height],
       ["start", "BACK-1", "Codex", 80]);
+  });
+
+  it("opens Start right under the issue's row, as wide as the row", () => {
+    const row = { x: 904, y: 200, width: 392, height: 30 };
+    clickOn(mount({ part: "issue-menu", issues: [fixLogin], teams: [BACK], me: "me", agent: "Codex", frame: FRAME,
+      row, overlay: "menu" }), "entry-start");
+    const [field] = host.overlays;
+    assert.deepEqual([field.at, field.width], [{ x: row.x, y: row.y + row.height }, row.width]);
   });
 
   it("is about every issue it is given: what they share, and no opening or starting", () => {
@@ -484,9 +541,18 @@ describe("command window", () => {
   });
 
   it("offers No assignee first, which unassigns, by its 0 key as well as a click", () => {
-    const commands = open({ page: "assign" });
+    const me = { id: "me", name: "Me Myself", displayName: "me", initials: "MM", avatarBackgroundColor: null };
+    const commands = open({ targets: [{ ...fixLogin, assignee: me }, auditLog], page: "assign" });
     pressKey(commands, "0");
     assert.deepEqual(asked().input, { assigneeId: null });
+  });
+
+  it("closes without asking anything when the value picked is the one every issue already has", () => {
+    // Neither issue has an assignee: No assignee is held
+    const commands = open({ page: "assign", compact: true, bare: true, parent: "menu" });
+    pressKey(commands, "0");
+    assert.deepEqual(asked(), {});
+    assert.deepEqual(host.closed, ["commands", "menu"]);
   });
 
   it("sets the previous cycle apart at the bottom, under a rule, and picks No cycle with 0", () => {
@@ -504,8 +570,9 @@ describe("command window", () => {
   it("shows as many rows as it was given room for, and scrolls past them", () => {
     const commands = open({ page: "cycle", compact: true, bare: true, visible: 3 });
     // Three rows, and the room of the rule above the previous cycle
-    assert.equal(find(commands.draw(), "commands-list").$.style.h, 3 * 28 + 9);
-    assert.equal(find(commands.draw(), "commands-list").$.style.overflow_y_scrollbar, true);
+    assert.equal(find(commands.draw(), "commands-list").$.style.h, 3 * 31 + 9);
+    const list = find(commands.draw(), "commands-list").$.style;
+    assert.deepEqual([list.overflow_y_scroll, list.overflow_y_scrollbar, list.pr], [true, undefined, undefined]);
   });
 
   it("moves the issues to their team's current cycle or one to come, else the previous one, from its key", () => {
@@ -551,10 +618,72 @@ describe("command window", () => {
 
   it("is as tall as its rows as a popup, and leaves out the issue's name when bare", () => {
     const popup = open({ page: "status", compact: true, bare: true });
-    assert.equal(find(popup.draw(), "commands-list").$.style.h, 140);
+    assert.equal(find(popup.draw(), "commands-list").$.style.h, 5 * 31);
     assert.doesNotMatch(text(popup.draw()), /2 issues/);
     assert.equal(find(open()
       .draw(), "commands-list").$.style.flex_1, true);
+  });
+
+  it("shows the page's key in its heading, but not beside the issue menu, whose entry shows the key", () => {
+    assert.ok(texts(open({ page: "priority", compact: true, bare: true })
+      .draw())
+      .includes("P"));
+    assert.ok(!texts(open({ page: "priority", parent: "menu", compact: true, bare: true })
+      .draw())
+      .includes("P"));
+  });
+
+  it("lights the value every issue already has, and scrolls to it", () => {
+    const commands = open({ targets: [fixLogin], page: "status", compact: true, bare: true });
+    const held = marks(commands)
+      .indexOf("all");
+    assert.ok(held > 0);
+    assert.equal(lit(commands)
+      .indexOf(true), held);
+    assert.equal(commands.view.part.scroll.revealed, held);
+  });
+
+  it("moves the light to the row under the pointer, which looks the same, with small round corners", () => {
+    const commands = open({ targets: [fixLogin], page: "status", compact: true, bare: true });
+    const root = commands.draw();
+    send(root, find(root, "command-0"), "on_mouse_move", {}, commands.cx);
+    assert.deepEqual(lit(commands)
+      .map((on, nth) => (on ? nth : null))
+      .filter((nth) => nth !== null), [0]);
+    const row = find(commands.draw(), "command-0");
+    assert.deepEqual([row.$.hover, row.$.style.rounded], [null, 6]);
+  });
+
+  it("scrolls past the rule to a held value under it, and back to the top as a filter is typed", () => {
+    const previous = BACK.cycles.find((cycle) => cycle.number === 11);
+    const commands = open({ targets: [{ ...fixLogin, cycle: previous }], page: "cycle", compact: true, bare: true });
+    const { scroll } = commands.view.part;
+    // No cycle, 12, 13, 14, then the rule, then 11: the fifth row is the list's sixth child
+    assert.equal(lit(commands)
+      .indexOf(true), 4);
+    assert.equal(scroll.revealed, 5);
+    field(commands.draw())
+      .type("Cycle", commands.cx);
+    assert.deepEqual([lit(commands)
+      .indexOf(true), scroll.revealed], [0, 0]);
+  });
+
+  it("opens a page again with an empty filter", () => {
+    const commands = open();
+    pressKey(commands, "a");
+    field(commands.draw())
+      .type("zz", commands.cx);
+    escape(commands);
+    pressKey(commands, "a");
+    assert.equal(field(commands.draw())
+      .value(), "");
+  });
+
+  it("gives back its scroll handle and its fields as it goes", () => {
+    const commands = open({ page: "status", compact: true, bare: true });
+    const { scroll } = commands.view.part;
+    commands.view.close();
+    assert.equal(scroll.released, true);
   });
 
   it("closes the menu it was opened beside when a choice is made", () => {
@@ -564,7 +693,7 @@ describe("command window", () => {
 });
 
 describe("the assignee page in blocks", () => {
-  it("sets apart nobody and the assignee, the project's members and the team's, each block by a rule", () => {
+  it("sets apart nobody and the assignee, then the project's members and the team's, each under its title", () => {
     shareProjects({ "project-1": [{ id: "ada", name: "Ada Lovelace", displayName: "ada", initials: "AL",
       avatarBackgroundColor: null }] });
     const inProject = { ...fixLogin, project: { id: "project-1", name: "Payroll" },
@@ -575,9 +704,12 @@ describe("the assignee page in blocks", () => {
     assert.deepEqual(texts(drawn)
       .filter((piece) => ["No assignee", "me", "ada"].includes(piece)),
     ["No assignee", "me", "ada"]);
-    const separators = [...walk(drawn)].filter((node) => node.$.style.h === 1);
-    // The team's members are both listed already: no third block
-    assert.equal(separators.length, 1);
+    // The team's members are both listed already: no third block, and no rule
+    assert.ok(texts(drawn)
+      .includes("Project members"));
+    assert.ok(!texts(drawn)
+      .includes("Team members"));
+    assert.equal([...walk(drawn)].filter((node) => node.$.style.h === 1 && node.$.id !== "commands-rule").length, 0);
   });
 });
 
@@ -593,13 +725,62 @@ describe("a popup list that matches nothing", () => {
 });
 
 describe("a group's page of labels", () => {
+  it("is as tall as its few labels and as wide as the longest, with no empty room", async () => {
+    const { openLabels } = await import("../../mods/linear-panel/popups.js");
+    const labels = [{ id: "g", name: "G", color: "#fff", isGroup: true, parent: null, team: null },
+      ...["Discovery", "Spec", "Timebox"].map((name) => ({ id: name, name, color: "#fff", isGroup: false,
+        parent: { id: "g" }, team: null }))];
+    openLabels(fixLogin, labels, [], { beside: { x: 905, y: 300, width: 270, height: 31 }, frame: FRAME },
+      { group: "g", parent: "picker" });
+    const page = host.overlays.at(-1);
+    assert.equal(page.props.list, 3 * 31);
+    // The padding, the mark and the tick beside the longest name, reckoned at 7 px a character
+    assert.equal(page.width, 80 + 7 * "Discovery".length);
+  });
+
   it("scrolls, with its rows inside a list of its own", () => {
     const labels = [{ id: "g", name: "G", color: "#fff", isGroup: true, parent: null, team: null },
       ...Array.from({ length: 14 }, (_, nth) => ({ id: `c${nth}`, name: `Label ${nth}`, color: "#fff",
         isGroup: false, parent: { id: "g" }, team: null }))];
     const page = mount({ part: "labels", issue: fixLogin, labels, frequent: [], group: "g", parent: "picker",
       list: 310, overlay: "page" });
-    assert.equal(find(page.draw(), "label-list").$.style.overflow_y_scrollbar, true);
+    assert.deepEqual([find(page.draw(), "label-list").$.style.overflow_y_scroll,
+      find(page.draw(), "label-list").$.style.overflow_y_scrollbar], [true, undefined]);
+  });
+});
+
+describe("a long list at the pointer", () => {
+  it("shows as many choices, or labels, as the panel holds, and scrolls past them", async () => {
+    const { openChoices, openLabels } = await import("../../mods/linear-panel/popups.js");
+    const states = Array.from({ length: 50 }, (_, nth) =>
+      ({ id: `s${nth}`, name: `State ${nth}`, type: "unstarted", color: "#ffffff", position: nth }));
+    const labels = Array.from({ length: 80 }, (_, nth) =>
+      ({ id: `l${nth}`, name: `Label ${nth}`, color: "#ffffff", isGroup: false, parent: null, team: null }));
+    const where = { point: { x: 950, y: 100 }, frame: FRAME };
+    openChoices([fixLogin], [{ ...BACK, states }], "status", "me", where);
+    openLabels(fixLogin, labels, [], where);
+    const [choices, picker] = host.overlays;
+    // The chip naming the issue, the search line and its rule, the border and the padding, then the rows that fit
+    assert.equal(choices.props.visible, Math.floor((700 - 51 - 28) / 31));
+    assert.ok(choices.height <= FRAME.height && picker.height <= FRAME.height);
+    assert.ok(choices.at.y + choices.height <= FRAME.y + FRAME.height);
+  });
+});
+
+describe("a long page of choices beside a menu", () => {
+  it("shows every choice the panel has room for, and scrolls only past that room", async () => {
+    const { openChoices } = await import("../../mods/linear-panel/popups.js");
+    const states = Array.from({ length: 50 }, (_, nth) =>
+      ({ id: `s${nth}`, name: `State ${nth}`, type: "unstarted", color: "#ffffff", position: nth }));
+    const entry = { x: 905, y: 300, width: 270, height: 31 };
+    for (const height of [2000, 700]) {
+      openChoices([fixLogin], [{ ...BACK, states }], "status", "me", { beside: entry, frame: { ...FRAME, height } },
+        { parent: "menu" });
+    }
+    const [roomy, cramped] = host.overlays;
+    assert.equal(roomy.props.visible, 50);
+    // The panel holds 20 rows under the page's search line: past them, the list scrolls
+    assert.equal(cramped.props.visible, Math.floor((700 - 51) / 31));
   });
 });
 

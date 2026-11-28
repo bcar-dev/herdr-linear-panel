@@ -454,8 +454,8 @@ describe("rows", () => {
         teams: statuses.props.teams.map((team) => team.id) },
       { part: "commands", targets: ["back-1"], teams: ["team-back"], page: "status", me: "me", compact: true,
         bare: true, parent: undefined, visible: 5 });
-      assert.deepEqual([statuses.width, statuses.height, statuses.at], [208, 184, { x: 960, y: 210 }]);
-      assert.deepEqual([sizes.props.page, sizes.height], ["estimate", 212]);
+      assert.deepEqual([statuses.width, statuses.height, statuses.at], [208, 51 + 5 * 31, { x: 960, y: 210 }]);
+      assert.deepEqual([sizes.props.page, sizes.height], ["estimate", 51 + 6 * 31]);
     });
 });
 
@@ -783,7 +783,7 @@ describe("keys", () => {
     press(panel.draw(), "s", panel.cx);
     const [choices] = host.overlays;
     assert.deepEqual([choices.props.page, choices.props.bare, choices.height, choices.at],
-      ["status", false, 212, { x: 950, y: 100 }]);
+      ["status", false, 51 + 28 + 5 * 31, { x: 950, y: 100 }]);
     assert.deepEqual(host.shared["linear-panel.open"], { issue: "back-1", owner: "overlay-1" });
   });
 
@@ -1148,7 +1148,7 @@ describe("header", () => {
       { command: "open", args: ["linear://linear.app/team/BACK/cycle/12"], options: {} });
     assert.equal(host.overlays.length, 1);
     // Its rows, and a rule above the previous cycle at the bottom
-    assert.equal(host.overlays[0].height, 44 + 5 * 28 + 9);
+    assert.equal(host.overlays[0].height, 51 + 5 * 31 + 9);
   });
 
   it("tells on a row's cycle its capacity, how much is done, the weekdays left", async () => {
@@ -1432,14 +1432,15 @@ describe("a popup and the panel together", () => {
     const panel = await startPanel({ app: { stored: { view: "all" } } });
     enter(panel);
     const drawn = (popup, pattern) => [...walk(popup.draw())].filter((node) => pattern.test(node.$.id ?? "")).length;
-    // A property's choices: the title line, the padding and the border, the list, and the chip naming the issue
+    // A property's choices: the title line and the rule under it, the padding and the border, the list, and the chip
+    // naming the issue
     hover(row(panel.draw(), "back-1"), true, panel.cx);
     press(panel.draw(), "s", panel.cx);
     const choices = mountOverlay();
-    assert.equal(choices.overlay.height, 44 + find(choices.draw(), "commands-list").$.style.h + 28);
+    assert.equal(choices.overlay.height, 51 + find(choices.draw(), "commands-list").$.style.h + 28);
     clickOn(panel, "estimate-back-1");
     const bare = mountOverlay();
-    assert.equal(bare.overlay.height, 44 + find(bare.draw(), "commands-list").$.style.h);
+    assert.equal(bare.overlay.height, 51 + find(bare.draw(), "commands-list").$.style.h);
     // The issue menu: its entries, a caption, two rules, the padding and the border. The Copy page: its entries, the
     // padding and the border
     const root = panel.draw();

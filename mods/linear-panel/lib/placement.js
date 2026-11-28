@@ -20,22 +20,24 @@ const rightLimit = (frame, width) => (frame ? frame.x + frame.width - width - ED
 
 // Pulled back inside the panel when it would pass its right or bottom edge: Herdr cuts a popup at the window's edge and
 // does not move it. `where` is { point, frame }: the press and the panel. With `beside` (a menu entry's bounds) the
-// popup opens next to that entry instead, on the right when there is room, as a submenu does. Without a point or a
-// frame it opens at the pointer
+// popup opens next to that entry instead, on the right when there is room, else on the left when the window has room
+// there, as a submenu does. `gap` is the space left between the popup and the control. `lead` is how far down the
+// popup the middle of its first row is: that row then sits level with `beside`. Without a point or a frame it opens
+// at the pointer
 /**
  * @param {Where} where
  * @param {number} width
  * @param {number} height
  */
-export function place({ point, frame, beside, below, above, narrow } = {}, width, height) {
+export function place({ point, frame, beside, below, above, narrow, gap, lead } = {}, width, height) {
   if (above) {
     return { x: Math.max(frame?.x ?? 0, Math.min(above.x, rightLimit(frame, width))),
-      y: Math.max(frame?.y ?? 0, above.y - CONTROL_GAP_PX - height) };
+      y: Math.max(frame?.y ?? 0, above.y - (gap ?? CONTROL_GAP_PX) - height) };
   }
   if (below) {
     const bottom = frame ? frame.y + frame.height : Infinity;
     return { x: Math.max(frame?.x ?? 0, Math.min(below.x, rightLimit(frame, width))),
-      y: Math.max(frame?.y ?? 0, Math.min(below.y + below.height + CONTROL_GAP_PX, bottom - height)) };
+      y: Math.max(frame?.y ?? 0, Math.min(below.y + below.height + (gap ?? CONTROL_GAP_PX), bottom - height)) };
   }
   if (beside && narrow) {
     const bottom = frame ? frame.y + frame.height : Infinity;
@@ -43,11 +45,11 @@ export function place({ point, frame, beside, below, above, narrow } = {}, width
       y: Math.max(frame?.y ?? 0, Math.min(beside.y - CONTROL_GAP_PX, bottom - height)) };
   }
   if (beside) {
-    const right = beside.x + beside.width + SUBMENU_GAP_PX;
+    const apart = gap ?? SUBMENU_GAP_PX, right = beside.x + beside.width + apart, left = beside.x - apart - width;
     const fits = !frame || right + width <= frame.x + frame.width + OVERFLOW_TOLERANCE_PX;
     const bottom = frame ? frame.y + frame.height : Infinity;
-    return { x: fits ? right : beside.x - SUBMENU_GAP_PX - width,
-      y: Math.max(frame?.y ?? 0, Math.min(beside.y - CONTROL_GAP_PX, bottom - height)) };
+    const top = lead === undefined ? beside.y - CONTROL_GAP_PX : beside.y + beside.height / 2 - lead;
+    return { x: fits || left < 0 ? right : left, y: Math.max(frame?.y ?? 0, Math.min(top, bottom - height)) };
   }
   if (!point || !frame) return "pointer";
   return {
