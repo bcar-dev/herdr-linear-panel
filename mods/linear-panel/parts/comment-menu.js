@@ -1,8 +1,10 @@
 // The menu of a comment, a popup: edit it, resolve its thread, copy it, delete it. Edit and Delete are offered on my
-// own comments only; a thread is resolved from its first comment. Delete deletes at once
+// own comments only; a thread is resolved from its first comment. Delete asks first, in a dialog
+import { closeOverlay } from "herdr";
 import { MENU_ROW_HEIGHT_PX, MENU_RULE_HEIGHT_PX } from "../config.js";
 import { ask, dismiss } from "../channel.js";
 import { CommentChange, RequestKind } from "../enums.js";
+import { openConfirmDelete } from "../popups.js";
 import { glyph, takeKeyboard } from "../ui.js";
 import { FRAME_PADDING_PX, entry, frame, rule } from "./menu.js";
 
@@ -43,6 +45,9 @@ export function heightFor({ comment, own }) {
 }
 
 export class CommentMenu {
+  // Set when the menu made way for the dialog that confirms a delete: the keyboard stays with the dialog
+  replaced = false;
+
   /**
    * @param {Opened<CommentMenuProps>} props
    * @param {Context} cx
@@ -55,7 +60,13 @@ export class CommentMenu {
 
   /** @param {Request} request */
   run(request) {
-    const { issue, overlay } = this.props;
+    const { issue, comment, overlay } = this.props;
+    if (request.kind === RequestKind.COMMENT && request.change === CommentChange.DELETE) {
+      this.replaced = true;
+      closeOverlay(overlay);
+      openConfirmDelete(issue, comment);
+      return;
+    }
     ask({ ids: [issue.id], ...request });
     dismiss(overlay);
   }

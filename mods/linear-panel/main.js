@@ -13,6 +13,7 @@ import { Commands } from "./parts/commands.js";
 import { DisplayOptions } from "./parts/display-options.js";
 import { CopyMenu, IssueMenu } from "./parts/issue-menu.js";
 import { CommentMenu } from "./parts/comment-menu.js";
+import { ConfirmDelete } from "./parts/confirm-delete.js";
 import { LabelPicker } from "./parts/label-picker.js";
 import { Panel } from "./parts/panel.js";
 import { StartPrompt } from "./parts/start-prompt.js";
@@ -22,6 +23,7 @@ const PARTS = {
   button: PanelButton,
   commands: Commands,
   "comment-menu": CommentMenu,
+  "confirm-delete": ConfirmDelete,
   "copy-menu": CopyMenu,
   display: DisplayOptions,
   "issue-menu": IssueMenu,

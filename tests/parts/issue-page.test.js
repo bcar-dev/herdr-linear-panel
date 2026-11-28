@@ -102,6 +102,45 @@ describe("an issue's page", () => {
     assert.deepEqual(asked.variables.input, { issueId: "back-1", body: "Thanks", parentId: "c1" });
   });
 
+  it("posts a comment once, however often Send is pressed while it is on its way", async () => {
+    const panel = await opened();
+    const root = slideIn(panel);
+    const comments = () => panel.server.asked.filter((request) => request.kind === "comment");
+    panel.view.part.detail.composer.type("Looks good", panel.cx);
+    click(root, find(root, "comment-send"), panel.cx);
+    click(root, find(root, "comment-send"), panel.cx);
+    await panel.cx.idle();
+    assert.equal(comments().length, 1);
+    panel.view.part.detail.composer.type("One more thing", panel.cx);
+    const again = panel.draw();
+    click(again, find(again, "comment-send"), panel.cx);
+    await panel.cx.idle();
+    assert.equal(comments().length, 2);
+  });
+
+  it("keeps what was typed and not sent for the next time the page opens, and forgets what was sent", async () => {
+    const panel = await opened();
+    slideIn(panel);
+    const { detail } = panel.view.part;
+    detail.composer.type("Half a thought", panel.cx);
+    detail.replies.get("c1")
+      .type("Agreed", panel.cx);
+    clickOn(panel, "page-back");
+    panel.cx.elapse();
+    await clickRow(panel, "back-1");
+    const reopened = panel.view.part.detail;
+    assert.equal(reopened.composer.value(), "Half a thought");
+    assert.equal(reopened.replies.get("c1")
+      .value(), "Agreed");
+    const slid = slideIn(panel);
+    click(slid, find(slid, "comment-send"), panel.cx);
+    await panel.cx.idle();
+    clickOn(panel, "page-back");
+    panel.cx.elapse();
+    await clickRow(panel, "back-1");
+    assert.equal(panel.view.part.detail.composer.value(), "");
+  });
+
   it("saves a new title", async () => {
     const panel = await opened();
     slideIn(panel);
@@ -158,6 +197,61 @@ describe("a comment on the page", () => {
     const root = slideIn(await opened());
     assert.equal([...walk(root)].some((node) => String(node.$.id)
       .startsWith("reaction-")), false);
+  });
+});
+
+describe("deleting a comment", () => {
+  const MINE = { id: "c3", body: "Fixed in !12", createdAt: "2026-11-22T10:00:00.000Z", parent: null, botActor: null,
+    url: "u3", resolvedAt: null,
+    user: { id: "me", name: "Me Myself", displayName: "me", initials: "MM", avatarBackgroundColor: null } };
+  const KEYBOARD = "linear-panel.keyboard";
+
+  // The page of an issue with a comment of mine, its menu open, and Delete clicked in it: the dialog that asks
+  async function askedToDelete() {
+    const panel = await startPanel({ issues: mine() });
+    panel.server.comments = [...COMMENTS, MINE];
+    await clickRow(panel, "back-1");
+    slideIn(panel);
+    clickOn(panel, "more-c3");
+    const menu = mountOverlay(), root = menu.draw();
+    delete host.shared[KEYBOARD];
+    click(root, find(root, "entry-delete"), menu.cx);
+    menu.view.close();
+    return { panel, menu, dialog: mountOverlay() };
+  }
+  const deletes = (panel) => panel.server.asked.filter((request) => request.kind === "comment-delete");
+
+  it("asks first in a dialog, which keeps the keyboard, and deletes once Delete is clicked", async () => {
+    const { panel, menu, dialog } = await askedToDelete();
+    assert.ok(host.closed.includes(menu.overlay.id));
+    assert.equal(dialog.overlay.kind, "dialog");
+    assert.equal(host.shared[KEYBOARD], undefined);
+    const box = dialog.draw();
+    assert.equal(text(box), "Delete this comment? You cannot undo this action. Cancel Delete");
+    panel.draw();
+    await panel.cx.idle();
+    assert.deepEqual(deletes(panel), []);
+    click(box, find(box, "confirm-delete-yes"), dialog.cx);
+    assert.ok(host.closed.includes(dialog.overlay.id));
+    panel.draw();
+    await panel.cx.idle();
+    assert.deepEqual(deletes(panel)
+      .map((request) => request.variables), [{ id: "c3" }]);
+  });
+
+  it("deletes on Enter too, and nothing on Cancel", async () => {
+    const first = await askedToDelete();
+    press(first.dialog.draw(), "enter", first.dialog.cx);
+    first.panel.draw();
+    await first.panel.cx.idle();
+    assert.equal(deletes(first.panel).length, 1);
+    const second = await askedToDelete();
+    const box = second.dialog.draw();
+    click(box, find(box, "confirm-delete-no"), second.dialog.cx);
+    assert.ok(host.closed.includes(second.dialog.overlay.id));
+    second.panel.draw();
+    await second.panel.cx.idle();
+    assert.deepEqual(deletes(second.panel), []);
   });
 });
 

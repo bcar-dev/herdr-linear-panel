@@ -354,8 +354,9 @@ type LabelsProps = {
 };
 
 type CommentMenuProps = { part: "comment-menu"; issue: Issue; comment: PageComment; own: boolean };
+type ConfirmDeleteProps = { part: "confirm-delete"; issue: Issue; comment: PageComment };
 
-type PopupProps = CommentMenuProps | IssueMenuProps | CopyMenuProps | StartProps | CommandsProps
+type PopupProps = CommentMenuProps | ConfirmDeleteProps | IssueMenuProps | CopyMenuProps | StartProps | CommandsProps
   | DisplayProps | TeamPickerProps
   | LabelsProps;
 

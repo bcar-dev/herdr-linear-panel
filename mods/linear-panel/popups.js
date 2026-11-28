@@ -15,6 +15,7 @@ import { heightFor as teamsHeightFor } from "./parts/team-picker.js";
 
 const COMMANDS_DIALOG_HEIGHT_PX = 380, COMMANDS_DIALOG_WIDTH_PX = 460;
 const COMMENT_MENU_WIDTH_PX = 240;
+const CONFIRM_DELETE_HEIGHT_PX = 150, CONFIRM_DELETE_WIDTH_PX = 400;
 const COPY_MENU_LABEL_REST_PX = 130, COPY_MENU_MAX_WIDTH_PX = 340, COPY_MENU_MIN_WIDTH_PX = 220;
 const DISPLAY_HEIGHT_PX = 138, DISPLAY_WIDTH_PX = 280;
 const ISSUE_MENU_WIDTH_PX = 228;
@@ -170,10 +171,24 @@ export function openChoices(targets, teams, page, me, where, { parent, bare = Bo
  * @param {Page} page
  * @param {string} me
  */
-export function openCommands(targets, teams, page, me) {
-  const overlay = openOverlay({ mod: MOD, kind: "dialog", frame: "none", width: COMMANDS_DIALOG_WIDTH_PX,
-    height: COMMANDS_DIALOG_HEIGHT_PX,
-    props: { part: "commands", targets, teams, page, me } });
+export const openCommands = (targets, teams, page, me) =>
+  dialog(COMMANDS_DIALOG_WIDTH_PX, COMMANDS_DIALOG_HEIGHT_PX, { part: "commands", targets, teams, page, me });
+
+/**
+ * @param {Issue} issue
+ * @param {PageComment} comment
+ */
+export const openConfirmDelete = (issue, comment) =>
+  dialog(CONFIRM_DELETE_WIDTH_PX, CONFIRM_DELETE_HEIGHT_PX, { part: "confirm-delete", issue, comment });
+
+// In the middle of the window, over everything
+/**
+ * @param {number} width
+ * @param {number} height
+ * @param {PopupProps} props
+ */
+function dialog(width, height, props) {
+  const overlay = openOverlay({ mod: MOD, kind: "dialog", frame: "none", width, height, props });
   opened(overlay);
   return overlay;
 }
