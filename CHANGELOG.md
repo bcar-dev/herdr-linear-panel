@@ -71,6 +71,8 @@
 
 ### Fixed
 
+- Issue page: the team and assignee lines have tooltips, "Move to a different team" with its shortcut `⌘` `⇧` `M`,
+  and "Change assignee" with `A`.
 - Issue page: `L`, a property's key and `⌘` `⇧` `M` open their popup next to their control, as a click does. They open
   at the pointer only until the pointer first moves after the page slides in, and while the control is out of sight.
 - Issue page: a click on an empty area gives the panel the keyboard, as on the list, and a click in a text field's

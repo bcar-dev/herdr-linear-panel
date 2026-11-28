@@ -282,7 +282,8 @@ export class IssuePage {
         body: (theme) => timeInStatus(panel, issue, theme),
         entered: (context) => panel.loadStatusHistory(issue, context) }),
       this.line(theme, "team", teamMark(issue.team, TEAM_MARK_PX),
-        issue.team.name, () => panel.openers.pickTeam(issue)),
+        issue.team.name, () => panel.openers.pickTeam(issue),
+        { label: "Move to a different team", caps: chordCaps(["⇧", "M"]) }),
       this.line(theme, "priority", priorityMark(theme, issue.priority, false), priority, choose(Property.PRIORITY),
         { label: "Change priority", caps: propertyKey(Property.PRIORITY).caps }),
       this.line(theme, "assign", issue.assignee ? faceOf(issue.assignee, AVATAR_PX)
@@ -290,7 +291,7 @@ export class IssuePage {
         .size(AVATAR_PX)
         .flex_none()
         .text_color(theme.muted),
-      assignee, choose(Property.ASSIGN)),
+      assignee, choose(Property.ASSIGN), { label: "Change assignee", caps: propertyKey(Property.ASSIGN).caps }),
       this.line(theme, "estimate", svg(icon(issue.estimate === null ? "estimate-none" : "estimate"))
         .size(14)
         .flex_none()
