@@ -174,7 +174,7 @@ export class Openers {
    * @param {string} id the comment
    */
   confirmDelete(page, id) {
-    const comment = page.comments.find((found) => found.id === id);
+    const comment = page.comments.posted.find((found) => found.id === id);
     if (comment) openConfirmDelete(page.issue, comment, this.panel.frame);
   }
 

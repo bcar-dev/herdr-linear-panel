@@ -84,7 +84,7 @@ describe("an issue's page", () => {
     const panel = await opened();
     const root = slideIn(panel);
     const composer = find(root, "comment-send");
-    panel.view.part.detail.composer.type("Looks good", panel.context);
+    panel.view.part.detail.comments.composer.type("Looks good", panel.context);
     click(root, composer, panel.context);
     await panel.context.idle();
     const asked = panel.server.asked.find((request) => request.kind === "comment");
@@ -94,7 +94,7 @@ describe("an issue's page", () => {
   it("replies to a comment", async () => {
     const panel = await opened();
     const root = slideIn(panel);
-    panel.view.part.detail.replies.get("c1")
+    panel.view.part.detail.comments.replies.get("c1")
       .type("Thanks", panel.context);
     click(root, find(root, "reply-c1-send"), panel.context);
     await panel.context.idle();
@@ -106,12 +106,12 @@ describe("an issue's page", () => {
     const panel = await opened();
     const root = slideIn(panel);
     const comments = () => panel.server.asked.filter((request) => request.kind === "comment");
-    panel.view.part.detail.composer.type("Looks good", panel.context);
+    panel.view.part.detail.comments.composer.type("Looks good", panel.context);
     click(root, find(root, "comment-send"), panel.context);
     click(root, find(root, "comment-send"), panel.context);
     await panel.context.idle();
     assert.equal(comments().length, 1);
-    panel.view.part.detail.composer.type("One more thing", panel.context);
+    panel.view.part.detail.comments.composer.type("One more thing", panel.context);
     const again = panel.draw();
     click(again, find(again, "comment-send"), panel.context);
     await panel.context.idle();
@@ -122,15 +122,15 @@ describe("an issue's page", () => {
     const panel = await opened();
     slideIn(panel);
     const { detail } = panel.view.part;
-    detail.composer.type("Half a thought", panel.context);
-    detail.replies.get("c1")
+    detail.comments.composer.type("Half a thought", panel.context);
+    detail.comments.replies.get("c1")
       .type("Agreed", panel.context);
     clickOn(panel, "page-back");
     panel.context.elapse();
     await clickRow(panel, "back-1");
     const reopened = panel.view.part.detail;
-    assert.equal(reopened.composer.value(), "Half a thought");
-    assert.equal(reopened.replies.get("c1")
+    assert.equal(reopened.comments.composer.value(), "Half a thought");
+    assert.equal(reopened.comments.replies.get("c1")
       .value(), "Agreed");
     const slid = slideIn(panel);
     click(slid, find(slid, "comment-send"), panel.context);
@@ -138,7 +138,7 @@ describe("an issue's page", () => {
     clickOn(panel, "page-back");
     panel.context.elapse();
     await clickRow(panel, "back-1");
-    assert.equal(panel.view.part.detail.composer.value(), "");
+    assert.equal(panel.view.part.detail.comments.composer.value(), "");
   });
 
   it("saves a new title", async () => {
@@ -270,19 +270,19 @@ describe("editing a comment", () => {
     panel.draw();
     panel.context.elapse();
     const { detail } = panel.view.part;
-    assert.equal(detail.edited.id, "c1");
-    assert.equal(detail.edited.field.value(), "Seen it too");
+    assert.equal(detail.comments.edited.id, "c1");
+    assert.equal(detail.comments.edited.field.value(), "Seen it too");
     // The cursor goes after the text, once the field has the keyboard
     panel.context.elapse();
-    assert.deepEqual(detail.edited.field.selected, { start: 11, end: 11 });
-    detail.edited.field.type("Seen it too, fixed", panel.context);
+    assert.deepEqual(detail.comments.edited.field.selected, { start: 11, end: 11 });
+    detail.comments.edited.field.type("Seen it too, fixed", panel.context);
     clickOn(panel, "edit-save");
     await panel.context.idle();
     const changed = panel.server.asked.find((request) => request.kind === "comment-change");
     assert.deepEqual(changed.variables, { id: "c1", body: "Seen it too, fixed" });
     assert.equal(panel.server.kinds()
       .at(-1), "page");
-    assert.equal(detail.edited, null);
+    assert.equal(detail.comments.edited, null);
   });
 
   it("drops what was typed on Cancel, and changes nothing", async () => {
@@ -292,10 +292,10 @@ describe("editing a comment", () => {
     panel.draw();
     panel.context.elapse();
     const { detail } = panel.view.part;
-    detail.edited.field.type("Never mind", panel.context);
+    detail.comments.edited.field.type("Never mind", panel.context);
     clickOn(panel, "edit-cancel");
     await panel.context.idle();
-    assert.equal(detail.edited, null);
+    assert.equal(detail.comments.edited, null);
     assert.equal(panel.server.kinds()
       .includes("comment-change"), false);
     // Its text shows again, instead of the field
@@ -390,7 +390,7 @@ describe("a popup opened by its key on the page", () => {
     // At the pointer the choices name their issue
     assert.equal(host.overlays.at(-1).props.bare, false);
     note(panel.draw(), "page-priority", { x: 1040, y: 300, width: 100, height: 28 }, panel.context);
-    panel.view.part.failed = "Something went wrong";
+    panel.view.part.requests.failed = "Something went wrong";
     press(panel.draw(), "p", panel.context);
     assert.equal(host.overlays.at(-1).props.bare, false);
   });
@@ -445,7 +445,7 @@ describe("a press on the page", () => {
     const panel = await opened();
     slideIn(panel);
     const border = () => find(panel.draw(), "issues-panel").$.style.border_color;
-    const { composer } = panel.view.part.detail;
+    const { composer } = panel.view.part.detail.comments;
     assert.equal(border(), "theme.border");
     composer.context = panel.context;
     composer.focus();
@@ -935,28 +935,28 @@ describe("what the page keeps from being lost", () => {
   it("keeps a comment in its field until it is posted, and puts it back when the tracker refuses it", async () => {
     const panel = await opened();
     const root = slideIn(panel);
-    typed(panel, panel.view.part.detail.composer, "A long comment");
+    typed(panel, panel.view.part.detail.comments.composer, "A long comment");
     panel.server.error = "Rate limited";
     click(root, find(root, "comment-send"), panel.context);
-    assert.equal(panel.view.part.detail.composer.value(), "A long comment");
+    assert.equal(panel.view.part.detail.comments.composer.value(), "A long comment");
     await panel.context.idle();
-    assert.equal(panel.view.part.detail.composer.value(), "A long comment");
-    assert.match(panel.view.part.failed, /Rate limited/);
+    assert.equal(panel.view.part.detail.comments.composer.value(), "A long comment");
+    assert.match(panel.view.part.requests.failed, /Rate limited/);
     panel.server.error = null;
     clickOn(panel, "comment-send");
     await panel.context.idle();
-    assert.equal(panel.view.part.detail.composer.value(), "");
+    assert.equal(panel.view.part.detail.comments.composer.value(), "");
   });
 
   it("hands the keyboard back when an edit ends, so that Escape and the shortcuts work again", async () => {
     const panel = await opened();
     slideIn(panel);
     const { detail } = panel.view.part;
-    detail.startEdit("c1", panel.context);
-    detail.edited.field.context = panel.context;
-    detail.edited.field.focus();
+    detail.comments.startEdit("c1", panel.context);
+    detail.comments.edited.field.context = panel.context;
+    detail.comments.edited.field.focus();
     assert.equal(detail.focusedFieldCount, 1);
-    detail.stopEdit(panel.context);
+    detail.comments.stopEdit(panel.context);
     assert.equal(detail.focusedFieldCount, 0);
   });
 
@@ -964,11 +964,11 @@ describe("what the page keeps from being lost", () => {
     const panel = await opened();
     slideIn(panel);
     const { detail } = panel.view.part;
-    detail.startEdit("c1", panel.context);
-    typed(panel, detail.edited.field, "Seen it too, fixed");
-    detail.startEdit("c2", panel.context);
+    detail.comments.startEdit("c1", panel.context);
+    typed(panel, detail.comments.edited.field, "Seen it too, fixed");
+    detail.comments.startEdit("c2", panel.context);
     await panel.context.idle();
-    assert.equal(detail.edited.id, "c2");
+    assert.equal(detail.comments.edited.id, "c2");
     assert.deepEqual(panel.server.asked.find((request) => request.kind === "comment-change").variables,
       { id: "c1", body: "Seen it too, fixed" });
   });
@@ -1055,7 +1055,7 @@ const views = (panel) => [...walk(find(slideIn(panel), "issue-page"))]
     .startsWith("description"));
 const described = async (description = DESCRIPTION) => {
   const panel = await opened();
-  panel.view.part.detail.description = description;
+  panel.view.part.detail.comments.description = description;
   return panel;
 };
 

@@ -146,7 +146,8 @@ mods/linear-panel/
   enums.js      the closed sets of strings the mod passes around
   actions.js    copying an issue, and starting work on it
   dock.js       where the panel sits in the layout
-  parts/        the panel, the issue list and page, its button and each popup
+  parts/        the panel (panel.js holds it, panel-view.js draws it, requests.js does its work, loader.js loads),
+                the issue list and page (comments.js holds its comments), its button and each popup
   lib/          the rules, free of Herdr, tested by node (`sanitize.js` cleans what the tracker sends)
   tracker.js    everything that names Linear
   api.js        the GraphQL queries

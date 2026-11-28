@@ -32,7 +32,7 @@ export class Store {
   // The description and comments last read of each issue: its page opens with them, then reads again
   /** @type {Map<string, { description: string, comments: PageComment[] }>} */
   pages = new Map();
-  // Unsent comment text, by IssuePage.draftKey
+  // Unsent comment text, by "<issue id>:<comment replied to>" ("" for a new comment)
   /** @type {Map<string, string>} */
   drafts = new Map();
   /** @type {Asked} the teams, projects and labels of teams asked since this run began */

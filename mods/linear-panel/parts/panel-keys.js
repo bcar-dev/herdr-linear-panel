@@ -20,7 +20,7 @@ export function detailKey(panel, page, event, context) {
   else if (event.key.toLowerCase() === "m" && modifiers.shift && !modifiers.alt && commandDown(modifiers, mac)) {
     panel.openers.pickTeamByKey(issue);
   } else if (!typing && copied && PAGE_COPY_ORDER.includes(copied)) {
-    panel.perform({ kind: RequestKind.COPY, ids: [page.issue.id], what: copied }, context);
+    panel.requests.perform({ kind: RequestKind.COPY, ids: [page.issue.id], what: copied }, context);
   } else if (!typing && !modifiers.control && !modifiers.alt && !modifiers.platform && property) {
     panel.openers.pickByKey(issue, property);
   } else if (!typing && event.key === "l" && unmodified(modifiers) && !modifiers.shift) {
@@ -49,7 +49,7 @@ export function listKey(panel, event, context) {
     case KeyAction.COPY:
       if (copiesFor(copied.length)
         .some((entry) => entry.what === asked.what)) {
-        panel.perform({ kind: RequestKind.COPY, ids: copied, what: asked.what }, context);
+        panel.requests.perform({ kind: RequestKind.COPY, ids: copied, what: asked.what }, context);
       }
       break;
     case KeyAction.COMPOSE: panel.openers.compose(); break;
@@ -58,7 +58,7 @@ export function listKey(panel, event, context) {
     case KeyAction.VIEW: panel.show(VIEWS[asked.nth]?.id ?? panel.view, context); break;
     case KeyAction.CHOOSE: panel.openers.chooseByKey(litIssue, asked.page); break;
     case KeyAction.UNASSIGN:
-      panel.perform({ kind: RequestKind.UPDATE, ids: hasTicked ? selection.list() : [litIssue.id],
+      panel.requests.perform({ kind: RequestKind.UPDATE, ids: hasTicked ? selection.list() : [litIssue.id],
         input: { assigneeId: null } }, context);
       break;
     case KeyAction.UNTICK: selection.clear(); break;
