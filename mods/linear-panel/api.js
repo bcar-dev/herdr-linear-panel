@@ -82,8 +82,8 @@ const LABELS = `query($team: ID!, $after: String) { issueLabels(first: ${LABELS_
   + "nodes { id name color isGroup parent { id } team { id } } pageInfo { hasNextPage endCursor } } }";
 // The changes and reviewers of the merge requests with these numbers. Undocumented: the tracker's app reads these
 // records, which its API answers but its schema hides, so it may change them without notice; a merge request's card
-// then goes without them. Asked by numbers and repository names, each alone matching many other merge requests; a
-// filter on both repository and number inside `or` answers unrelated ones
+// then goes without them (Store.loadMergeDetails). Asked by numbers and repository names, each alone matching many
+// other merge requests; a filter on both repository and number inside `or` answers unrelated ones
 const MERGES = `query($numbers: [Float!], $repos: [String!], $after: String) { pullRequests(first: ${MERGES_PER_PAGE}, `
   + "after: $after, filter: { number: { in: $numbers }, repository: { name: { in: $repos } } }) { nodes { "
   + "url diffStats { fileCount additions deletions } reviewerStates { lastSubmittedDecision reviewer { "

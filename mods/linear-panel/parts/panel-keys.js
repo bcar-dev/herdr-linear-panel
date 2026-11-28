@@ -53,7 +53,7 @@ export function listKey(panel, event, cx) {
       }
       break;
     case KeyAction.COMPOSE: panel.openers.compose(); break;
-    case KeyAction.RELOAD: panel.reload(cx); break;
+    case KeyAction.RELOAD: panel.refresh(cx); break;
     case KeyAction.DISPLAY: panel.openers.displayOptions(); break;
     case KeyAction.VIEW: panel.show(VIEWS[asked.nth].id, cx); break;
     case KeyAction.CHOOSE: panel.openers.chooseByKey(pointed, asked.page); break;

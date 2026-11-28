@@ -1,5 +1,6 @@
-// What the tracker tells that hardly ever changes (a team's states, members and cycles, the labels), kept in the
-// panel's storage between runs. Storage can be missing or full: nothing here may throw
+// What the panel keeps in its storage between runs: its settings (a view, an ordering), and what the tracker tells
+// that hardly ever changes (a team's states, members and cycles, the labels). Storage can be missing or full: nothing
+// here may throw
 
 // Bumped with any change to what is kept: older entries are never read
 const PREFIX = "cache.v1.";
@@ -18,6 +19,28 @@ export function recall(name, fallback = null) {
       ? value : fallback;
   } catch {
     return fallback;
+  }
+}
+
+// A setting as it was stored, or null when there is none
+/** @param {string} name */
+export function setting(name) {
+  try {
+    return localStorage.getItem(name);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * @param {string} name
+ * @param {string} value
+ */
+export function keepSetting(name, value) {
+  try {
+    localStorage.setItem(name, value);
+  } catch {
+    // Not kept: the next run starts from the default
   }
 }
 

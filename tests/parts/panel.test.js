@@ -162,6 +162,32 @@ describe("loading", () => {
     assert.match(text(panel.draw()), /BACK-1/);
   });
 
+  it("starts, and changes its view and display options, when its storage fails", async () => {
+    const failing = new Proxy({}, {
+      get() { throw new Error("No storage"); },
+      set() { throw new Error("Storage full"); },
+    });
+    const panel = await startPanel({ app: { stored: failing } });
+    press(panel.draw(), "2", panel.cx);
+    ask({ ids: [], kind: "display", change: { reversed: true } });
+    assert.match(text(panel.draw()), /BACK-10/);
+  });
+
+  it("asks for the teams again on a reload the person asks for, not on the timer's", async () => {
+    const panel = await startPanel();
+    const teams = () => panel.server.kinds()
+      .filter((kind) => kind === "teams").length;
+    panel.cx.tick();
+    await panel.cx.idle();
+    assert.equal(teams(), 1);
+    press(panel.draw(), "r", panel.cx);
+    await panel.cx.idle();
+    assert.equal(teams(), 2);
+    clickOn(panel, "reload");
+    await panel.cx.idle();
+    assert.equal(teams(), 3);
+  });
+
   it("reloads by itself on the timer while it is shown, without a spinner", async () => {
     const panel = await startPanel();
     panel.cx.elapse();
@@ -887,7 +913,7 @@ describe("keys", () => {
     assert.ok(icons(panel.draw())
       .includes("spinner"));
     await panel.cx.idle();
-    assert.deepEqual(panel.server.kinds(), ["issues", "teams", "issues"]);
+    assert.deepEqual(panel.server.kinds(), ["issues", "teams", "issues", "teams"]);
   });
 
   it("asks which team a new issue is for on c, among my teams", async () => {
@@ -1279,6 +1305,8 @@ describe("header", () => {
       const failing = await startPanel({ issues: withMerges() });
       failing.server.error = "Cannot query field \"pullRequests\"";
       assert.match(text(await mergeCard(failing, "back-1")), /Merged \d+\w+ ago$/);
+      // The query is not one the tracker documents: its failure is no failure of the panel's
+      assert.doesNotMatch(text(failing.draw()), /Could not load/);
     });
 
   it("tells on several MRs each one's title, repository and reviewers, eight at most", async () => {
