@@ -11,6 +11,7 @@ import { FACE_SIZE_PX, cycleMark, face, glyph, keycaps, pillRow, priorityMark, s
 import { choiceRows } from "../lib/choices.js";
 import { propertyKey, spelled, unmodified } from "../lib/keys.js";
 import { commonCycles, commonEstimates } from "../lib/teams.js";
+import { issuesName } from "../lib/text.js";
 import { MENU_ROW_RADIUS_PX, boxed, caption, rule, searchField } from "./menu.js";
 
 // Herdr closes a popup or a dialog on Escape before the mod sees the key. A binding of the mod's own, in a context
@@ -40,7 +41,7 @@ const ROW = MENU_ROW_HEIGHT_PX;
  * @param {{ group?: number, title?: string }[]} rows
  * @param {number} nth
  */
-const hasBreakBefore = (rows, nth) => (nth === 0 ? Boolean(rows[0].title) : rows[nth].group !== rows[nth - 1].group);
+const hasBreakBefore = (rows, nth) => (nth === 0 ? Boolean(rows[0]?.title) : rows[nth]?.group !== rows[nth - 1]?.group);
 
 /** @param {{ group?: number, title?: string }[]} rows */
 export const breaksHeight = (rows) => rows.reduce((sum, row, nth) =>
@@ -59,7 +60,7 @@ export const leadFor = ({ bare }) => BORDER_PX + PADDING_PX / 2 + (bare ? 0 : CA
 /**
  * @param {Theme} t
  * @param {import("../lib/choices.js").ChoiceSource} source
- * @param {WorkflowState[]} states
+ * @param {WorkflowState[]} [states]
  */
 function rowIcon(t, source, states) {
   switch (source.property) {
@@ -203,7 +204,7 @@ export class Commands {
         .filter((row) => row.words.toLowerCase()
           .includes(query))
         .map((row) => ({ label: row.label, note: row.note, key: row.key, mark: row.mark, group: row.group,
-          title: row.title, icon: rowIcon(t, row.source, this.teams[0].states),
+          title: row.title, icon: rowIcon(t, row.source, this.teams[0]?.states),
           run: () => (row.mark === Mark.ALL ? closeWithParent(this.props) : this.send(row.ask)) }));
     }
     return [
@@ -259,8 +260,8 @@ export class Commands {
   render(t) {
     const rows = this.rows = this.choices(t);
     if (this.at >= rows.length) this.at = 0;
-    const chip = this.targets.length === 1 ? `${this.targets[0].identifier} · ${this.targets[0].title}`
-      : `${this.targets.length} issues`;
+    const [only] = this.targets;
+    const chip = only && this.targets.length === 1 ? `${only.identifier} · ${only.title}` : issuesName(this.targets);
     const field = this.fields[this.page], besideMenu = Boolean(this.props.parent);
     const heading = field ? searchField(t, field, 13) : div()
       .child("Actions");

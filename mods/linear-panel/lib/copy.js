@@ -67,7 +67,8 @@ function one(what, issue, { description, comments = [] } = {}, tracker) {
  */
 export function copyText(what, issues, details = [], tracker = "") {
   if (what === CopyWhat.DIFFS) return diffLinks(issues);
-  if (issues.length === 1) return one(what, issues[0], details[0], tracker);
+  const [only] = issues;
+  if (only && issues.length === 1) return one(what, only, details[0], tracker);
   if (what === CopyWhat.TITLE) return issues.map((issue) => `${issue.identifier}: ${issue.title}`)
     .join("\n");
   return issues.map((issue, nth) => one(what, issue, details[nth], tracker))

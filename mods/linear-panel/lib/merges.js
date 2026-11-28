@@ -62,7 +62,7 @@ export const reference = (merge, owner) =>
   `${owner ? `${merge.repoLogin}/` : ""}${merge.repoName}${numbered(merge)}`;
 
 /** @param {Merge[]} list */
-export const chipLabel = (list) => (list.length === 1 ? numbered(list[0]) : `${list.length} PRs`);
+export const chipLabel = ([first, ...rest]) => (first && !rest.length ? numbered(first) : `${rest.length + 1} PRs`);
 
 /** @param {string} login */
 export const initials = (login) => login.slice(0, INITIALS_LENGTH)

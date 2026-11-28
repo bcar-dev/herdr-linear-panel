@@ -3,6 +3,7 @@
 import * as api from "../api.js";
 import * as channel from "../channel.js";
 import { VIEWS } from "../config.js";
+import { ViewKey } from "../enums.js";
 import { keep, recall } from "../lib/cache.js";
 import { Asked, Lookups } from "../lib/lookups.js";
 import { points } from "../lib/listing.js";
@@ -12,7 +13,8 @@ const PROJECT_KEY = "project:";
 
 export class Store {
   // What the API answered: the issues of each view and whether a view has more than it loaded
-  issues = Object.fromEntries(VIEWS.map(/** @returns {[string, Issue[]]} */ ({ id }) => [id, []]));
+  /** @type {Record<ViewKey, Issue[]>} */
+  issues = { [ViewKey.CYCLE]: [], [ViewKey.ALL]: [] };
   /** @type {Record<string, boolean>} */
   more = {};
   // `me` is my user id

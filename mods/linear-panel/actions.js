@@ -5,6 +5,7 @@ import { TOAST_MS, copiesFor } from "./config.js";
 import { CopyWhat } from "./enums.js";
 import { NAME } from "./tracker.js";
 import { copyText } from "./lib/copy.js";
+import { issuesName } from "./lib/text.js";
 import { firstMessage, slug, startState, worktrees } from "./lib/start.js";
 
 const DEFAULT_WORKTREES = "~/.herdr/worktrees";
@@ -24,7 +25,7 @@ export async function copy(issues, what, cx) {
       : async () => ({});
   const details = await Promise.all(issues.map((issue) => read(issue.id)));
   const text = copyText(what, issues, details, NAME);
-  const copied = issues.length === 1 ? issues[0].identifier : `${issues.length} issues`;
+  const copied = issuesName(issues);
   if (what === CopyWhat.DIFFS && !text) {
     notify({ title: `No diffs to copy · ${copied}`, timeout: TOAST_MS });
     return;
@@ -75,14 +76,15 @@ export async function start(issue, states, agent, parts) {
   const list = cwd ? await git(["worktree", "list", "--porcelain"]) : null;
   if (!list || list.code !== 0) throw new Error("Start needs the focused pane to be in a git repository");
   const description = await api.description(issue.id);
-  const checkouts = worktrees(list.stdout), branch = issue.branchName;
+  const checkouts = worktrees(list.stdout), branch = issue.branchName, [main] = checkouts;
+  if (!main) throw new Error("Start needs the focused pane to be in a git repository");
   let path = checkouts.find((checkout) => checkout.branch === branch)?.path;
   if (!path) {
     // The branch name comes from the tracker, and git reads a leading dash as an option
     if (branch.startsWith("-") || (await git(["check-ref-format", "--branch", branch])).code !== 0) {
       throw new Error(`Start cannot use "${branch}" as a git branch name`);
     }
-    const repository = checkouts[0].path.split("/")
+    const repository = main.path.split("/")
       .pop();
     path = `${await worktreesFolder()}/${repository}/${slug(branch)}`;
     const exists = (await git(["show-ref", "--verify", "--quiet", `refs/heads/${branch}`])).code === 0;

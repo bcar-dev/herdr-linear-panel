@@ -9,6 +9,7 @@ import { NAME, isMac } from "../tracker.js";
 import { GLYPH_SIZE_PX, chordCaps, glyph, takeKeyboard } from "../ui.js";
 import { PROPERTIES, copyShortcut, spelled, unmodified } from "../lib/keys.js";
 import { changeable } from "../lib/teams.js";
+import { issuesName } from "../lib/text.js";
 import { caption, entry, frame, rule } from "./menu.js";
 import { SubmenuHost } from "./submenu-host.js";
 
@@ -73,7 +74,8 @@ export class IssueMenu {
 
   /** @param {Theme} t */
   render(t) {
-    const { issues, teams, me, agent, overlay } = this, [issue] = issues, single = issues.length === 1;
+    const { issues, teams, me, agent, overlay } = this, [issue] = issues;
+    const single = issue !== undefined && issues.length === 1;
     /** @param {Bounds} [bounds] */
     const beside = (bounds) => ({ beside: bounds, frame: this.frame, gap: 0 });
     /**
@@ -102,7 +104,7 @@ export class IssueMenu {
       .on_size_change((_size, cx) => this.pages.followZoom(cx))
       .on_hover((hovered, cx) => { if (!hovered) this.pages.leave(cx); })
       .on_key_down((event, cx) => this.key(event, cx))
-      .child(caption(t, single ? `${issue.identifier} · ${issue.title}` : `${issues.length} issues`))
+      .child(caption(t, single ? `${issue.identifier} · ${issue.title}` : issuesName(issues)))
       .children(this.properties()
         .map(({ page, icon: name, label, caps }) =>
           paged(page, glyph(t, name), label, caps,

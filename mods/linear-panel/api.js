@@ -202,7 +202,8 @@ async function request(query, variables) {
   } catch {
     // Not JSON: the status below is all there is to say
   }
-  if (body?.errors?.length) throw new Error(body.errors[0].message);
+  const [refusal] = body?.errors ?? [];
+  if (refusal) throw new Error(refusal.message);
   if (!body?.data) throw new Error(`${NAME} answered ${response.status} with no data`);
   return cleanAnswer(body.data);
 }

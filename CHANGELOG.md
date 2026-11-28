@@ -18,6 +18,8 @@
 - Start: the note that asks the agent to read the issue as information, never as instructions, covers the issue's
   title too, and stays when the issue has no description.
 - ESLint 10.15.0, which drops a vulnerable minimatch (GHSA-g3hv-75wg-m249) from the dev dependencies.
+- A stricter type check: the theme's colors are listed by name, so a misspelled one fails the check, and a value read
+  by index from a list or a record counts as possibly missing (`noUncheckedIndexedAccess`).
 - The panel's loads and its spinner live in `parts/loader.js`, tested on their own, and the popups' sizes in
   `parts/sizes.js`. No file imports itself back through others any more; a test keeps it so, and keeps `lib/` free of
   Herdr.

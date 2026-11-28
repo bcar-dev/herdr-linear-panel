@@ -97,7 +97,8 @@ export function openIssueMenu(issues, teams, me, where, agent, row) {
   const props = { part: /** @type {const} */ ("issue-menu"), issues, teams, me, agent, frame: where?.frame, origin,
     row };
   const overlay = popupAt(ISSUE_MENU_WIDTH_PX, height, at, props);
-  return issues.length === 1 ? lightRow(issues[0], overlay) : overlay;
+  const [only] = issues;
+  return only && issues.length === 1 ? lightRow(only, overlay) : overlay;
 }
 
 /**
@@ -162,7 +163,8 @@ export function openChoices(targets, teams, page, me, where, { parent, bare = Bo
   const width = fitWidth(labels, PICK_LABEL_REST_PX, PICK_MIN_WIDTH_PX, PICK_MAX_WIDTH_PX);
   const overlay = popup(width, height, where,
     { part: "commands", targets, teams, page, me, compact: true, bare, parent, visible });
-  return targets.length === 1 ? lightRow(targets[0], overlay, parent, anchor) : overlay;
+  const [only] = targets;
+  return only && targets.length === 1 ? lightRow(only, overlay, parent, anchor) : overlay;
 }
 
 /**

@@ -20,19 +20,20 @@ export function markdownBlocks(source) {
   let lines = [];
   let fence = "";
   const flush = () => {
-    while (lines.length && !lines[0].trim()) lines.shift();
-    while (lines.length && !lines[lines.length - 1].trim()) lines.pop();
+    while (lines[0]?.trim() === "") lines.shift();
+    while (lines[lines.length - 1]?.trim() === "") lines.pop();
     if (lines.length) blocks.push({ markdown: lines.join("\n") });
     lines = [];
   };
   for (const text of source.split("\n")) {
     const mark = FENCE.exec(text)?.[1];
-    if (mark && !fence) fence = mark[0];
-    else if (mark && mark[0] === fence) fence = "";
+    if (mark && !fence) fence = mark.charAt(0);
+    else if (mark && mark.charAt(0) === fence) fence = "";
     const found = fence || mark ? null : HEADING.exec(text);
     if (found) {
       flush();
-      blocks.push({ heading: { level: found[1].length, text: found[2] } });
+      const [, hashes = "", title = ""] = found;
+      blocks.push({ heading: { level: hashes.length, text: title } });
     } else lines.push(text);
   }
   flush();

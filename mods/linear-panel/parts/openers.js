@@ -28,8 +28,8 @@ export class Openers {
   }
 
   compose() {
-    const teams = this.sortedTeams();
-    if (teams.length === 1) composeIssue(teams[0]);
+    const teams = this.sortedTeams(), [only] = teams;
+    if (only && teams.length === 1) composeIssue(only);
     else if (teams.length) openTeamPicker(teams);
   }
 

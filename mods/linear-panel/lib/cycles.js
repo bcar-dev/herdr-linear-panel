@@ -101,7 +101,7 @@ export const PIE_ICONS = [
 // `fraction` is 0 to 1
 /** @param {number} fraction */
 export const pieIcon = (fraction) =>
-  PIE_ICONS[Math.min(PIE_STEPS - 1, Math.max(1, Math.round(fraction * PIE_STEPS))) - 1];
+  PIE_ICONS[Math.min(PIE_STEPS - 1, Math.max(1, Math.round(fraction * PIE_STEPS))) - 1] ?? "status-started-1";
 
 /** @param {number} done 0 to 1 */
 export const progressIcon = (done) => (done <= 0 ? "status-unstarted" : done >= 1 ? "status-completed"

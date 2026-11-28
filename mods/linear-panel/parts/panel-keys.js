@@ -55,7 +55,7 @@ export function listKey(panel, event, cx) {
     case KeyAction.COMPOSE: panel.openers.compose(); break;
     case KeyAction.RELOAD: panel.refresh(cx); break;
     case KeyAction.DISPLAY: panel.openers.displayOptions(); break;
-    case KeyAction.VIEW: panel.show(VIEWS[asked.nth].id, cx); break;
+    case KeyAction.VIEW: panel.show(VIEWS[asked.nth]?.id ?? panel.view, cx); break;
     case KeyAction.CHOOSE: panel.openers.chooseByKey(pointed, asked.page); break;
     case KeyAction.UNASSIGN:
       panel.perform({ kind: RequestKind.UPDATE, ids: ticked ? selection.list() : [pointed.id],
