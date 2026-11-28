@@ -127,7 +127,7 @@ export const use = (address, pause) => {
  * @param {string} address
  */
 export function checkedEndpoint(address) {
-  /** @type {URL | null} */
+  /** @type {InstanceType<typeof URL> | null} */
   let url = null;
   try {
     url = new URL(address);
