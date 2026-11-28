@@ -31,6 +31,9 @@ export class Store {
   // The description and comments last read of each issue: its page opens with them, then reads again
   /** @type {Map<string, { description: string, comments: PageComment[] }>} */
   pages = new Map();
+  // What was typed in a page's comment fields and not sent, by issue and the comment replied to (IssuePage.draftKey)
+  /** @type {Map<string, string>} */
+  drafts = new Map();
   /** @type {Asked} the teams, projects and labels of teams asked since this run began */
   asked = new Asked();
   // An issue's stays in each status, once its status mark was pointed at

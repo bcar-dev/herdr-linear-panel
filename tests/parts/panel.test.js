@@ -9,6 +9,8 @@ import { BACK, FRAME, NEXT, WEB, at, clickRow, detail, mr, sampleIssues, settled
   tracker } from "../fixtures.js";
 
 const REQUESTS = "linear-panel.requests";
+// Longer than a spinner's shortest turn, shorter than a request's timeout
+const SPIN_MS = 1000;
 const row = (root, id) => find(root, `issue-${id}`);
 const iconOf = (node, name) => [...walk(node)]
   .find((child) => child.$.kind === "svg" && child.$.args[0].endsWith(`/${name}.svg`));
@@ -148,7 +150,9 @@ describe("loading", () => {
 
   it("gives up a load that does not answer, says so, and loads again on a reload", async () => {
     const panel = await startPanel({ load: false, app: { fetch: () => new Promise(() => {}) } });
+    await panel.cx.idle();
     panel.cx.elapse();
+    await panel.cx.idle();
     assert.match(text(panel.draw()), /Linear did not answer in time/);
     assert.ok(!panel.view.part.loading);
     host.fetch = panel.server.fetch;
@@ -1566,13 +1570,33 @@ describe("requests from the popups", () => {
     panel.cx.tick();
     await settled();
     await settled();
-    panel.cx.elapse();
+    panel.cx.elapse(SPIN_MS);
     assert.ok(icons(panel.draw())
       .includes("spinner"));
     release();
     await panel.cx.idle();
     panel.cx.elapse();
     assert.ok(!icons(panel.draw())
+      .includes("spinner"));
+  });
+
+  it("gives up a change that does not answer, says so, and stops its spinner", async () => {
+    const panel = await startPanel();
+    panel.cx.elapse();
+    const answer = host.fetch;
+    host.fetch = (url, options) => (JSON.parse(options.body).query.includes("issueBatchUpdate")
+      ? new Promise(() => {}) : answer(url, options));
+    ask({ ids: ["back-1"], kind: "update", input: { priority: 3 } });
+    panel.draw();
+    await panel.cx.idle();
+    assert.ok(icons(panel.draw())
+      .includes("spinner"));
+    panel.cx.elapse();
+    await panel.cx.idle();
+    panel.cx.elapse();
+    const root = panel.draw();
+    assert.match(text(root), /BACK-1: Linear did not answer in time/);
+    assert.ok(!icons(root)
       .includes("spinner"));
   });
 

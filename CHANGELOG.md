@@ -6,6 +6,8 @@
 
 - `post_linear_issue_prompt` setting: the text that ends the agent's first message, after the issue. The example
   layout has one to replace.
+- Deleting a comment asks first, in a dialog. Enter or Delete deletes it; Escape or Cancel keeps it.
+- Issue page: a comment or a reply typed and not sent is still there when the page opens again, until Herdr restarts.
 
 ### Changed
 
@@ -42,6 +44,9 @@
   keyboard.
 - The label picker and a label group's page fit their content: as wide as their longest label or search text, and as
   tall as their labels. A group of three labels no longer gets an empty fourth row, nor a 240 px width.
+- A comment is posted once, however often Send is pressed while it is on its way.
+- A change that gets no answer within 30 seconds fails with an error, as a load does, instead of keeping the spinner
+  up until Herdr restarts.
 
 ## 2026-11-27
 

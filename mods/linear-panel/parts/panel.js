@@ -43,7 +43,6 @@ const ISLAND_HEIGHT_PX = 58;
 const ISLAND_SLIDE_MS = 180;
 const KEYBOARD_RETAKE_DELAYS_MS = [1, 8, 30];
 const KEYBOARD_RETAKE_FINAL_DELAY_MS = 150;
-const LOAD_TIMEOUT_MS = 30_000;
 const NEW_ISSUE_GLYPH_PX = 15;
 const SPINNER_TURN_MS = 900;
 
@@ -87,7 +86,6 @@ export class Panel {
   hot = null;
   /** @type {string | null} */
   hovered = null;
-  loadAttempt = 0;
   loadedAt = 0;
   loading = false;
   needsKey = false;
@@ -111,7 +109,7 @@ export class Panel {
    */
   constructor(settings, cx) {
     this.settings = settings;
-    api.use(settings.api);
+    api.use(settings.api, (ms) => new Promise((resolve) => cx.timer.after(ms, () => resolve())));
     cx.spawn(async (cx) => {
       try {
         this.agents = await knownAgents();
@@ -199,26 +197,20 @@ export class Panel {
     this.#reload(cx);
   }
 
-  // A load that has not answered in time is given up: the host has no way to cancel a request, so its answer, when it
-  // comes, is ignored
   /** @param {Context} cx */
   #reload(cx) {
     if (this.loading) { this.again = true; return; }
     this.loading = true;
     this.loadedAt = Date.now();
-    const attempt = ++this.loadAttempt;
-    cx.timer.after(LOAD_TIMEOUT_MS, (cx) => {
-      if (this.loading && attempt === this.loadAttempt) this.endLoad(new Error(`${NAME} did not answer in time`), cx);
-    });
     cx.spawn(async (cx) => {
       /** @type {unknown} */
       let failure;
       try {
-        await this.load(attempt, cx);
+        await this.load(cx);
       } catch (error) {
         failure = error;
       }
-      if (this.loading && attempt === this.loadAttempt) this.endLoad(failure, cx);
+      this.endLoad(failure, cx);
     });
   }
 
@@ -235,14 +227,10 @@ export class Panel {
     cx.notify();
   }
 
-  /**
-   * @param {number} attempt
-   * @param {Context} cx
-   */
-  async load(attempt, cx) {
+  /** @param {Context} cx */
+  async load(cx) {
     const { store } = this;
     const viewer = await api.issues(filters(this.display.completed, Date.now()));
-    if (attempt !== this.loadAttempt) return;
     store.apply(viewer);
     this.selection.keep(new Set(store.issues[this.view].map((issue) => issue.id)));
     this.settle(store.loadProjects(), "the projects", cx);

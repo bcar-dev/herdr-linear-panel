@@ -5,6 +5,7 @@ import { cleanAnswer } from "./lib/sanitize.js";
 import { compareText } from "./lib/text.js";
 import { API, NAME, apiKey } from "./tracker.js";
 
+const ANSWER_TIMEOUT_MS = 30_000;
 const ATTACHMENTS_PER_ISSUE = 20;
 const COMMENTS_PER_PAGE = 100;
 const CYCLES_PER_TEAM = 20;
@@ -105,12 +106,20 @@ const UPDATE = "mutation($ids: [UUID!]!, $input: IssueUpdateInput!) "
 
 let endpoint = API;
 let cachedKey = "";
+/** @type {((ms: number) => Promise<void>) | null} */
+let wait = null;
 
-// A new panel starts from its own address and asks for the key again
-/** @param {string | undefined} address */
-export const use = (address) => {
+// A new panel starts from its own address and asks for the key again. Herdr's fetch never gives up and the mod has no
+// timer of its own, so the panel lends `pause`, which resolves after that many milliseconds; without it, a request
+// waits for its answer as long as it takes
+/**
+ * @param {string | undefined} address
+ * @param {(ms: number) => Promise<void>} [pause]
+ */
+export const use = (address, pause) => {
   endpoint = address ?? API;
   cachedKey = "";
+  wait = pause ?? null;
 };
 
 /**
@@ -160,6 +169,15 @@ async function allNodes(query, variables, connection) {
 }
 
 /**
+ * @param {(ms: number) => Promise<void>} pause
+ * @returns {Promise<never>}
+ */
+async function givenUp(pause) {
+  await pause(ANSWER_TIMEOUT_MS);
+  throw new Error(`${NAME} did not answer in time`);
+}
+
+/**
  * @param {string} query
  * @param {Record<string, unknown>} variables
  * @returns {Promise<ApiData>}
@@ -168,11 +186,13 @@ async function request(query, variables) {
   const address = checkedEndpoint(endpoint);
   cachedKey ||= await apiKey();
   if (!cachedKey) throw new NoKey();
-  const response = await fetch(address, {
+  const sent = fetch(address, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: cachedKey },
     body: JSON.stringify({ query, variables }),
   });
+  // Given up after the timeout, the answer is ignored when it comes: the host cannot cancel a request
+  const response = await (wait ? Promise.race([sent, givenUp(wait)]) : sent);
   if (response.status === UNAUTHORIZED) cachedKey = "";
   // A gateway in front of the API can answer an error page: say which HTTP status, not that the page failed to parse
   /** @type {ApiAnswer | null} */

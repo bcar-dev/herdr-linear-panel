@@ -81,6 +81,8 @@ export class IssuePage {
   lastSavedTitle = "";
   /** @type {Field} */ composer;
   /** @type {Map<string, Field>} */ replies = new Map();
+  // The fields whose text is on its way to the tracker, by the comment they reply to ("" for a new comment)
+  /** @type {Set<string>} */ sending = new Set();
   /** @type {{ id: string, field: Field } | null} */ edited = null;
   /** @type {Map<string, { bounds: Bounds, scrolled: number }>} */ notedBounds = new Map();
   layoutKey = "";
@@ -95,7 +97,7 @@ export class IssuePage {
     this.panel = panel;
     this.issue = issue;
     this.title = InputState.new({ value: issue.title, placeholder: "Title" });
-    this.composer = this.field("Leave a comment…", (text, cx) => this.send(text, undefined, this.composer, cx));
+    this.composer = this.field("Leave a comment…", (text, cx) => this.send(text, undefined, this.composer, cx), "");
     this.watch(this.title, (cx) => this.saveTitle(cx));
     this.title.on("submit", (_e, cx) => { this.saveTitle(cx); this.title.blur(); });
     const known = panel.store.pages.get(issue.id);
@@ -123,12 +125,16 @@ export class IssuePage {
     });
   }
 
+  // `draft` is the comment the field replies to ("" for a new comment): it starts from what was typed there and not
+  // sent. A field without one (an edit) starts empty
   /**
    * @param {string} placeholder
    * @param {(text: string, cx: Context) => void} send
+   * @param {string} [draft]
    */
-  field(placeholder, send) {
+  field(placeholder, send, draft) {
     const state = TextareaState.new({ placeholder });
+    if (draft !== undefined) state.set_value(this.panel.store.drafts.get(this.draftKey(draft)) ?? "");
     state.set_auto_grow(FIELD_MIN_ROWS, FIELD_MAX_ROWS);
     this.watch(state, () => {});
     state.on("submit", (_e, cx) => send(state.value(), cx));
@@ -160,7 +166,7 @@ export class IssuePage {
     for (const { id } of page.comments) {
       if (!this.replies.has(id)) {
         this.replies.set(id,
-          this.field("Leave a reply…", (text, cx) => this.send(text, id, this.replies.get(id), cx)));
+          this.field("Leave a reply…", (text, cx) => this.send(text, id, this.replies.get(id), cx), id));
       }
     }
     this.loaded = true;
@@ -173,12 +179,22 @@ export class IssuePage {
    * @param {Context} cx
    */
   send(text, parent, state, cx) {
-    const body = text.trim();
-    if (!body) return;
-    this.panel.trackedWork(() => api.comment(this.issue.id, body, parent), this.issue, cx, (cx) => {
+    const body = text.trim(), key = parent ?? "";
+    // A second press while the first is on its way would post the comment twice
+    if (!body || this.sending.has(key)) return;
+    this.sending.add(key);
+    const task = () => api.comment(this.issue.id, body, parent)
+      .finally(() => this.sending.delete(key));
+    this.panel.trackedWork(task, this.issue, cx, (cx) => {
       state?.set_value("");
+      this.panel.store.drafts.delete(this.draftKey(key));
       this.load(cx);
     });
+  }
+
+  /** @param {string} parent the comment replied to, "" for a new comment */
+  draftKey(parent) {
+    return `${this.issue.id}:${parent}`;
   }
 
   /** @param {Context} cx */
@@ -201,7 +217,16 @@ export class IssuePage {
     field.set_selected_range({ start: offset, end: offset });
   }
 
+  // What the comment fields hold is kept as their drafts, for the next time the page opens
   release() {
+    const { drafts } = this.panel.store;
+    /** @type {[string, Field][]} */
+    const comments = [["", this.composer], ...this.replies];
+    for (const [parent, field] of comments) {
+      const text = field.value(), key = this.draftKey(parent);
+      if (text.trim()) drafts.set(key, text);
+      else drafts.delete(key);
+    }
     /** @type {{ release(): boolean }[]} */
     const fields = [this.title, this.composer, ...this.replies.values()];
     for (const state of this.edited ? [...fields, this.edited.field] : fields) state.release();

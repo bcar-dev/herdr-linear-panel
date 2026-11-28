@@ -40,10 +40,10 @@ export function context() {
     },
     // Set once Herdr has closed the copy: its timers stop, as Herdr stops them
     closed: false,
-    // Runs the one-shot timers that are waiting
-    elapse() {
-      const due = cx.timers.filter((timer) => !timer.repeats);
-      cx.timers = cx.timers.filter((timer) => timer.repeats);
+    // Runs the one-shot timers that are waiting, or only those due within `ms`
+    elapse(ms = Infinity) {
+      const due = cx.timers.filter((timer) => !timer.repeats && timer.ms <= ms);
+      cx.timers = cx.timers.filter((timer) => !due.includes(timer));
       if (!cx.closed) for (const timer of due) timer.run(cx);
     },
     // Runs the repeating timers once
