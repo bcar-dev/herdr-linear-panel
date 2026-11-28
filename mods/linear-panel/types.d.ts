@@ -277,7 +277,8 @@ type KeyAsk =
   | { do: KeyActions["VIEW"]; nth: number }
   | { do: KeyActions["CHOOSE"]; page: Property }
   | { do: KeyActions["TICK"]; extend: boolean }
-  | { do: KeyActions["COMPOSE" | "RELOAD" | "DISPLAY" | "UNASSIGN" | "UNTICK"] };
+  | { do: KeyActions["MOVE"]; by: 1 | -1 }
+  | { do: KeyActions["COMPOSE" | "OPEN" | "RELOAD" | "DISPLAY" | "UNASSIGN" | "UNTICK"] };
 
 /** A row of the command window. `note` follows its label, dimmed */
 type Choice = {

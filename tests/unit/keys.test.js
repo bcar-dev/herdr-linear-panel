@@ -86,6 +86,14 @@ describe("panelKey", () => {
     assert.equal(ask("c", { shift: true }), null);
   });
 
+  it("moves the lit row on the arrow keys, and opens its issue on Enter", () => {
+    assert.deepEqual(ask("down"), { do: "move", by: 1 });
+    assert.deepEqual(ask("up"), { do: "move", by: -1 });
+    assert.deepEqual(ask("enter", {}, { pointed: true }), { do: "open" });
+    assert.equal(ask("enter"), null);
+    assert.equal(ask("down", { platform: true }), null);
+  });
+
   it("shows the display options on Shift+V", () => {
     assert.deepEqual(ask("v", { shift: true }), { do: "display" });
     assert.equal(ask("v"), null);

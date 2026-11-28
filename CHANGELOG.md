@@ -8,10 +8,13 @@
   layout has one to replace.
 - Deleting a comment asks first, in a dialog. Enter or Delete deletes it; Escape or Cancel keeps it.
 - Issue page: a comment or a reply typed and not sent is still there when the page opens again, until Herdr restarts.
+- `↑` and `↓` move the lit row through the list, and `Enter` opens the lit issue's page. The pointer moves the same
+  light, and the keys that act on one issue act on the lit one.
 
 ### Changed
 
 - The `start_prompt` setting is now `pre_linear_issue_prompt`. The old name still works.
+- A row's status takes clicks over 24 px instead of 18 px, and the lines that say what failed are 12 px instead of 11.
 - `R` and the reload button also read the teams (states, members, cycles), projects and labels again. The panel's own
   reload every minute still reads them once a run.
 - Start opens its field right under the issue's row, as wide as the row. The field reads "Add instructions

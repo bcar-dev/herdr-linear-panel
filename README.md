@@ -65,22 +65,25 @@ The key stays there. The mod reads it once, keeps it in memory (dropped when Lin
 
 ## Keys
 
-Click in the panel first: it then has the keyboard.
+Click in the panel first: it then has the keyboard. One row is lit: the one under the pointer, or the one the arrow
+keys moved to. The keys below act on it.
 
 | Key | Does |
 | --- | --- |
+| `↑`, `↓` | Light the issue above or below |
+| `Enter` | Open the lit issue's page |
 | `1`, `2` | Current cycle, My issues |
 | `C` | New issue |
 | `R` | Reload, the teams and labels included |
 | `Shift+V` | Display options |
-| `X` | Tick the issue under the pointer; with `Shift`, every issue from the last one ticked to it |
-| `S`, `P`, `A`, `Shift+E`, `Shift+C` | Status, priority, assignee, estimate, cycle of the ticked issues, else of the issue under the pointer or the open page |
+| `X` | Tick the lit issue; with `Shift`, every issue from the last one ticked to it |
+| `S`, `P`, `A`, `Shift+E`, `Shift+C` | Status, priority, assignee, estimate, cycle of the ticked issues, else of the lit issue or the open page |
 | `I` | Un-assign from me |
 | `Cmd+K` | Command window on the ticked issues |
 | `Esc` | Untick everything; close the issue's page |
 | `L` | Labels of the open issue |
 | `Cmd+Shift+M` | Move the open issue to another team |
-| `Cmd+.` and the other copy shortcuts of Linear | Copy the ticked issues, else the issue under the pointer |
+| `Cmd+.` and the other copy shortcuts of Linear | Copy the ticked issues, else the lit issue |
 
 `Cmd` is `Ctrl` off macOS.
 

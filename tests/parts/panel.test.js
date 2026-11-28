@@ -433,7 +433,8 @@ describe("rows", () => {
     assert.equal(focuses(panel.draw()), 1);
     const lit = panel.draw();
     assert.equal(row(lit, "back-1").$.style.bg, "theme.hover");
-    assert.deepEqual([row(lit, "back-1").$.hover, row(lit, "back-2").$.hover], [null, null]);
+    hover(row(lit, "back-2"), true, panel.cx);
+    assert.equal(row(panel.draw(), "back-2").$.style.bg, undefined);
   });
 
   it("names in the menu the agent Start will run: the one most picked, or the one the settings name", async () => {
@@ -469,8 +470,36 @@ describe("rows", () => {
     const root = panel.draw();
     send(root, row(root, "back-1"), "on_mouse_down:right", at(950, 200), panel.cx);
     mountOverlay().view.close();
-    assert.deepEqual(row(panel.draw(), "back-2").$.hover, { bg: "theme.hover" });
+    hover(row(panel.draw(), "back-2"), true, panel.cx);
+    assert.equal(row(panel.draw(), "back-2").$.style.bg, "theme.hover");
   });
+
+  it("takes clicks on a row's status over 24 px, and keeps its 18 px slot", async () => {
+    const panel = await startPanel();
+    const { style } = find(panel.draw(), "status-back-1").$;
+    assert.deepEqual([style.size, style.mx], [24, -3]);
+  });
+
+  it("moves one light through the rows with the arrow keys and the pointer, and opens the lit issue on Enter",
+    async () => {
+      const panel = await startPanel();
+      const litRows = () => identifiers(panel.draw())
+        .filter((id) => row(panel.draw(), id.toLowerCase()).$.style.bg === "theme.hover");
+      press(panel.draw(), "down", panel.cx);
+      assert.deepEqual(litRows(), ["BACK-1"]);
+      press(panel.draw(), "down", panel.cx);
+      press(panel.draw(), "down", panel.cx);
+      assert.deepEqual(litRows(), ["BACK-3"]);
+      // The group the row is in is brought into view
+      assert.equal(panel.view.part.scroll.revealed, 2);
+      press(panel.draw(), "up", panel.cx);
+      assert.deepEqual(litRows(), ["BACK-2"]);
+      const root = panel.draw();
+      send(root, row(root, "back-1"), "on_mouse_move", at(950, 200), panel.cx);
+      assert.deepEqual(litRows(), ["BACK-1"]);
+      press(panel.draw(), "enter", panel.cx);
+      assert.equal(panel.view.part.detail?.issue.id, "back-1");
+    });
 
   it("opens the statuses from the row's status mark and the estimates from its estimate, without naming the issue",
     async () => {

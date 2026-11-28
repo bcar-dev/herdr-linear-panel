@@ -63,6 +63,8 @@ export function listKey(panel, event, cx) {
       break;
     case KeyAction.UNTICK: selection.clear(); break;
     case KeyAction.TICK: panel.tick(pointed, asked.extend, cx); break;
+    case KeyAction.MOVE: panel.moveCursor(asked.by, cx); break;
+    case KeyAction.OPEN: panel.openDetail(pointed, cx); break;
   }
   cx.stop_propagation();
   cx.notify();

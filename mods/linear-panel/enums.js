@@ -18,8 +18,8 @@ export const CopyWhat = Object.freeze({
 /** @typedef {typeof CopyWhat[keyof typeof CopyWhat]} CopyWhat */
 
 export const KeyAction = Object.freeze({
-  CHOOSE: "choose", COMMANDS: "commands", COMPOSE: "compose", COPY: "copy", DISPLAY: "display", RELOAD: "reload",
-  TICK: "tick", UNASSIGN: "unassign", UNTICK: "untick", VIEW: "view",
+  CHOOSE: "choose", COMMANDS: "commands", COMPOSE: "compose", COPY: "copy", DISPLAY: "display", MOVE: "move",
+  OPEN: "open", RELOAD: "reload", TICK: "tick", UNASSIGN: "unassign", UNTICK: "untick", VIEW: "view",
 });
 /** @typedef {typeof KeyAction[keyof typeof KeyAction]} KeyAction */
 

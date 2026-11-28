@@ -2,12 +2,12 @@
 // It draws what the store holds and wires the clicks and keys. The popups (see popups.js) only ask for it, through
 // channel.js
 import { div, image, svg } from "gpui-kit";
-import { v_flex, h_flex } from "gpui-base";
+import { v_flex, h_flex, ScrollHandle } from "gpui-base";
 import * as api from "../api.js";
 import * as channel from "../channel.js";
 import * as dock from "../dock.js";
 import { knownAgents } from "herdr";
-import { COMPLETED, HEADER_HEIGHT_PX, MIN_SPIN_MS, ORDERINGS, RELOAD_EVERY_MS, VIEWS, icon, logo,
+import { COMPLETED, HEADER_HEIGHT_PX, MIN_SPIN_MS, NOTE_TEXT_PX, ORDERINGS, RELOAD_EVERY_MS, VIEWS, icon, logo,
   shipped } from "../config.js";
 import { Completed, Ordering, RequestKind, ViewKey } from "../enums.js";
 import { NAME, isMac, openApp, openPage } from "../tracker.js";
@@ -85,7 +85,7 @@ export class Panel {
   detail = null;
   /** @type {string | null} */
   hot = null;
-  /** @type {string | null} */
+  /** @type {string | null} the issue the keys act on: the one under the pointer, or the one the arrow keys moved to */
   hovered = null;
   loadedAt = 0;
   loading = false;
@@ -102,6 +102,7 @@ export class Panel {
   spunAt = 0;
   /** @type {string[]} the issues in the order drawn, for a Shift+click to span: not those of a folded group */
   visibleIds = [];
+  scroll = ScrollHandle.new();
   working = 0;
 
   /**
@@ -387,6 +388,24 @@ export class Panel {
    */
   tick(issue, extend, cx) {
     this.selection.click(issue.id, extend, this.visibleIds);
+    cx.notify();
+  }
+
+  // The arrow keys move the lit row through the issues shown, from the lit one, else from the first or the last.
+  // shortcut: Herdr scrolls to a child of the list only, which is a group, so in a group taller than the list the lit
+  // row can stay out of sight; reveal the row itself if Herdr ever scrolls to a nested child
+  /**
+   * @param {1 | -1} by
+   * @param {Context} cx
+   */
+  moveCursor(by, cx) {
+    const ids = this.visibleIds;
+    if (!ids.length) return;
+    const from = this.hovered === null ? -1 : ids.indexOf(this.hovered);
+    const to = from < 0 ? (by > 0 ? 0 : ids.length - 1) : Math.min(ids.length - 1, Math.max(0, from + by));
+    this.hovered = ids[to];
+    this.scroll.scroll_to_item(this.sections()
+      .findIndex((group) => group.issues.some((issue) => issue.id === ids[to])));
     cx.notify();
   }
 
@@ -809,7 +828,7 @@ export class Panel {
     const note = (text, color) => div()
       .flex_none()
       .px(16)
-      .text_size(11)
+      .text_size(NOTE_TEXT_PX)
       .text_color(color)
       .child(text);
     /**
@@ -909,6 +928,7 @@ export class Panel {
           .flex_1()
           .min_h(0)
           .overflow_y_scrollbar()
+          .track_scroll(this.scroll)
           .px(6)
           .pb(6)
           .children(sections.map((group) => section(this, group, look)))
