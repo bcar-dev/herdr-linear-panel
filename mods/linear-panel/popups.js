@@ -191,7 +191,6 @@ export function openConfirmDelete(issue, comment, frame) {
     y: frame.y + (frame.height - CONFIRM_DELETE_HEIGHT_PX * scale) / 2 }, props);
 }
 
-// In the middle of the window, over everything
 /**
  * @param {number} width
  * @param {number} height

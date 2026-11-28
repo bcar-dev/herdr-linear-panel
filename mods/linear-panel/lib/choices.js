@@ -1,5 +1,4 @@
-// The rows of the choices of a property (status, priority, estimate, assignee, cycle) for some issues. Pure, so node
-// can test it (tests/unit)
+// The rows of the choices of a property (status, priority, estimate, assignee, cycle) for some issues
 import { PRIORITIES } from "../config.js";
 import { Property, RequestKind } from "../enums.js";
 import { assigneeRows } from "./assignees.js";

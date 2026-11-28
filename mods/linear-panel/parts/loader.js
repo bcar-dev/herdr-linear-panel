@@ -38,7 +38,6 @@ export class Loader {
     else this.spinning = false;
   }
 
-  // A change under way keeps the spinner, which it shows unless it is `quiet`
   begin(quiet = false) {
     if (!quiet) this.spin();
     this.changesUnderWay++;
