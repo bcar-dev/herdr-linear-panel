@@ -78,6 +78,9 @@
   keyboard.
 - The label picker and a label group's page fit their content: as wide as their longest label or search text, and as
   tall as their labels. A group of three labels no longer gets an empty fourth row, nor a 240 px width.
+- A tooltip's keys no longer stay lit after their shortcut opened a popup, such as `⇧` `E` for the estimates. The
+  popup gets the keys' release, so the panel forgets the keys held when the keyboard comes back, and reads the
+  modifiers again at each move of the pointer, however the popup closed.
 - The panel posts a comment once, however often Send is pressed while the comment is on its way.
 - A change that gets no answer within 30 seconds fails with an error, as a load does, instead of keeping the spinner
   up until Herdr restarts.

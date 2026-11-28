@@ -1151,6 +1151,35 @@ describe("header", () => {
       assert.equal(shown(), "Change priority P");
     });
 
+  it("forgets the keys held once their shortcut opens a popup, which gets their release", async () => {
+    const panel = await startPanel();
+    enter(panel);
+    hover(row(panel.draw(), "back-1"), true, panel.context);
+    const bounds = { x: 1180, y: 190, width: 30, height: 20 };
+    const rest = () => {
+      const drawn = panel.draw();
+      send(drawn, find(drawn, "estimate-back-1"), "on_mouse_move", { ...at(1190, 200), bounds }, panel.context);
+      panel.context.elapse();
+    };
+    // A held key shows in the lit text color
+    const caps = () => [...walk(find(panel.draw(), "tooltip"))].filter((node) => node.$.style.min_w === 20)
+      .map((node) => node.$.style.text_color);
+    rest();
+    assert.deepEqual(caps(), ["theme.muted", "theme.muted"]);
+    press(panel.draw(), "e", panel.context, { shift: true });
+    assert.equal(host.overlays.at(-1).props.page, "estimate");
+    mountOverlay().view.close();
+    rest();
+    assert.deepEqual(caps(), ["theme.muted", "theme.muted"]);
+    // A popup closed by a press beside it gives no keyboard back: the next pointer move resets the keys
+    press(panel.draw(), "e", panel.context, { shift: true });
+    const picker = mountOverlay(), drawn = picker.draw();
+    send(drawn, drawn, "on_mouse_down_out", at(100, 100), picker.context);
+    picker.view.close();
+    rest();
+    assert.deepEqual(caps(), ["theme.muted", "theme.muted"]);
+  });
+
   it("shows no tooltip on a control that was pressed, until the pointer has left it", async () => {
     const panel = await startPanel();
     enter(panel);

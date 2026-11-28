@@ -276,6 +276,7 @@ export function drawPanel(panel, theme, sections) {
     .on_mouse_move((event, context) => {
       panel.frame = event.bounds;
       panel.pointer = event.position;
+      panel.hints.pointerMoved(event.modifiers, context);
       if (panel.drag.follow(event.position, event.local_position)) context.notify();
     })
     .when(panel.loader.needsKey, (element) => element.child(header(panel, theme)))

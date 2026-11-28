@@ -17,6 +17,12 @@ const TOOLTIP_FRAME_HEIGHT_PX = 28;
 const TOOLTIP_FRAME_WIDTH_PX = 20;
 const TOOLTIP_WARM_MS = 500;
 
+/** @type {(keyof KeyEvent["modifiers"])[]} */
+const MODIFIER_NAMES = ["shift", "control", "alt", "platform", "function"];
+const NOTHING_HELD = Object.freeze({
+  modifiers: Object.freeze({ shift: false, control: false, alt: false, platform: false, function: false }), key: null,
+});
+
 export class Hints {
   /** @type {Tip | null} */
   tip = null;
@@ -41,7 +47,23 @@ export class Hints {
   begin() { this.#drawn = new Set(); }
 
   /** @type {{ modifiers: KeyEvent["modifiers"], key: string | null }} */
-  held = { modifiers: { shift: false, control: false, alt: false, platform: false, function: false }, key: null };
+  held = NOTHING_HELD;
+
+  forgetKeys() {
+    this.held = NOTHING_HELD;
+  }
+
+  // The panel never hears the keys let go while a popup has the keyboard. A pointer move tells the modifiers down,
+  // so they are read again, and any other key counts as let go
+  /**
+   * @param {KeyEvent["modifiers"]} modifiers
+   * @param {Context} context
+   */
+  pointerMoved(modifiers, context) {
+    const { held } = this;
+    if (held.key === null && MODIFIER_NAMES.every((name) => held.modifiers[name] === modifiers[name])) return;
+    this.keys(modifiers, null, context);
+  }
 
   /**
    * @param {KeyEvent["modifiers"]} modifiers
