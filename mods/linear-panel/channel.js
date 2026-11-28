@@ -1,13 +1,5 @@
-// How the mod's popups and its panel talk: through Herdr's shared state, as each is its own copy of the mod.
-//
-// A request is { at, ids, kind, ... }: the issues it is about, and one of
-//   { kind: "update", input }    the same change on every issue
-//   { kind: "status", name }     each issue to its own team's status of that name
-//   { kind: "copy", what }       one entry of the Copy menu
-//   { kind: "start", instructions }  a checkout and an agent on the issue
-//   { kind: "open" }             the issue's page in the tracker
-//   { kind: "compose", team }    the tracker's composer for a new issue of that team (no issue)
-//   { kind: "display", change }  display options that changed
+// How the mod's popups and its panel talk: through Herdr's shared state, as each is its own copy of the mod. What a
+// popup asks for is a `PanelRequest`, and types.d.ts lists the kinds
 import { shared, setShared, closeOverlay } from "herdr";
 import { MOD } from "./config.js";
 

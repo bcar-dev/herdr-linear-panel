@@ -5,7 +5,7 @@ import { div, svg } from "gpui-kit";
 import { v_flex, h_flex, Input, InputState, ScrollHandle, Textarea, TextareaState } from "gpui-base";
 import * as api from "../api.js";
 import { litAnchor } from "../channel.js";
-import { NOTE_TEXT_PX, PROPERTY_COLUMNS, icon, pageCopies, priorityEntry } from "../config.js";
+import { ERROR_TEXT_PX, PROPERTY_COLUMNS, icon, pageCopies, priorityEntry } from "../config.js";
 import { CommentChange, Property, RequestKind, Side } from "../enums.js";
 import { NAME, openLink } from "../tracker.js";
 import { chordCaps, cycleMark, face, focusSoon, lit, mergeMark, pillRow, priorityMark, statusMark,
@@ -55,8 +55,8 @@ const faceOf = (user, size = AVATAR_PX) =>
 /** @param {PageComment} comment */
 const author = (comment) => (comment.user ? memberName(comment.user) : comment.botActor?.name || "Someone");
 /** @param {{ focus(): void }} state */
-const pressFocuses = (state) => (/** @type {MouseButtonEvent} */ _e, /** @type {Context} */ cx) => {
-  cx.stop_propagation();
+const pressFocuses = (state) => (/** @type {MouseButtonEvent} */ _event, /** @type {Context} */ context) => {
+  context.stop_propagation();
   state.focus();
 };
 
@@ -81,8 +81,8 @@ export class IssuePage {
   lastSavedTitle = "";
   /** @type {Field} */ composer;
   /** @type {Map<string, Field>} */ replies = new Map();
-  // The fields whose text is on its way to the tracker, by the comment they reply to ("" for a new comment)
-  /** @type {Set<string>} */ sending = new Set();
+  // By the comment replied to, "" for a new comment
+  /** @type {Set<string>} */ sendingReplyTo = new Set();
   /** @type {{ id: string, field: Field } | null} */ edited = null;
   /** @type {Map<string, { bounds: Bounds, scrolled: number }>} */ notedBounds = new Map();
   layoutKey = "";
@@ -91,59 +91,59 @@ export class IssuePage {
   /**
    * @param {Panel} panel
    * @param {Issue} issue
-   * @param {Context} cx
+   * @param {Context} context
    */
-  constructor(panel, issue, cx) {
+  constructor(panel, issue, context) {
     this.panel = panel;
     this.issue = issue;
     this.title = InputState.new({ value: issue.title, placeholder: "Title" });
-    this.composer = this.field("Leave a comment…", (text, cx) => this.send(text, undefined, this.composer, cx), "");
-    this.watch(this.title, (cx) => this.saveTitle(cx));
-    this.title.on("submit", (_e, cx) => { this.saveTitle(cx); this.title.blur(); });
+    this.composer = this.field("Leave a comment…",
+      (text, context) => this.send(text, undefined, this.composer, context), "");
+    this.watch(this.title, (context) => this.saveTitle(context));
+    this.title.on("submit", (_event, context) => { this.saveTitle(context); this.title.blur(); });
     const known = panel.store.pages.get(issue.id);
     if (known) this.take(known);
-    this.load(cx);
+    this.load(context);
   }
 
   /**
    * @param {{ on: InputState["on"] }} field
-   * @param {(cx: Context) => void} left
+   * @param {(context: Context) => void} left
    */
   watch(field, left) {
     let counted = false;
-    field.on("focus", (_e, cx) => {
+    field.on("focus", (_event, context) => {
       if (!counted) this.focusedFieldCount++;
       counted = true;
       this.commentHasKeyboard = false;
-      cx.notify();
+      context.notify();
     });
-    field.on("blur", (_e, cx) => {
+    field.on("blur", (_event, context) => {
       if (counted) this.focusedFieldCount = Math.max(0, this.focusedFieldCount - 1);
       counted = false;
-      left(cx);
-      cx.notify();
+      left(context);
+      context.notify();
     });
   }
 
-  // `draft` is the comment the field replies to ("" for a new comment): it starts from what was typed there and not
-  // sent. A field without one (an edit) starts empty
+  // A field that replies (`replyTo` "" for a new comment) starts from its unsent draft; an edit's field starts empty
   /**
    * @param {string} placeholder
-   * @param {(text: string, cx: Context) => void} send
-   * @param {string} [draft]
+   * @param {(text: string, context: Context) => void} send
+   * @param {string} [replyTo]
    */
-  field(placeholder, send, draft) {
+  field(placeholder, send, replyTo) {
     const state = TextareaState.new({ placeholder });
-    if (draft !== undefined) state.set_value(this.panel.store.drafts.get(this.draftKey(draft)) ?? "");
+    if (replyTo !== undefined) state.set_value(this.panel.store.drafts.get(this.draftKey(replyTo)) ?? "");
     state.set_auto_grow(FIELD_MIN_ROWS, FIELD_MAX_ROWS);
     this.watch(state, () => {});
-    state.on("submit", (_e, cx) => send(state.value(), cx));
+    state.on("submit", (_event, context) => send(state.value(), context));
     return state;
   }
 
-  /** @param {Context} cx */
-  load(cx) {
-    cx.spawn(async (cx) => {
+  /** @param {Context} context */
+  load(context) {
+    context.spawn(async (context) => {
       try {
         const page = await api.page(this.issue.id);
         this.panel.store.pages.set(this.issue.id, page);
@@ -151,7 +151,7 @@ export class IssuePage {
       } catch (error) {
         this.panel.failed = `${this.issue.identifier}: ${message(error)}`;
       }
-      cx.notify();
+      context.notify();
     });
   }
 
@@ -166,7 +166,7 @@ export class IssuePage {
     for (const { id } of page.comments) {
       if (!this.replies.has(id)) {
         this.replies.set(id,
-          this.field("Leave a reply…", (text, cx) => this.send(text, id, this.replies.get(id), cx), id));
+          this.field("Leave a reply…", (text, context) => this.send(text, id, this.replies.get(id), context), id));
       }
     }
     this.loaded = true;
@@ -176,35 +176,35 @@ export class IssuePage {
    * @param {string} text
    * @param {string | undefined} parent
    * @param {Field | undefined} state
-   * @param {Context} cx
+   * @param {Context} context
    */
-  send(text, parent, state, cx) {
+  send(text, parent, state, context) {
     const body = text.trim(), key = parent ?? "";
     // A second press while the first is on its way would post the comment twice
-    if (!body || this.sending.has(key)) return;
-    this.sending.add(key);
+    if (!body || this.sendingReplyTo.has(key)) return;
+    this.sendingReplyTo.add(key);
     const task = () => api.comment(this.issue.id, body, parent)
-      .finally(() => this.sending.delete(key));
-    this.panel.trackedWork(task, this.issue, cx, (cx) => {
+      .finally(() => this.sendingReplyTo.delete(key));
+    this.panel.trackedWork(task, this.issue, context, (context) => {
       state?.set_value("");
       this.panel.store.drafts.delete(this.draftKey(key));
-      this.load(cx);
+      this.load(context);
     });
   }
 
-  /** @param {string} parent the comment replied to, "" for a new comment */
-  draftKey(parent) {
-    return `${this.issue.id}:${parent}`;
+  /** @param {string} replyTo */
+  draftKey(replyTo) {
+    return `${this.issue.id}:${replyTo}`;
   }
 
-  /** @param {Context} cx */
-  saveTitle(cx) {
+  /** @param {Context} context */
+  saveTitle(context) {
     const title = this.title.value()
       .trim();
     if (!title) { this.title.set_value(this.issue.title); return; }
     if (title === this.issue.title || title === this.lastSavedTitle) return;
     this.lastSavedTitle = title;
-    this.panel.perform({ kind: RequestKind.UPDATE, ids: [this.issue.id], input: { title } }, cx,
+    this.panel.perform({ kind: RequestKind.UPDATE, ids: [this.issue.id], input: { title } }, context,
       () => { this.lastSavedTitle = ""; });
   }
 
@@ -217,7 +217,6 @@ export class IssuePage {
     field.set_selected_range({ start: offset, end: offset });
   }
 
-  // What the comment fields hold is kept as their drafts, for the next time the page opens
   release() {
     const { drafts } = this.panel.store;
     /** @type {[string, Field][]} */
@@ -251,34 +250,34 @@ export class IssuePage {
   }
 
   /**
-   * @param {Theme} t
+   * @param {Theme} theme
    * @param {string} text
    */
-  heading(t, text) {
+  heading(theme, text) {
     return div()
       .flex_none()
       .pt(14)
       .pb(5)
       .text_size(12)
-      .text_color(t.muted)
+      .text_color(theme.muted)
       .child(text);
   }
 
   /**
-   * @param {Theme} t
+   * @param {Theme} theme
    * @param {string} id
    * @param {NativeElement} mark
    * @param {string} label
-   * @param {(cx: Context) => void} action
-   * @param {{ label: string, caps: string[], body?: Tip["body"], entered?: (cx: Context) => void }} [tip]
+   * @param {(context: Context) => void} action
+   * @param {{ label: string, caps: string[], body?: Tip["body"], entered?: (context: Context) => void }} [tip]
    */
-  line(t, id, mark, label, action, tip) {
-    const base = this.pageLine(t, `page-${id}`)
+  line(theme, id, mark, label, action, tip) {
+    const base = this.pageLine(theme, `page-${id}`)
       .on_window_mouse_move(this.noteBounds(`page-${id}`))
-      .text_color(t.foreground);
+      .text_color(theme.foreground);
     const row = tip ? this.panel.hints.on(base, tip.label, { caps: tip.caps, body: tip.body, side: this.side(),
       key: `page-${id}`,
-      hover: (hovered, cx) => { if (hovered) tip.entered?.(cx); } }) : base;
+      hover: (hovered, context) => { if (hovered) tip.entered?.(context); } }) : base;
     const column = div()
       .w(ICON_COLUMN_PX)
       .flex_none()
@@ -297,28 +296,28 @@ export class IssuePage {
   // As wide as its content (`self_start`), so a tooltip beside it sits at the content's end; the negative margin takes
   // back its padding
   /**
-   * @param {Theme} t
+   * @param {Theme} theme
    * @param {string} id
    */
-  pageLine(t, id) {
-    return pillRow(t, id, 28, { px: 10, gap: 8 })
+  pageLine(theme, id) {
+    return pillRow(theme, id, 28, { px: 10, gap: 8 })
       .self_start()
       .max_w_full()
       .mx(-10)
       .text_size(14)
-      .when(litAnchor() === id, (row) => row.bg(t.hover));
+      .when(litAnchor() === id, (row) => row.bg(theme.hover));
   }
 
   /**
-   * @param {Theme} t
+   * @param {Theme} theme
    * @param {Issue} issue
    */
-  diffs(t, issue) {
+  diffs(theme, issue) {
     const list = merges(issue);
     if (!list.length) return [];
     const shown = this.diffsOpen ? list : list.slice(0, DIFFS_SHOWN), hidden = list.length - DIFFS_SHOWN;
-    const more = list.length > DIFFS_SHOWN ? [this.panel.control(this.pageLine(t, "page-diffs-more")
-      .text_color(t.muted), (cx) => { this.diffsOpen = !this.diffsOpen; cx.notify(); })
+    const more = list.length > DIFFS_SHOWN ? [this.panel.control(this.pageLine(theme, "page-diffs-more")
+      .text_color(theme.muted), (context) => { this.diffsOpen = !this.diffsOpen; context.notify(); })
       .child(div()
         .w(ICON_COLUMN_PX)
         .flex_none()
@@ -328,13 +327,13 @@ export class IssuePage {
         .child(svg(icon("unfold"))
           .size(14)))
       .child(this.diffsOpen ? "Show less" : `Show ${hidden} more`)] : [];
-    return [this.heading(t, "Diffs"), ...shown.map((merge) => {
-      const key = `page-merge-${merge.url}`, hot = this.panel.hot === key;
-      return this.panel.control(this.panel.hints.on(this.pageLine(t, key), "", {
-        key, side: Side.RIGHT, body: (t) => mergeCardOf(this.panel, issue, merge, t),
-        hover: (hovered, cx) => {
-          this.panel.heat(key, hovered, cx);
-          if (hovered) this.panel.loadMergeDetails(issue, cx);
+    return [this.heading(theme, "Diffs"), ...shown.map((merge) => {
+      const key = `page-merge-${merge.url}`, underPointer = this.panel.hoveredControl === key;
+      return this.panel.control(this.panel.hints.on(this.pageLine(theme, key), "", {
+        key, side: Side.RIGHT, body: (theme) => mergeCardOf(this.panel, issue, merge, theme),
+        hover: (hovered, context) => {
+          this.panel.hoverControl(key, hovered, context);
+          if (hovered) this.panel.loadMergeDetails(issue, context);
         },
       }), () => { openLink(merge.url); })
         .child(div()
@@ -348,7 +347,7 @@ export class IssuePage {
           .flex_1()
           .min_w(0)
           .truncate()
-          .child(hot ? merge.title : clipped(merge.title, DIFF_TITLE_MAX_CHARS)));
+          .child(underPointer ? merge.title : clipped(merge.title, DIFF_TITLE_MAX_CHARS)));
     }), ...more];
   }
 
@@ -357,10 +356,10 @@ export class IssuePage {
   }
 
   /**
-   * @param {Theme} t
+   * @param {Theme} theme
    * @param {Issue} issue
    */
-  properties(t, issue) {
+  properties(theme, issue) {
     const { panel } = this, team = panel.store.teams.get(issue.team.id), { cycle } = issue;
     const estimate = estimateText(team, issue.estimate);
     /** @param {Property} page */
@@ -372,41 +371,42 @@ export class IssuePage {
       cycle ? cycleName(cycle) : "No cycle"];
     this.widestLinePx = PROPERTY_PADDING_PX + ICON_COLUMN_PX + PROPERTY_PADDING_PX
       + Math.max(...names.map((name) => textWidth(name, NAME_CHARACTER_WIDTH_PX)));
-    const cycleLine = this.line(t, "cycle", cycle
+    const cycleLine = this.line(theme, "cycle", cycle
       ? cycleMark(tense(cycle, team?.cycles ?? [], Date.now()), PROPERTY_ICON_PX)
       : svg(icon("cycle-none"))
         .size(14)
         .flex_none()
-        .text_color(t.muted),
+        .text_color(theme.muted),
     cycle ? cycleName(cycle) : "No cycle", choose(Property.CYCLE));
     const lines = [
-      this.line(t, "status", statusMark(issue.state, team?.states), issue.state.name, choose(Property.STATUS), {
-        label: "Change status", caps: propertyKey(Property.STATUS).caps, body: (t) => timeInStatus(panel, issue, t),
-        entered: (cx) => panel.loadStatusHistory(issue, cx) }),
-      this.line(t, "team", teamMark(issue.team, TEAM_MARK_PX),
+      this.line(theme, "status", statusMark(issue.state, team?.states), issue.state.name, choose(Property.STATUS), {
+        label: "Change status", caps: propertyKey(Property.STATUS).caps,
+        body: (theme) => timeInStatus(panel, issue, theme),
+        entered: (context) => panel.loadStatusHistory(issue, context) }),
+      this.line(theme, "team", teamMark(issue.team, TEAM_MARK_PX),
         issue.team.name, () => panel.openers.pickTeam(issue)),
-      this.line(t, "priority", priorityMark(t, issue.priority, false), priority, choose(Property.PRIORITY),
+      this.line(theme, "priority", priorityMark(theme, issue.priority, false), priority, choose(Property.PRIORITY),
         { label: "Change priority", caps: propertyKey(Property.PRIORITY).caps }),
-      this.line(t, "assign", issue.assignee ? faceOf(issue.assignee, AVATAR_PX)
+      this.line(theme, "assign", issue.assignee ? faceOf(issue.assignee, AVATAR_PX)
       : svg(icon("no-assignee"))
         .size(AVATAR_PX)
         .flex_none()
-        .text_color(t.muted),
+        .text_color(theme.muted),
       assignee, choose(Property.ASSIGN)),
-      this.line(t, "estimate", svg(icon(issue.estimate === null ? "estimate-none" : "estimate"))
+      this.line(theme, "estimate", svg(icon(issue.estimate === null ? "estimate-none" : "estimate"))
         .size(14)
         .flex_none()
-        .text_color(t.muted),
+        .text_color(theme.muted),
       estimate,
       choose(Property.ESTIMATE), { label: "Change estimate", caps: propertyKey(Property.ESTIMATE).caps }),
       cycle ? panel.hints.on(cycleLine, "", { key: "page-cycle", side: this.side(),
-        body: (t) => cycleCard(panel, issue, cycle, t),
-        hover: (hovered, cx) => {
-          if (hovered && Date.parse(cycle.startsAt) > Date.now()) panel.loadPlannedPoints(cycle, cx);
+        body: (theme) => cycleCard(panel, issue, cycle, theme),
+        hover: (hovered, context) => {
+          if (hovered && Date.parse(cycle.startsAt) > Date.now()) panel.loadPlannedPoints(cycle, context);
         } })
       : cycleLine];
     // The lines fill the columns one after the other, each column down before the next
-    return [this.heading(t, "Properties"), h_flex()
+    return [this.heading(theme, "Properties"), h_flex()
       .w_full()
       .gap(8)
       .items_start()
@@ -418,18 +418,18 @@ export class IssuePage {
   }
 
   /**
-   * @param {Theme} t
+   * @param {Theme} theme
    * @param {Issue} issue
    */
-  labels(t, issue) {
+  labels(theme, issue) {
     const { nodes } = issue.labels, adds = addLabelsId(issue);
-    const open = (/** @type {Context} */ cx) => this.panel.openers.chooseLabels(issue, cx, adds);
+    const open = (/** @type {Context} */ context) => this.panel.openers.chooseLabels(issue, context, adds);
     const tip = { caps: ["L"], key: "page-add-labels", side: Side.RIGHT };
-    const plus = this.panel.iconButton(t, { id: "page-add-label", name: "plus", label: "Add labels", caps: ["L"],
+    const plus = this.panel.iconButton(theme, { id: "page-add-label", name: "plus", label: "Add labels", caps: ["L"],
       glyph: PAGE_BUTTON_GLYPH_PX, size: ICON_BUTTON_PX, ring: false, side: Side.RIGHT, action: open })
       .on_window_mouse_move(this.noteBounds(adds))
-      .hover((style) => style.bg(t.hover))
-      .when(litAnchor() === adds, (button) => button.bg(t.hover));
+      .hover((style) => style.bg(theme.hover))
+      .when(litAnchor() === adds, (button) => button.bg(theme.hover));
     /** @param {IssueLabel} label */
     const chipId = (label) => `page-label-${label.id}`;
     const chips = nodes.map((label) => this.panel.control(h_flex()
@@ -441,12 +441,12 @@ export class IssuePage {
       .items_center()
       .rounded(12)
       .border_1()
-      .border_color(t.border)
+      .border_color(theme.border)
       .text_size(12.5)
       .cursor_pointer()
-      .hover((style) => style.bg(t.hover))
-      .when(litAnchor() === chipId(label), (chip) => chip.bg(t.hover)),
-    (cx) => this.panel.openers.chooseLabel(issue, label, cx, chipId(label)))
+      .hover((style) => style.bg(theme.hover))
+      .when(litAnchor() === chipId(label), (chip) => chip.bg(theme.hover)),
+    (context) => this.panel.openers.chooseLabel(issue, label, context, chipId(label)))
       .child(div()
         .size(9)
         .flex_none()
@@ -456,16 +456,16 @@ export class IssuePage {
       .when(Boolean(label.parent), (element) => element.child(svg(icon("caret-down"))
         .size(10)
         .flex_none()
-        .text_color(t.muted))));
-    return [this.heading(t, "Labels"),
+        .text_color(theme.muted))));
+    return [this.heading(theme, "Labels"),
       nodes.length ? h_flex()
         .flex_wrap()
         .gap(6)
         .items_center()
         .children([...chips, plus])
-      : this.panel.control(this.panel.hints.on(this.pageLine(t, "page-add")
+      : this.panel.control(this.panel.hints.on(this.pageLine(theme, "page-add")
         .on_window_mouse_move(this.noteBounds("page-add"))
-        .text_color(t.muted), "Add labels", tip),
+        .text_color(theme.muted), "Add labels", tip),
       open)
         .child(svg(icon("label"))
           .size(14)
@@ -473,36 +473,36 @@ export class IssuePage {
         .child("Add label")];
   }
 
-  /** @param {Theme} t */
-  surface(t) {
-    return mix(t.background, t.raised, SURFACE_RAISED_MIX);
+  /** @param {Theme} theme */
+  surface(theme) {
+    return mix(theme.background, theme.raised, SURFACE_RAISED_MIX);
   }
 
   /**
-   * @param {Theme} t
+   * @param {Theme} theme
    * @param {NativeElement} element
    */
-  box(t, element) {
+  box(theme, element) {
     return element.rounded(12)
       .border_1()
-      .border_color(this.edge(t))
-      .bg(this.surface(t))
+      .border_color(this.edge(theme))
+      .bg(this.surface(theme))
       .shadow_sm();
   }
 
-  /** @param {Theme} t */
-  edge(t) {
-    return mix(this.surface(t), t.raised, EDGE_RAISED_MIX);
+  /** @param {Theme} theme */
+  edge(theme) {
+    return mix(this.surface(theme), theme.raised, EDGE_RAISED_MIX);
   }
 
   /**
-   * @param {Theme} t
+   * @param {Theme} theme
    * @param {string} id
    * @param {Field} state
-   * @param {(text: string, cx: Context) => void} send
+   * @param {(text: string, context: Context) => void} send
    * @param {boolean} [mine]
    */
-  composing(t, id, state, send, mine = false) {
+  composing(theme, id, state, send, mine = false) {
     return h_flex()
       .flex_none()
       .px(12)
@@ -515,32 +515,32 @@ export class IssuePage {
         .flex_1()
         .min_w(0)
         .text_size(13)
-        .text_color(t.foreground))
-      .child(this.panel.iconButton(t, { id: `${id}-send`, name: "send", label: "Send",
+        .text_color(theme.foreground))
+      .child(this.panel.iconButton(theme, { id: `${id}-send`, name: "send", label: "Send",
         glyph: PAGE_BUTTON_GLYPH_PX, size: ICON_BUTTON_PX, ring: false,
-        action: (cx) => send(state.value(), cx) }));
+        action: (context) => send(state.value(), context) }));
   }
 
   /**
-   * @param {Theme} t
+   * @param {Theme} theme
    * @param {Issue} issue
    */
-  identifier(t, issue) {
+  identifier(theme, issue) {
     return div()
       .id("page-id")
       .flex_none()
       .px(4)
-      .text_color(t.muted)
+      .text_color(theme.muted)
       .text_size(18)
       .font_light()
       .child(issue.identifier);
   }
 
   /**
-   * @param {Theme} t
+   * @param {Theme} theme
    * @param {Issue} issue
    */
-  copies(t, issue) {
+  copies(theme, issue) {
     return h_flex()
       .flex_none()
       .gap(4)
@@ -548,25 +548,29 @@ export class IssuePage {
       .children([
         ...pageCopies()
           .map(({ what, icon: name, label, keys }) => {
-            return this.panel.iconButton(t, { id: `page-copy-${what}`, name, label,
+            return this.panel.iconButton(theme, { id: `page-copy-${what}`, name, label,
               glyph: PAGE_BUTTON_GLYPH_PX, size: ICON_BUTTON_PX,
               caps: keys ? chordCaps(keys) : [],
-              action: (cx) => this.panel.perform({ kind: RequestKind.COPY, ids: [issue.id], what }, cx) });
+              action: (context) => this.panel.perform({ kind: RequestKind.COPY, ids: [issue.id], what }, context) });
           }),
-        this.panel.iconButton(t, { id: "page-open", name: "external-link", label: `Open in ${NAME}`,
+        this.panel.iconButton(theme, { id: "page-open", name: "external-link", label: `Open in ${NAME}`,
           glyph: PAGE_BUTTON_GLYPH_PX, size: ICON_BUTTON_PX,
-          action: (cx) => this.panel.perform({ kind: RequestKind.OPEN, ids: [issue.id] }, cx) }),
+          action: (context) => this.panel.perform({ kind: RequestKind.OPEN, ids: [issue.id] }, context) }),
       ]);
   }
 
   /**
-   * @param {Theme} t
+   * @param {Theme} theme
    * @param {PageComment} comment
    */
-  text(t, comment) {
+  text(theme, comment) {
     if (this.edited?.id !== comment.id) {
       return markdownView(`body-${comment.id}`, comment.body, true)
-        .on_mouse_down("left", (_e, cx) => { cx.stop_propagation(); this.commentHasKeyboard = true; cx.notify(); });
+        .on_mouse_down("left", (_event, context) => {
+          context.stop_propagation();
+          this.commentHasKeyboard = true;
+          context.notify();
+        });
     }
     const { field } = this.edited;
     /**
@@ -584,8 +588,8 @@ export class IssuePage {
       .cursor_pointer()
       .text_size(14)
       .on_click(action)
-      .text_color(t.foreground)
-      .hover((style) => style.bg(t.hover))
+      .text_color(theme.foreground)
+      .hover((style) => style.bg(theme.hover))
       .child(label);
     /**
      * @param {string} id
@@ -602,11 +606,11 @@ export class IssuePage {
       .cursor_pointer()
       .text_size(14)
       .on_click(action)
-      .text_color(t.foreground)
-      .bg(this.surface(t))
+      .text_color(theme.foreground)
+      .bg(this.surface(theme))
       .border_1()
-      .border_color(t.border)
-      .hover((style) => style.bg(t.hover))
+      .border_color(theme.border)
+      .hover((style) => style.bg(theme.hover))
       .child(label);
     return v_flex()
       .gap(14)
@@ -617,38 +621,38 @@ export class IssuePage {
           .flex_1()
           .min_w(0)
           .text_size(13)
-          .text_color(t.foreground)))
+          .text_color(theme.foreground)))
       .child(h_flex()
         .gap(8)
         .items_center()
         .justify_end()
-        .child(plainButton("edit-cancel", "Cancel", (_e, cx) => this.stopEdit(cx)))
-        .child(primaryButton("edit-save", "Save", (_e, cx) => this.saveEdit(cx))));
+        .child(plainButton("edit-cancel", "Cancel", (_event, context) => this.stopEdit(context)))
+        .child(primaryButton("edit-save", "Save", (_event, context) => this.saveEdit(context))));
   }
 
   /**
    * @param {string} id
-   * @param {Context} cx
+   * @param {Context} context
    */
-  startEdit(id, cx) {
+  startEdit(id, context) {
     const comment = this.comments.find((found) => found.id === id);
     if (!comment) return;
-    if (this.edited) this.saveEdit(cx);
-    const field = this.field("Edit comment…", (_text, cx) => this.saveEdit(cx));
+    if (this.edited) this.saveEdit(context);
+    const field = this.field("Edit comment…", (_text, context) => this.saveEdit(context));
     field.set_value(comment.body);
     this.edited = { id, field };
-    cx.notify();
+    context.notify();
     const text = field.value();
-    focusSoon(cx, () => {
+    focusSoon(context, () => {
       if (this.edited?.field === field && field.value() === text) this.focusAt(field);
     });
   }
 
-  /** @param {Context} cx */
-  stopEdit(cx) {
+  /** @param {Context} context */
+  stopEdit(context) {
     if (this.edited) this.finish(this.edited.field);
     this.edited = null;
-    cx.notify();
+    context.notify();
   }
 
   // Freeing a field is not a blur, and the page counts the fields that have the keyboard: it is given back first
@@ -659,25 +663,25 @@ export class IssuePage {
   }
 
   // The field stays, with what was typed, until the tracker has taken it
-  /** @param {Context} cx */
-  saveEdit(cx) {
+  /** @param {Context} context */
+  saveEdit(context) {
     if (!this.edited) return;
     const { id, field } = this.edited, body = field.value()
       .trim();
-    if (!body || body === this.comments.find((comment) => comment.id === id)?.body) return this.stopEdit(cx);
-    this.panel.trackedWork(() => api.changeComment(CommentChange.EDIT, id, body), this.issue, cx, (cx) => {
+    if (!body || body === this.comments.find((comment) => comment.id === id)?.body) return this.stopEdit(context);
+    this.panel.trackedWork(() => api.changeComment(CommentChange.EDIT, id, body), this.issue, context, (context) => {
       if (this.edited?.field === field) this.edited = null;
       this.finish(field);
-      this.load(cx);
+      this.load(context);
     });
   }
 
   /**
-   * @param {Theme} t
+   * @param {Theme} theme
    * @param {PageComment} comment
    * @param {boolean} first
    */
-  comment(t, comment, first) {
+  comment(theme, comment, first) {
     const { user } = comment;
     return v_flex()
       .id(`comment-${comment.id}`)
@@ -687,7 +691,7 @@ export class IssuePage {
       .pb(10)
       .gap(8)
       .when(!first, (element) => element.border_t(1)
-        .border_color(this.edge(t)))
+        .border_color(this.edge(theme)))
       .child(h_flex()
         .gap(8)
         .items_center()
@@ -698,50 +702,50 @@ export class IssuePage {
           .child(author(comment)))
         .child(div()
           .text_size(12)
-          .text_color(t.dim)
+          .text_color(theme.dim)
           .child(`${timeLabel(Date.now() - Date.parse(comment.createdAt))} ago`))
         .when(Boolean(comment.resolvedAt),
           (element) => element.child(div()
             .text_size(12)
-            .text_color(t.dim)
+            .text_color(theme.dim)
             .child("Resolved")))
         .child(div()
           .flex_1())
         .children(this.edited?.id === comment.id ? [] : [
-          this.panel.iconButton(t, { id: `more-${comment.id}`, name: "more", label: "Comment options",
+          this.panel.iconButton(theme, { id: `more-${comment.id}`, name: "more", label: "Comment options",
             glyph: COMMENT_MENU_GLYPH_PX,
             size: COMMENT_MENU_BUTTON_PX, ring: false, action: () => this.panel.openers.commentMenu(comment) }),
         ]))
-      .child(this.text(t, comment));
+      .child(this.text(theme, comment));
   }
 
   /**
-   * @param {Theme} t
+   * @param {Theme} theme
    * @param {string} id
    * @param {PageComment[]} thread
    */
-  thread(t, id, thread) {
+  thread(theme, id, thread) {
     const reply = this.replies.get(id);
-    return this.box(t, v_flex()
+    return this.box(theme, v_flex()
       .flex_none()
       .mt(10))
-      .children(thread.map((comment, nth) => this.comment(t, comment, nth === 0)))
+      .children(thread.map((comment, nth) => this.comment(theme, comment, nth === 0)))
       .children(reply ? [div()
         .h(1)
         .flex_none()
-        .bg(this.edge(t)), this.composing(t, `reply-${id}`, reply,
-        (text, cx) => this.send(text, id, reply, cx), true)] : []);
+        .bg(this.edge(theme)), this.composing(theme, `reply-${id}`, reply,
+        (text, context) => this.send(text, id, reply, context), true)] : []);
   }
 
   // The page is as wide as the panel, which can be resized while the page shows; `width` only says how far right it
   // waits
   /**
-   * @param {Theme} t
+   * @param {Theme} theme
    * @param {Issue} issue
    * @param {number} width
-   * @param {(cx: Context) => void} close
+   * @param {(context: Context) => void} close
    */
-  render(t, issue, width, close) {
+  render(theme, issue, width, close) {
     this.issue = issue;
     const layoutKey = [Boolean(this.panel.failed), this.diffsOpen, merges(issue).length, zoom(),
       issue.labels.nodes.map((label) => label.id)
@@ -756,15 +760,15 @@ export class IssuePage {
       .w_full()
       .text_size(13)
       .children(this.description ? [markdownView("description", this.description)] : []);
-    const back = this.panel.control(pillRow(t, "page-back", 32, { lit: false })
+    const back = this.panel.control(pillRow(theme, "page-back", 32, { lit: false })
       .w(40)
       .justify_center()
       .border_1()
-      .border_color(t.muted)
-      .bg(this.surface(t)), close)
+      .border_color(theme.muted)
+      .bg(this.surface(theme)), close)
       .child(svg(icon("chevrons-right"))
         .size(16)
-        .text_color(lit(t, this.panel.hot === "page-back")));
+        .text_color(lit(theme, this.panel.hoveredControl === "page-back")));
     return v_flex()
       .id("issue-page")
       .absolute()
@@ -772,19 +776,19 @@ export class IssuePage {
       .bottom(0)
       .left(this.shown ? 0 : width)
       .w_full()
-      .bg(t.background)
+      .bg(theme.background)
       .transition("left", { duration: SLIDE_MS, easing: "ease-out" })
       // A press on a field stops before this one (`pressFocuses`), which gives the panel the keyboard
-      .on_mouse_down("left", (_e, cx) => {
-        cx.stop_propagation();
+      .on_mouse_down("left", (_event, context) => {
+        context.stop_propagation();
         this.commentHasKeyboard = false;
         this.panel.handle.focus();
       })
-      .on_mouse_up("left", (_e, cx) => cx.stop_propagation())
+      .on_mouse_up("left", (_event, context) => context.stop_propagation())
       .child(v_flex()
         .flex_none()
         .border_b(1)
-        .border_color(t.border)
+        .border_color(theme.border)
         .child(h_flex()
           .h(46)
           .flex_none()
@@ -792,11 +796,11 @@ export class IssuePage {
           .gap(10)
           .items_center()
           .child(this.panel.hints.on(back, "Back to the issues", { caps: ["Esc"], key: "page-back",
-            hover: (on, cx) => this.panel.heat("page-back", on, cx) }))
-          .child(this.identifier(t, issue))
+            hover: (on, context) => this.panel.hoverControl("page-back", on, context) }))
+          .child(this.identifier(theme, issue))
           .child(div()
             .flex_1())
-          .child(this.copies(t, issue)))
+          .child(this.copies(theme, issue)))
         .child(div()
           .flex_none()
           .px(16)
@@ -807,16 +811,16 @@ export class IssuePage {
             .h(30)
             .text_size(16)
             .font_semibold()
-            .text_color(t.foreground))))
+            .text_color(theme.foreground))))
       .children(this.panel.failed ? [div()
         .id("page-failed")
         .flex_none()
         .px(16)
         .pt(6)
-        .text_size(NOTE_TEXT_PX)
-        .text_color(t.ansi1)
+        .text_size(ERROR_TEXT_PX)
+        .text_color(theme.ansi1)
         .cursor_pointer()
-        .on_click((_e, cx) => { this.panel.failed = null; cx.notify(); })
+        .on_click((_event, context) => { this.panel.failed = null; context.notify(); })
         .child(this.panel.failed)] : [])
       .child(v_flex()
         .id(SCROLL_ID)
@@ -827,29 +831,29 @@ export class IssuePage {
         .track_scroll(this.scroll)
         .px(16)
         .pb(12)
-        .children(this.diffs(t, issue))
-        .children(this.properties(t, issue))
-        .children(this.labels(t, issue))
+        .children(this.diffs(theme, issue))
+        .children(this.properties(theme, issue))
+        .children(this.labels(theme, issue))
         .child(div()
           .h(1)
           .mt(14)
           .flex_none()
-          .bg(t.border))
+          .bg(theme.border))
         .child(div()
           .flex_none()
           .mt(14)
           .child(body))
-        .children(roots.map((root) => this.thread(t, root.id,
+        .children(roots.map((root) => this.thread(theme, root.id,
           [root, ...this.comments.filter((comment) => comment.parent?.id === root.id)])))
         .when(!this.loaded, (element) => element.child(div()
           .pt(10)
           .text_size(12)
-          .text_color(t.dim)
+          .text_color(theme.dim)
           .child("Loading…")))
-        .child(this.box(t, v_flex()
+        .child(this.box(theme, v_flex()
           .flex_none()
           .mt(12))
-          .child(this.composing(t, "comment", this.composer,
-            (text, cx) => this.send(text, undefined, this.composer, cx)))));
+          .child(this.composing(theme, "comment", this.composer,
+            (text, context) => this.send(text, undefined, this.composer, context)))));
   }
 }

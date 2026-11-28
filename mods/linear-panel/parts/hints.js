@@ -45,11 +45,11 @@ export class Hints {
   /**
    * @param {KeyEvent["modifiers"]} modifiers
    * @param {string | null} key the key that went down, null when it went up or only a modifier changed
-   * @param {Context} cx
+   * @param {Context} context
    */
-  keys(modifiers, key, cx) {
+  keys(modifiers, key, context) {
     this.held = { modifiers, key };
-    if (this.tip?.caps.length) cx.notify();
+    if (this.tip?.caps.length) context.notify();
   }
 
   // A control that went away while the pointer was on it is never told the pointer left
@@ -59,41 +59,42 @@ export class Hints {
     return this.tip;
   }
 
-  // The element needs an id. `key` tells the controls apart: give one when several share a label. `body(t)` draws more
-  // above the label, or answers null for nothing. Under a body, an empty label leaves the tooltip to the body alone.
-  // An element takes one hover handler, and the tooltip needs it: `hover` is run from it, for the element's own use
+  // The element needs an id. `key` tells the controls apart: give one when several share a label. `body(theme)` draws
+  // more above the label, or answers null for nothing. Under a body, an empty label leaves the tooltip to the body
+  // alone. An element takes one hover handler, and the tooltip needs it: `hover` is run from it, for the element's own
+  // use
   /**
    * @param {NativeElement} element
    * @param {string} label
    * @param {{
    *   caps?: string[], side?: Tip["side"], key?: string, body?: Tip["body"],
-   *   hover?: (hovered: boolean, cx: Context) => void,
+   *   hover?: (hovered: boolean, context: Context) => void,
    * }} options
    */
   on(element, label, { caps = [], side = Side.BELOW, key = label, body, hover } = {}) {
     this.#drawn.add(key);
     return element
-      .on_mouse_down("left", (_event, cx) => this.#press(key, cx))
-      .on_mouse_move((event, cx) => {
+      .on_mouse_down("left", (_event, context) => this.#press(key, context))
+      .on_mouse_move((event, context) => {
         if (this.#pressed === key || this.tip?.key === key || this.#waiting?.key === key) return;
         const tip = { key, label, caps, side, body, bounds: event.bounds };
         if (this.tip || Date.now() < this.#warmUntil) {
           this.#waiting = null;
           this.tip = tip;
-          cx.notify();
+          context.notify();
           return;
         }
         this.#waiting = tip;
-        cx.timer.after(TOOLTIP_DELAY_MS, (cx) => {
+        context.timer.after(TOOLTIP_DELAY_MS, (context) => {
           // Still the same visit of the pointer: it has not left, nor left and come back
           if (this.#waiting !== tip) return;
           this.#waiting = null;
           this.tip = tip;
-          cx.notify();
+          context.notify();
         });
       })
-      .on_hover((hovered, cx) => {
-        hover?.(hovered, cx);
+      .on_hover((hovered, context) => {
+        hover?.(hovered, context);
         if (hovered) { this.#hovered = key; return; }
         if (this.#hovered === key) this.#hovered = null;
         if (this.#pressed === key && !this.#covered()) this.#pressed = null;
@@ -101,25 +102,25 @@ export class Hints {
         if (this.tip?.key !== key) return;
         this.tip = null;
         this.#warmUntil = Date.now() + TOOLTIP_WARM_MS;
-        cx.notify();
+        context.notify();
       });
   }
 
   /**
    * @param {string} key
-   * @param {Context} cx
+   * @param {Context} context
    */
-  #press(key, cx) {
+  #press(key, context) {
     this.#pressed = key;
     this.#waiting = null;
     this.#warmUntil = 0;
-    if (this.tip) { this.tip = null; cx.notify(); }
+    if (this.tip) { this.tip = null; context.notify(); }
   }
 
   // A control gives this to its own press handler, since that one stops the press and the tooltip's own never sees it
-  /** @param {Context} cx */
-  press(cx) {
-    if (this.#hovered) this.#press(this.#hovered, cx);
+  /** @param {Context} context */
+  press(context) {
+    if (this.#hovered) this.#press(this.#hovered, context);
   }
 
   clear() {
@@ -129,13 +130,13 @@ export class Hints {
 
   // Drawn inside the panel: a mod cannot draw outside its block. `frame` is the panel's bounds
   /**
-   * @param {Theme} t
+   * @param {Theme} theme
    * @param {Bounds} frame
    */
-  draw(t, frame) {
+  draw(theme, frame) {
     // There is one: the panel draws it only when `showing` answered it
     const { label, caps, side, bounds, body } = /** @type {Tip} */ (this.tip);
-    const card = body?.(t) ?? null, lined = !card || label !== "";
+    const card = body?.(theme) ?? null, lined = !card || label !== "";
     const line = h_flex()
       .h(26)
       .flex_none()
@@ -146,22 +147,23 @@ export class Hints {
         .child(label))
       .when(card !== null, (element) => element.child(div()
         .flex_1()))
-      .when(caps.length > 0, (element) => element.child(keycaps(t, caps, (cap) => capHeld(cap, this.held, isMac()))));
+      .when(caps.length > 0,
+        (element) => element.child(keycaps(theme, caps, (cap) => capHeld(cap, this.held, isMac()))));
     const box = v_flex()
       .px(9)
       .flex_none()
       .rounded(8)
-      .bg(t.popover)
+      .bg(theme.popover)
       .border_1()
-      .border_color(t.border)
+      .border_color(theme.border)
       .shadow_md()
       .text_size(12)
-      .text_color(t.foreground)
-      .children(card ? [card.el] : [])
+      .text_color(theme.foreground)
+      .children(card ? [card.element] : [])
       .children(lined ? [...(card ? [div()
         .h(1)
         .flex_none()
-        .bg(t.border)] : []), line] : []);
+        .bg(theme.border)] : []), line] : []);
     const lineWidth = textWidth(label, LABEL_CHAR_WIDTH_PX) + caps.reduce(
       (sum, cap) => sum + KEYCAP_GAP_PX +
         Math.max(KEYCAP_MIN_WIDTH_PX, KEYCAP_PADDING_PX + textWidth(cap, KEYCAP_CHAR_WIDTH_PX)),

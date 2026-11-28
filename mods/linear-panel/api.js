@@ -110,8 +110,7 @@ let cachedKey = "";
 let wait = null;
 
 // A new panel starts from its own address and asks for the key again. Herdr's fetch never gives up and the mod has no
-// timer of its own, so the panel lends `pause`, which resolves after that many milliseconds; without it, a request
-// waits for its answer as long as it takes
+// timer of its own: the panel lends `pause`, its timer. Without it, a request waits as long as its answer takes
 /**
  * @param {string | undefined} address
  * @param {(ms: number) => Promise<void>} [pause]

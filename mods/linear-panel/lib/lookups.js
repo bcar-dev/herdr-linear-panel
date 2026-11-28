@@ -1,5 +1,5 @@
 // What the panel asks the tracker for on its own account: each thing once, with the failures forgotten so the next
-// need asks again. Pure, so node can test it (tests/unit)
+// need asks again
 
 // The answer of a lookup that was asked and has not come back
 export const PENDING = null;

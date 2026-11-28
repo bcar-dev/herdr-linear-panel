@@ -1,5 +1,4 @@
-// What a team offers its issues (workflow states, an estimate scale, members) and what several teams have in common.
-// Pure rules with no calls to Herdr, so node can test them (tests/unit)
+// What a team offers its issues (workflow states, an estimate scale, members) and what several teams have in common
 import { Mark, Property, StateType } from "../enums.js";
 import { pieIcon } from "./cycles.js";
 import { byTitle } from "./listing.js";

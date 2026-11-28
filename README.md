@@ -129,7 +129,8 @@ before taking a new release (`pnpm-workspace.yaml`).
 pnpm install        # once: TypeScript and ESLint, for the two checks below
 pnpm test           # unit tests, and every part driven in a stand-in for Herdr
 pnpm run typecheck  # the strict TypeScript check; needs gpui-kit.d.ts, which Herdr writes into the mod's folder
-pnpm run lint       # ESLint: its recommended rules, two-space indent, one call per line in a method chain
+pnpm run lint       # ESLint: its recommended rules, two-space indent, one call per line in a method chain, and
+                    # names spelled out (no single letters, no `cx` for a context)
 pnpm run check      # Herdr's own check of the mod
 pnpm run link       # link mods/linear-panel into your Herdr folder, once
 pnpm run reload     # make Herdr load your changes
@@ -159,7 +160,7 @@ mods/linear-panel/
 tests/
   fixtures.js   the made-up issues and the stand-in tracker
   host/         the stand-in for Herdr
-  unit/         tests of lib/ and of the repository's style
+  unit/         tests of lib/, of the repository's style, and of how its files import each other
   parts/        tests of the parts: clicks, keys, drags
 ```
 

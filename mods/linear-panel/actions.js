@@ -15,9 +15,9 @@ const WORKTREE_ADD_TIMEOUT_MS = 600_000;
 /**
  * @param {Issue[]} issues
  * @param {CopyWhat} what
- * @param {Context} cx
+ * @param {Context} context
  */
-export async function copy(issues, what, cx) {
+export async function copy(issues, what, context) {
   /** @type {(id: string) => Promise<IssueDetails>} */
   const read = what === CopyWhat.EVERYTHING ? api.page
     : what === CopyWhat.MARKDOWN || what === CopyWhat.PROMPT
@@ -30,7 +30,7 @@ export async function copy(issues, what, cx) {
     notify({ title: `No diffs to copy · ${copied}`, timeout: TOAST_MS });
     return;
   }
-  cx.write_to_clipboard(text);
+  context.write_to_clipboard(text);
   const { done } = /** @type {{ done: string }} */ (copiesFor(issues.length)
     .find((entry) => entry.what === what));
   notify({ title: `${done} · ${copied}`, timeout: TOAST_MS });

@@ -1,5 +1,5 @@
 // The closed sets of strings the mod passes around, named once. The values are what is stored, sent and compared:
-// they never change. Pure, so node can test the files that use them (tests/unit)
+// they never change
 
 export const CommentChange = Object.freeze({
   DELETE: "delete", EDIT: "edit", RESOLVE: "resolve", UNRESOLVE: "unresolve",

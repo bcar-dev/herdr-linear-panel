@@ -21,18 +21,18 @@ const updates = (server) => server.asked.filter((request) => request.kind === "u
 // Tells the panel where it is in the window, as the first move of the pointer over it does
 function enter(panel) {
   const root = panel.draw();
-  send(root, root, "on_mouse_move", at(950, 100), panel.cx);
+  send(root, root, "on_mouse_move", at(950, 100), panel.context);
 }
 // A click on the element of that id, in a fresh drawing
 function clickOn(panel, id, modifiers) {
   const root = panel.draw();
-  click(root, find(root, id), panel.cx, modifiers);
+  click(root, find(root, id), panel.context, modifiers);
 }
 // A panel that has no key yet: it shows the header (the name of the tracker and Reload) over the setup
 async function withoutKey(options) {
   const panel = await startPanel({ ...options, load: false, key: "" });
   panel.draw();
-  await panel.cx.idle();
+  await panel.context.idle();
   return panel;
 }
 // The issues a drag carries: each shows a second time, beside the pointer
@@ -41,7 +41,7 @@ const carried = (root) => texts(root)
 // What is carried once the pointer has moved on: nothing, unless an issue is still pressed
 function carriedOnMove(panel) {
   const root = panel.draw();
-  send(root, root, "on_mouse_move", at(950, 300), panel.cx);
+  send(root, root, "on_mouse_move", at(950, 300), panel.context);
   return carried(panel.draw());
 }
 
@@ -94,10 +94,10 @@ describe("loading", () => {
     assert.match(text(panel.draw()), /Loading issues…/);
     assert.ok(icons(panel.draw())
       .includes("spinner"));
-    await panel.cx.idle();
+    await panel.context.idle();
     assert.ok(icons(panel.draw())
       .includes("spinner"));
-    panel.cx.elapse();
+    panel.context.elapse();
     assert.ok(!icons(panel.draw())
       .includes("spinner"));
   });
@@ -105,15 +105,15 @@ describe("loading", () => {
   it("shows how to add a key when there is none, and copies the command that stores one", async () => {
     const panel = await startPanel({ load: false, key: "" });
     panel.draw();
-    await panel.cx.idle();
+    await panel.context.idle();
     const root = panel.draw();
     assert.match(text(root), /Connect Linear/);
     assert.match(text(root), /Export it as LINEAR_API_KEY/);
     assert.deepEqual([find(root, "view-cycle"), find(root, "new-issue"), find(root, "display-options")],
       [null, null, null]);
     assert.ok(find(root, "reload"));
-    click(root, find(root, "copy-command"), panel.cx);
-    assert.equal(panel.cx.clipboard, 'security add-generic-password -U -a "$USER" -s herdr-linear -w');
+    click(root, find(root, "copy-command"), panel.context);
+    assert.equal(panel.context.clipboard, 'security add-generic-password -U -a "$USER" -s herdr-linear -w');
     assert.match(text(panel.draw()), /Copied/);
   });
 
@@ -122,14 +122,14 @@ describe("loading", () => {
     host.fetch = async () =>
       ({ ok: false, status: 502, json: async () => { throw new SyntaxError("Unexpected token <"); } });
     panel.draw();
-    await panel.cx.idle();
+    await panel.context.idle();
     assert.match(text(panel.draw()), /Linear answered 502 with no data/);
   });
 
   it("shows the API's error in the panel", async () => {
     const panel = await startPanel({ load: false, error: "Rate limited" });
     panel.draw();
-    await panel.cx.idle();
+    await panel.context.idle();
     assert.match(text(panel.draw()), /Rate limited/);
     assert.doesNotMatch(text(panel.draw()), /No issues in the current cycle/);
   });
@@ -137,27 +137,27 @@ describe("loading", () => {
   it("says so when a view holds more issues than it loaded", async () => {
     const panel = await startPanel({ load: false, app: { stored: { totals: "count" } }, more: true });
     panel.draw();
-    await panel.cx.idle();
+    await panel.context.idle();
     assert.match(text(panel.draw()), /3\+ issues/);
     assert.match(text(panel.draw()), /Showing the first 100 issues/);
   });
 
   it("starts its first load without waiting for a drawing", async () => {
     const panel = await startPanel({ load: false });
-    await panel.cx.idle();
+    await panel.context.idle();
     assert.deepEqual(panel.server.kinds(), ["issues", "teams"]);
   });
 
   it("gives up a load that does not answer, says so, and loads again on a reload", async () => {
     const panel = await startPanel({ load: false, app: { fetch: () => new Promise(() => {}) } });
-    await panel.cx.idle();
-    panel.cx.elapse();
-    await panel.cx.idle();
+    await panel.context.idle();
+    panel.context.elapse();
+    await panel.context.idle();
     assert.match(text(panel.draw()), /Linear did not answer in time/);
     assert.ok(!panel.view.part.loader.loading);
     host.fetch = panel.server.fetch;
     clickOn(panel, "reload");
-    await panel.cx.idle();
+    await panel.context.idle();
     assert.doesNotMatch(text(panel.draw()), /did not answer/);
     assert.match(text(panel.draw()), /BACK-1/);
   });
@@ -168,7 +168,7 @@ describe("loading", () => {
       set() { throw new Error("Storage full"); },
     });
     const panel = await startPanel({ app: { stored: failing } });
-    press(panel.draw(), "2", panel.cx);
+    press(panel.draw(), "2", panel.context);
     ask({ ids: [], kind: "display", change: { reversed: true } });
     assert.match(text(panel.draw()), /BACK-10/);
   });
@@ -177,22 +177,22 @@ describe("loading", () => {
     const panel = await startPanel();
     const teams = () => panel.server.kinds()
       .filter((kind) => kind === "teams").length;
-    panel.cx.tick();
-    await panel.cx.idle();
+    panel.context.tick();
+    await panel.context.idle();
     assert.equal(teams(), 1);
-    press(panel.draw(), "r", panel.cx);
-    await panel.cx.idle();
+    press(panel.draw(), "r", panel.context);
+    await panel.context.idle();
     assert.equal(teams(), 2);
     clickOn(panel, "reload");
-    await panel.cx.idle();
+    await panel.context.idle();
     assert.equal(teams(), 3);
   });
 
   it("reloads by itself on the timer while it is shown, without a spinner", async () => {
     const panel = await startPanel();
-    panel.cx.elapse();
-    panel.cx.tick();
-    await panel.cx.idle();
+    panel.context.elapse();
+    panel.context.tick();
+    await panel.context.idle();
     assert.deepEqual(panel.server.kinds(), ["issues", "teams", "issues"]);
     assert.ok(!icons(panel.draw())
       .includes("spinner"));
@@ -201,8 +201,8 @@ describe("loading", () => {
   it("does not reload on the timer while another panel shows", async () => {
     const panel = await startPanel();
     host.layout.children[0].children[0].active = "files";
-    panel.cx.tick();
-    await panel.cx.idle();
+    panel.context.tick();
+    await panel.context.idle();
     assert.deepEqual(panel.server.kinds(), ["issues", "teams"]);
   });
 });
@@ -228,7 +228,7 @@ describe("on Linux and Windows", () => {
     assert.equal(server.asked[0].authorization, "test-key");
     const panel = await startPanel({ load: false, app: { platform: "windows" }, key: "" });
     panel.draw();
-    await panel.cx.idle();
+    await panel.context.idle();
     assert.match(text(panel.draw()),
       /Set it as LINEAR_API_KEY from a terminal, with your key in place of KEY, then restart Herdr:/);
     assert.match(text(panel.draw()), /setx LINEAR_API_KEY KEY/);
@@ -238,10 +238,10 @@ describe("on Linux and Windows", () => {
   it("explains the keyring on Linux", async () => {
     const panel = await startPanel({ load: false, app: { platform: "linux" }, key: "" });
     panel.draw();
-    await panel.cx.idle();
+    await panel.context.idle();
     assert.match(text(panel.draw()), /store it in your keyring from a terminal/);
     clickOn(panel, "copy-command");
-    assert.equal(panel.cx.clipboard, 'secret-tool store --label="Linear API key" service herdr-linear');
+    assert.equal(panel.context.clipboard, 'secret-tool store --label="Linear API key" service herdr-linear');
     clickOn(panel, "key-page");
     // The tracker's page: its app is tried first
     assert.deepEqual(host.ran.at(-1).args, ["linear://linear.app/settings/account/security"]);
@@ -291,9 +291,9 @@ describe("views", () => {
 
   it("switches on the digit of a view's place", async () => {
     const panel = await startPanel({ app: { stored: { totals: "count" } } });
-    press(panel.draw(), "2", panel.cx);
+    press(panel.draw(), "2", panel.context);
     assert.match(text(panel.draw()), /5 issues/);
-    press(panel.draw(), "1", panel.cx);
+    press(panel.draw(), "1", panel.context);
     assert.match(text(panel.draw()), /3 issues/);
   });
 
@@ -332,7 +332,7 @@ describe("rows", () => {
     const panel = await startPanel();
     enter(panel);
     const root = panel.draw();
-    click(root, find(root, "priority-back-2"), panel.cx, {}, { x: 940, y: 240 });
+    click(root, find(root, "priority-back-2"), panel.context, {}, { x: 940, y: 240 });
     const [priorities] = host.overlays;
     assert.deepEqual([priorities.props.page, priorities.props.bare, priorities.props.targets.map((target) => target.id),
       priorities.at],
@@ -348,10 +348,10 @@ describe("rows", () => {
       for (const [id, plain] of [["priority-back-2", "theme.muted"], ["estimate-back-1", "theme.muted"],
         ["fold-back-todo", "theme.dim"], ["total-back-todo", "theme.muted"]]) {
         assert.equal(color(id), plain);
-        hover(find(panel.draw(), id), true, panel.cx);
+        hover(find(panel.draw(), id), true, panel.context);
         assert.equal(color(id), "theme.foreground");
         assert.deepEqual([find(panel.draw(), id).$.hover, find(panel.draw(), id).$.style.bg], [null, undefined]);
-        hover(find(panel.draw(), id), false, panel.cx);
+        hover(find(panel.draw(), id), false, panel.context);
         assert.equal(color(id), plain);
       }
     });
@@ -361,7 +361,7 @@ describe("rows", () => {
     issues[0].state = { ...issues[0].state, color: "#336699" };
     const panel = await startPanel({ issues });
     assert.equal(find(panel.draw(), "status-back-1").$.style.text_color, "#336699");
-    hover(find(panel.draw(), "status-back-1"), true, panel.cx);
+    hover(find(panel.draw(), "status-back-1"), true, panel.context);
     const { style, hover: hovered } = find(panel.draw(), "status-back-1").$;
     assert.deepEqual([style.text_color, style.bg, hovered], ["#4387ca", undefined, null]);
   });
@@ -378,11 +378,11 @@ describe("rows", () => {
 
   it("keeps an urgent mark orange under the pointer, and brightens no mark while a popup is open", async () => {
     const panel = await startPanel();
-    hover(find(panel.draw(), "priority-back-1"), true, panel.cx);
+    hover(find(panel.draw(), "priority-back-1"), true, panel.context);
     assert.equal(find(panel.draw(), "priority-back-1").$.style.text_color, "#f2793a");
     assert.equal(find(panel.draw(), "priority-back-3").$.style.text_color, "theme.muted");
     host.shared["linear-panel.open"] = { issue: "back-1", owner: "overlay-1" };
-    hover(find(panel.draw(), "estimate-back-1"), true, panel.cx);
+    hover(find(panel.draw(), "estimate-back-1"), true, panel.context);
     assert.equal(find(panel.draw(), "estimate-back-1").$.style.text_color, "theme.muted");
   });
 
@@ -420,7 +420,7 @@ describe("rows", () => {
     const panel = await startPanel();
     enter(panel);
     const root = panel.draw();
-    send(root, row(root, "back-1"), "on_mouse_down:right", at(1250, 700), panel.cx);
+    send(root, row(root, "back-1"), "on_mouse_down:right", at(1250, 700), panel.context);
     const [menu] = host.overlays;
     // It draws its own box: Herdr's frame is left out
     assert.deepEqual({ mod: menu.mod, kind: menu.kind, frame: menu.frame, width: menu.width, height: menu.height,
@@ -433,7 +433,7 @@ describe("rows", () => {
     assert.equal(focuses(panel.draw()), 1);
     const lit = panel.draw();
     assert.equal(row(lit, "back-1").$.style.bg, "theme.hover");
-    hover(row(lit, "back-2"), true, panel.cx);
+    hover(row(lit, "back-2"), true, panel.context);
     assert.equal(row(panel.draw(), "back-2").$.style.bg, undefined);
   });
 
@@ -441,7 +441,7 @@ describe("rows", () => {
     const menuOf = async (given) => {
       const panel = await startPanel(given);
       const root = panel.draw();
-      send(root, row(root, "back-1"), "on_mouse_down:right", at(950, 200), panel.cx);
+      send(root, row(root, "back-1"), "on_mouse_down:right", at(950, 200), panel.context);
       return host.overlays[0];
     };
     assert.equal((await menuOf()).props.agent, "Claude Code");
@@ -456,8 +456,8 @@ describe("rows", () => {
     clickOn(panel, "tick-web-7");
     clickOn(panel, "tick-back-1");
     const root = panel.draw();
-    send(root, row(root, "web-7"), "on_mouse_down:right", at(950, 300), panel.cx);
-    send(root, row(root, "back-2"), "on_mouse_down:right", at(950, 300), panel.cx);
+    send(root, row(root, "web-7"), "on_mouse_down:right", at(950, 300), panel.context);
+    send(root, row(root, "back-2"), "on_mouse_down:right", at(950, 300), panel.context);
     const [together, alone] = host.overlays;
     assert.deepEqual(together.props.issues.map((issue) => issue.identifier), ["BACK-1", "WEB-7"]);
     assert.deepEqual(together.props.teams.map((team) => team.key), ["BACK", "WEB"]);
@@ -468,9 +468,9 @@ describe("rows", () => {
   it("answers the pointer again once the popup has closed", async () => {
     const panel = await startPanel();
     const root = panel.draw();
-    send(root, row(root, "back-1"), "on_mouse_down:right", at(950, 200), panel.cx);
+    send(root, row(root, "back-1"), "on_mouse_down:right", at(950, 200), panel.context);
     mountOverlay().view.close();
-    hover(row(panel.draw(), "back-2"), true, panel.cx);
+    hover(row(panel.draw(), "back-2"), true, panel.context);
     assert.equal(row(panel.draw(), "back-2").$.style.bg, "theme.hover");
   });
 
@@ -485,19 +485,19 @@ describe("rows", () => {
       const panel = await startPanel();
       const litRows = () => identifiers(panel.draw())
         .filter((id) => row(panel.draw(), id.toLowerCase()).$.style.bg === "theme.hover");
-      press(panel.draw(), "down", panel.cx);
+      press(panel.draw(), "down", panel.context);
       assert.deepEqual(litRows(), ["BACK-1"]);
-      press(panel.draw(), "down", panel.cx);
-      press(panel.draw(), "down", panel.cx);
+      press(panel.draw(), "down", panel.context);
+      press(panel.draw(), "down", panel.context);
       assert.deepEqual(litRows(), ["BACK-3"]);
       // The group the row is in is brought into view
       assert.equal(panel.view.part.scroll.revealed, 2);
-      press(panel.draw(), "up", panel.cx);
+      press(panel.draw(), "up", panel.context);
       assert.deepEqual(litRows(), ["BACK-2"]);
       const root = panel.draw();
-      send(root, row(root, "back-1"), "on_mouse_move", at(950, 200), panel.cx);
+      send(root, row(root, "back-1"), "on_mouse_move", at(950, 200), panel.context);
       assert.deepEqual(litRows(), ["BACK-1"]);
-      press(panel.draw(), "enter", panel.cx);
+      press(panel.draw(), "enter", panel.context);
       assert.equal(panel.view.part.detail?.issue.id, "back-1");
     });
 
@@ -506,12 +506,12 @@ describe("rows", () => {
       const panel = await startPanel();
       enter(panel);
       const root = panel.draw();
-      click(root, find(root, "status-back-1"), panel.cx, {}, { x: 960, y: 210 });
-      click(root, find(root, "estimate-back-1"), panel.cx, {}, { x: 960, y: 210 });
+      click(root, find(root, "status-back-1"), panel.context, {}, { x: 960, y: 210 });
+      click(root, find(root, "estimate-back-1"), panel.context, {}, { x: 960, y: 210 });
       const [statuses, sizes] = host.overlays;
       assert.deepEqual({ ...statuses.props, targets: statuses.props.targets.map((target) => target.id),
         teams: statuses.props.teams.map((team) => team.id) },
-      { part: "commands", targets: ["back-1"], teams: ["team-back"], page: "status", me: "me", compact: true,
+      { part: "commands", targets: ["back-1"], teams: ["team-back"], page: "status", myId: "me", compact: true,
         bare: true, parent: undefined, visible: 5 });
       assert.deepEqual([statuses.width, statuses.height, statuses.at], [208, 51 + 5 * 31, { x: 960, y: 210 }]);
       assert.deepEqual([sizes.props.page, sizes.height], ["estimate", 51 + 6 * 31]);
@@ -524,8 +524,8 @@ describe("a property's choices from a row", () => {
     enter(panel);
     const root = panel.draw(), control = find(root, "estimate-back-1");
     const bounds = { x: 1262, y: 190, width: 30, height: 20 };
-    send(root, control, "on_mouse_down:left", { ...at(1270, 200), bounds }, panel.cx);
-    send(root, control, "on_click", at(1270, 200), panel.cx);
+    send(root, control, "on_mouse_down:left", { ...at(1270, 200), bounds }, panel.context);
+    send(root, control, "on_click", at(1270, 200), panel.context);
     const popup = host.overlays.at(-1);
     assert.equal(popup.props.page, "estimate");
     assert.equal(popup.at.y, bounds.y + bounds.height + 6);
@@ -567,12 +567,12 @@ describe("folding a group", () => {
     const panel = await startPanel();
     clickOn(panel, "fold-back-done");
     const root = panel.draw();
-    send(root, row(root, "back-2"), "on_mouse_down:left", at(950, 200), panel.cx);
-    send(root, root, "on_mouse_move", at(950, 260), panel.cx);
+    send(root, row(root, "back-2"), "on_mouse_down:left", at(950, 200), panel.context);
+    send(root, root, "on_mouse_move", at(950, 260), panel.context);
     const heading = [...walk(find(root, "issues"))]
       .find((node) => node.$.handlers["on_mouse_up:left"] && node.$.children.includes(find(root, "fold-back-done")));
-    send(root, heading, "on_mouse_up:left", at(950, 400), panel.cx);
-    await panel.cx.idle();
+    send(root, heading, "on_mouse_up:left", at(950, 400), panel.context);
+    await panel.context.idle();
     assert.deepEqual(updates(panel.server), [{ ids: ["back-2"], input: { stateId: "back-done" } }]);
   });
 });
@@ -592,44 +592,44 @@ describe("ticking", () => {
     const panel = await startPanel();
     const hidden = (id) => find(panel.draw(), `tick-${id}`).$.style.invisible === true;
     assert.deepEqual([hidden("back-1"), hidden("back-2")], [true, true]);
-    hover(row(panel.draw(), "back-1"), true, panel.cx);
+    hover(row(panel.draw(), "back-1"), true, panel.context);
     assert.deepEqual([hidden("back-1"), hidden("back-2")], [false, true]);
     // Shown, the box is outlined in gray, in the accent only under the pointer itself, and filled once ticked
     const box = find(panel.draw(), "tick-back-1").$;
     assert.deepEqual([box.style.border_color, box.hover, box.style.bg],
       ["theme.input", { border_color: "theme.accent" }, "theme.background"]);
     clickOn(panel, "tick-back-1");
-    hover(row(panel.draw(), "back-1"), false, panel.cx);
+    hover(row(panel.draw(), "back-1"), false, panel.context);
     assert.deepEqual([hidden("back-1"), hidden("back-2")], [false, true]);
   });
 
   it("ticks and unticks the issue under the pointer on x", async () => {
     const panel = await startPanel();
-    hover(row(panel.draw(), "back-2"), true, panel.cx);
-    press(panel.draw(), "x", panel.cx);
+    hover(row(panel.draw(), "back-2"), true, panel.context);
+    press(panel.draw(), "x", panel.context);
     assert.match(text(panel.draw()), /1 selected/);
-    press(panel.draw(), "x", panel.cx);
+    press(panel.draw(), "x", panel.context);
     assert.equal(find(panel.draw(), "actions"), null);
   });
 
   it("ticks every issue from the last one ticked to the one under the pointer on Shift+x, across groups", async () => {
     const panel = await startPanel();
-    hover(row(panel.draw(), "back-1"), true, panel.cx);
-    press(panel.draw(), "x", panel.cx);
-    hover(row(panel.draw(), "back-1"), false, panel.cx);
-    hover(row(panel.draw(), "back-3"), true, panel.cx);
-    press(panel.draw(), "x", panel.cx, { shift: true });
+    hover(row(panel.draw(), "back-1"), true, panel.context);
+    press(panel.draw(), "x", panel.context);
+    hover(row(panel.draw(), "back-1"), false, panel.context);
+    hover(row(panel.draw(), "back-3"), true, panel.context);
+    press(panel.draw(), "x", panel.context, { shift: true });
     assert.match(text(panel.draw()), /3 selected/);
   });
 
   it("starts a new range after Escape: Shift+x then ticks only the issue under the pointer", async () => {
     const panel = await startPanel();
-    hover(row(panel.draw(), "back-1"), true, panel.cx);
-    press(panel.draw(), "x", panel.cx, { shift: true });
-    press(panel.draw(), "escape", panel.cx);
-    hover(row(panel.draw(), "back-1"), false, panel.cx);
-    hover(row(panel.draw(), "back-3"), true, panel.cx);
-    press(panel.draw(), "x", panel.cx, { shift: true });
+    hover(row(panel.draw(), "back-1"), true, panel.context);
+    press(panel.draw(), "x", panel.context, { shift: true });
+    press(panel.draw(), "escape", panel.context);
+    hover(row(panel.draw(), "back-1"), false, panel.context);
+    hover(row(panel.draw(), "back-3"), true, panel.context);
+    press(panel.draw(), "x", panel.context, { shift: true });
     assert.match(text(panel.draw()), /1 selected/);
   });
 
@@ -638,12 +638,12 @@ describe("ticking", () => {
     enter(panel);
     const bounds = (y) => ({ ...at(915, y), bounds: { x: 908, y, width: 14, height: 14 } });
     const root = panel.draw();
-    send(root, find(root, "tick-back-1"), "on_mouse_move", bounds(150), panel.cx);
-    panel.cx.elapse();
+    send(root, find(root, "tick-back-1"), "on_mouse_move", bounds(150), panel.context);
+    panel.context.elapse();
     assert.match(text(panel.draw()), /Select issue X$/);
-    hover(find(root, "tick-back-1"), false, panel.cx);
-    send(root, find(root, "tick-back-2"), "on_mouse_move", bounds(220), panel.cx);
-    panel.cx.elapse();
+    hover(find(root, "tick-back-1"), false, panel.context);
+    send(root, find(root, "tick-back-2"), "on_mouse_move", bounds(220), panel.context);
+    panel.context.elapse();
     // The fake app handed the box's bounds to the panel as its own. Told its own again, it can place the tooltip
     enter(panel);
     assert.equal(find(panel.draw(), "tooltip").$.style.top, 220 - FRAME.y + 14 + 6);
@@ -678,7 +678,7 @@ describe("ticking", () => {
   it("unticks everything on Escape and from the pill's cross", async () => {
     const panel = await startPanel();
     clickOn(panel, "tick-back-1");
-    press(panel.draw(), "escape", panel.cx);
+    press(panel.draw(), "escape", panel.context);
     assert.equal(find(panel.draw(), "actions"), null);
     clickOn(panel, "tick-back-1");
     clickOn(panel, "untick");
@@ -690,8 +690,8 @@ describe("ticking", () => {
     clickOn(panel, "tick-back-2");
     clickOn(panel, "tick-back-3");
     panel.server.issues.find((issue) => issue.id === "back-2").cycle = null;
-    press(panel.draw(), "r", panel.cx);
-    await panel.cx.idle();
+    press(panel.draw(), "r", panel.context);
+    await panel.context.idle();
     assert.match(text(panel.draw()), /1 selected/);
     clickOn(panel, "fold-back-done");
     assert.equal(find(panel.draw(), "actions"), null);
@@ -703,10 +703,10 @@ describe("ticking", () => {
     clickOn(panel, "tick-back-1");
     const root = panel.draw();
     send(root, find(root, "untick"), "on_mouse_move",
-      { ...at(1100, 700), bounds: { x: 1090, y: 690, width: 28, height: 28 } }, panel.cx);
-    panel.cx.elapse();
+      { ...at(1100, 700), bounds: { x: 1090, y: 690, width: 28, height: 28 } }, panel.context);
+    panel.context.elapse();
     assert.match(text(panel.draw()), /Clear selected Esc$/);
-    press(panel.draw(), "escape", panel.cx);
+    press(panel.draw(), "escape", panel.context);
     assert.doesNotMatch(text(panel.draw()), /Clear selected/);
     // Dropped, not only hidden: the control coming back does not bring it back
     clickOn(panel, "tick-back-1");
@@ -716,14 +716,14 @@ describe("ticking", () => {
   it("unticks everything when the view changes", async () => {
     const panel = await startPanel();
     clickOn(panel, "tick-back-1");
-    press(panel.draw(), "2", panel.cx);
+    press(panel.draw(), "2", panel.context);
     assert.equal(find(panel.draw(), "actions"), null);
   });
 
   it("does not start a drag from a box", async () => {
     const panel = await startPanel();
     const root = panel.draw();
-    send(root, find(root, "tick-back-1"), "on_mouse_down:left", at(920, 200), panel.cx);
+    send(root, find(root, "tick-back-1"), "on_mouse_down:left", at(920, 200), panel.context);
     assert.deepEqual(carriedOnMove(panel), []);
     assert.equal(focuses(panel.draw()), 1);
   });
@@ -733,9 +733,9 @@ describe("drag and drop", () => {
   // Presses the row of `id`, carries it a little, and brings it over the row of `over`
   function carry(panel, id, over) {
     const root = panel.draw();
-    send(root, row(root, id), "on_mouse_down:left", at(950, 200), panel.cx);
-    send(root, root, "on_mouse_move", at(950, 260), panel.cx);
-    send(root, row(root, over), "on_mouse_move", at(950, 260), panel.cx);
+    send(root, row(root, id), "on_mouse_down:left", at(950, 200), panel.context);
+    send(root, root, "on_mouse_move", at(950, 260), panel.context);
+    send(root, row(root, over), "on_mouse_move", at(950, 260), panel.context);
     return panel.draw();
   }
   // The groups outlined in the theme's accent, by name: the one a drag is over
@@ -766,8 +766,8 @@ describe("drag and drop", () => {
   it("moves the issue to the status it is dropped on, then reloads", async () => {
     const panel = await startPanel();
     const root = carry(panel, "back-2", "back-1");
-    send(root, row(root, "back-1"), "on_mouse_up:left", at(950, 260), panel.cx);
-    await panel.cx.idle();
+    send(root, row(root, "back-1"), "on_mouse_up:left", at(950, 260), panel.context);
+    await panel.context.idle();
     assert.deepEqual(updates(panel.server), [{ ids: ["back-2"], input: { stateId: "back-doing" } }]);
     assert.deepEqual(panel.server.kinds()
       .slice(-2), ["update", "issues"]);
@@ -787,9 +787,9 @@ describe("drag and drop", () => {
   it("opens the row clicked after a drag whose release was never seen", async () => {
     const panel = await startPanel();
     const root = carry(panel, "back-2", "back-1");
-    send(root, row(root, "back-3"), "on_mouse_down:left", at(950, 400), panel.cx);
-    send(root, row(root, "back-3"), "on_mouse_up:left", at(950, 400, { platform: true }), panel.cx);
-    await panel.cx.idle();
+    send(root, row(root, "back-3"), "on_mouse_down:left", at(950, 400), panel.context);
+    send(root, row(root, "back-3"), "on_mouse_up:left", at(950, 400, { platform: true }), panel.context);
+    await panel.context.idle();
     assert.deepEqual(host.ran.at(-1).args, ["linear://tracker.test/issue/BACK-3"]);
     assert.deepEqual(updates(panel.server), []);
   });
@@ -800,8 +800,8 @@ describe("drag and drop", () => {
     clickOn(panel, "tick-back-2");
     const root = carry(panel, "back-2", "back-3");
     assert.match(text(root), /\+1/);
-    send(root, row(root, "back-3"), "on_mouse_up:left", at(950, 260), panel.cx);
-    await panel.cx.idle();
+    send(root, row(root, "back-3"), "on_mouse_up:left", at(950, 260), panel.context);
+    await panel.context.idle();
     assert.deepEqual(updates(panel.server), [{ ids: ["back-1", "back-2"], input: { stateId: "back-done" } }]);
   });
 
@@ -809,8 +809,8 @@ describe("drag and drop", () => {
     const panel = await startPanel();
     const root = carry(panel, "back-2", "back-2");
     assert.deepEqual(outlined(root), []);
-    send(root, row(root, "back-2"), "on_mouse_up:left", at(950, 260), panel.cx);
-    await panel.cx.idle();
+    send(root, row(root, "back-2"), "on_mouse_up:left", at(950, 260), panel.context);
+    await panel.context.idle();
     assert.deepEqual(updates(panel.server), []);
     assert.equal(host.ran.some((ran) => ran.command === "open"), false);
   });
@@ -819,8 +819,8 @@ describe("drag and drop", () => {
     for (const release of ["on_mouse_up:left", "on_mouse_down_out"]) {
       const panel = await startPanel();
       const root = carry(panel, "back-2", "back-1");
-      send(root, root, release, at(950, 600), panel.cx);
-      await panel.cx.idle();
+      send(root, root, release, at(950, 600), panel.context);
+      await panel.context.idle();
       assert.deepEqual(updates(panel.server), []);
       assert.deepEqual(carried(panel.draw()), []);
     }
@@ -829,7 +829,7 @@ describe("drag and drop", () => {
   it("forgets a drag whose release it never saw, at the next press in the panel", async () => {
     const panel = await startPanel();
     const root = carry(panel, "back-2", "back-1");
-    send(root, root, "on_mouse_down:left", at(950, 600), panel.cx);
+    send(root, root, "on_mouse_down:left", at(950, 600), panel.context);
     assert.deepEqual(carriedOnMove(panel), []);
   });
 });
@@ -838,8 +838,8 @@ describe("keys", () => {
   it("opens one property's choices for the issue under the pointer, where the pointer is", async () => {
     const panel = await startPanel();
     enter(panel);
-    hover(row(panel.draw(), "back-1"), true, panel.cx);
-    press(panel.draw(), "s", panel.cx);
+    hover(row(panel.draw(), "back-1"), true, panel.context);
+    press(panel.draw(), "s", panel.context);
     const [choices] = host.overlays;
     assert.deepEqual([choices.props.page, choices.props.bare, choices.height, choices.at],
       ["status", false, 51 + 28 + 5 * 31, { x: 950, y: 100 }]);
@@ -848,16 +848,16 @@ describe("keys", () => {
 
   it("offers no estimate for an issue whose team does not estimate", async () => {
     const panel = await startPanel({ app: { stored: { view: "all" } } });
-    hover(row(panel.draw(), "web-7"), true, panel.cx);
-    press(panel.draw(), "e", panel.cx, { shift: true });
+    hover(row(panel.draw(), "web-7"), true, panel.context);
+    press(panel.draw(), "e", panel.context, { shift: true });
     assert.deepEqual(host.overlays, []);
   });
 
   it("opens the command window on the ticked issues, at the actions or straight at a property", async () => {
     const panel = await startPanel();
     clickOn(panel, "tick-back-1");
-    press(panel.draw(), "k", panel.cx, { platform: true });
-    press(panel.draw(), "p", panel.cx);
+    press(panel.draw(), "k", panel.context, { platform: true });
+    press(panel.draw(), "p", panel.context);
     const [actions, priorities] = host.overlays;
     assert.deepEqual([actions.kind, actions.width, actions.height, actions.props.page],
       ["dialog", 460, 380, "actions"]);
@@ -874,42 +874,42 @@ describe("keys", () => {
 
   it("opens no command window when nothing is ticked", async () => {
     const panel = await startPanel();
-    press(panel.draw(), "k", panel.cx, { platform: true });
+    press(panel.draw(), "k", panel.context, { platform: true });
     assert.deepEqual(host.overlays, []);
   });
 
   it("does not act on an issue the pointer was on in another view", async () => {
     const panel = await startPanel({ app: { stored: { view: "all" } } });
-    hover(row(panel.draw(), "web-7"), true, panel.cx);
-    press(panel.draw(), "1", panel.cx);
-    press(panel.draw(), "i", panel.cx);
-    await panel.cx.idle();
+    hover(row(panel.draw(), "web-7"), true, panel.context);
+    press(panel.draw(), "1", panel.context);
+    press(panel.draw(), "i", panel.context);
+    await panel.context.idle();
     assert.deepEqual(updates(panel.server), []);
   });
 
   it("opens no page for a property the ticked issues cannot be given", async () => {
     const panel = await startPanel({ app: { stored: { view: "all" } } });
     clickOn(panel, "tick-web-7");
-    press(panel.draw(), "e", panel.cx, { shift: true });
+    press(panel.draw(), "e", panel.context, { shift: true });
     assert.deepEqual(host.overlays, []);
-    press(panel.draw(), "p", panel.cx);
+    press(panel.draw(), "p", panel.context);
     assert.equal(host.overlays[0].props.page, "priority");
   });
 
   it("unassigns the issue under the pointer on i", async () => {
     const panel = await startPanel();
-    hover(row(panel.draw(), "back-1"), true, panel.cx);
-    press(panel.draw(), "i", panel.cx);
-    await panel.cx.idle();
+    hover(row(panel.draw(), "back-1"), true, panel.context);
+    press(panel.draw(), "i", panel.context);
+    await panel.context.idle();
     assert.deepEqual(updates(panel.server), [{ ids: ["back-1"], input: { assigneeId: null } }]);
   });
 
   it("copies the issue under the pointer on a copy shortcut, without reloading", async () => {
     const panel = await startPanel();
-    hover(row(panel.draw(), "back-1"), true, panel.cx);
-    press(panel.draw(), ".", panel.cx, { platform: true, shift: true });
-    await panel.cx.idle();
-    assert.equal(panel.cx.clipboard, "me/back-1");
+    hover(row(panel.draw(), "back-1"), true, panel.context);
+    press(panel.draw(), ".", panel.context, { platform: true, shift: true });
+    await panel.context.idle();
+    assert.equal(panel.context.clipboard, "me/back-1");
     assert.deepEqual(host.notes, [{ title: "Copied git branch name · BACK-1", timeout: 1500 }]);
     assert.deepEqual(panel.server.kinds(), ["issues", "teams"]);
   });
@@ -919,10 +919,10 @@ describe("keys", () => {
       const panel = await startPanel();
       clickOn(panel, "tick-back-3");
       clickOn(panel, "tick-back-1");
-      hover(row(panel.draw(), "back-2"), true, panel.cx);
-      press(panel.draw(), "'", panel.cx, { platform: true, shift: true });
-      await panel.cx.idle();
-      assert.equal(panel.cx.clipboard, "BACK-1: Fix login\nBACK-3: Old bug");
+      hover(row(panel.draw(), "back-2"), true, panel.context);
+      press(panel.draw(), "'", panel.context, { platform: true, shift: true });
+      await panel.context.idle();
+      assert.equal(panel.context.clipboard, "BACK-1: Fix login\nBACK-3: Old bug");
       assert.deepEqual(host.notes, [{ title: "Copied titles · 2 issues", timeout: 1500 }]);
     });
 
@@ -930,24 +930,24 @@ describe("keys", () => {
     const panel = await startPanel();
     clickOn(panel, "tick-back-3");
     clickOn(panel, "tick-back-1");
-    press(panel.draw(), "p", panel.cx, { platform: true, alt: true });
-    await panel.cx.idle();
-    assert.deepEqual([panel.cx.clipboard, host.notes], [null, []]);
+    press(panel.draw(), "p", panel.context, { platform: true, alt: true });
+    await panel.context.idle();
+    assert.deepEqual([panel.context.clipboard, host.notes], [null, []]);
   });
 
   it("reloads on r, with a spinner", async () => {
     const panel = await startPanel();
-    panel.cx.elapse();
-    press(panel.draw(), "r", panel.cx);
+    panel.context.elapse();
+    press(panel.draw(), "r", panel.context);
     assert.ok(icons(panel.draw())
       .includes("spinner"));
-    await panel.cx.idle();
+    await panel.context.idle();
     assert.deepEqual(panel.server.kinds(), ["issues", "teams", "issues", "teams"]);
   });
 
   it("asks which team a new issue is for on c, among my teams", async () => {
     const panel = await startPanel();
-    press(panel.draw(), "c", panel.cx);
+    press(panel.draw(), "c", panel.context);
     const [picker] = host.overlays;
     assert.deepEqual(picker.props.teams.map(({ key, name }) => ({ key, name })),
       [{ key: "BACK", name: "Backend" }, { key: "WEB", name: "Website" }]);
@@ -966,14 +966,14 @@ describe("keys", () => {
     async () => {
       const panel = await startPanel();
       assert.equal(panel.draw().$.style.border_color, "theme.border");
-      hover(row(panel.draw(), "back-1"), true, panel.cx);
-      press(panel.draw(), "p", panel.cx);
+      hover(row(panel.draw(), "back-1"), true, panel.context);
+      press(panel.draw(), "p", panel.context);
       const popup = mountOverlay(), before = focuses(panel.draw());
       assert.equal(panel.draw().$.style.border_color, "theme.accent");
       popup.view.close();
       assert.equal(panel.draw().$.style.border_color, "theme.accent");
       assert.equal(focuses(panel.draw()), before);
-      panel.cx.elapse();
+      panel.context.elapse();
       assert.equal(focuses(panel.draw()), before + 4);
       assert.equal(panel.draw().$.style.border_color, "theme.border");
     });
@@ -981,12 +981,12 @@ describe("keys", () => {
   it("takes the keyboard back for the next popup too", async () => {
     const panel = await startPanel();
     for (const key of ["p", "s"]) {
-      hover(row(panel.draw(), "back-1"), true, panel.cx);
-      press(panel.draw(), key, panel.cx);
+      hover(row(panel.draw(), "back-1"), true, panel.context);
+      press(panel.draw(), key, panel.context);
       const popup = mountOverlay(), before = focuses(panel.draw());
       popup.view.close();
       panel.draw();
-      panel.cx.elapse();
+      panel.context.elapse();
       assert.equal(focuses(panel.draw()), before + 4);
     }
   });
@@ -994,13 +994,13 @@ describe("keys", () => {
   it("leaves the keyboard alone when a popup goes while its menu is still open", async () => {
     const panel = await startPanel();
     const root = panel.draw();
-    send(root, row(root, "back-1"), "on_mouse_down:right", at(950, 200), panel.cx);
+    send(root, row(root, "back-1"), "on_mouse_down:right", at(950, 200), panel.context);
     const menu = mountOverlay(), before = focuses(panel.draw());
     host.overlays.push({ id: "overlay-2", props: { part: "copy-menu", issues: [], parent: menu.overlay.id } });
     const page = mountOverlay();
     page.view.close();
     panel.draw();
-    panel.cx.elapse();
+    panel.context.elapse();
     assert.equal(focuses(panel.draw()), before);
   });
 
@@ -1008,16 +1008,16 @@ describe("keys", () => {
     const panel = await startPanel({ app: { shared: { "linear-panel.keyboard": 99 } } });
     const before = focuses(panel.draw());
     panel.draw();
-    panel.cx.elapse();
+    panel.context.elapse();
     assert.equal(focuses(panel.draw()), before);
   });
 
   it("takes no key while it waits for an API key", async () => {
     const panel = await startPanel({ load: false, key: "" });
     panel.draw();
-    await panel.cx.idle();
-    press(panel.draw(), "c", panel.cx);
-    assert.equal(panel.cx.stopped, false);
+    await panel.context.idle();
+    press(panel.draw(), "c", panel.context);
+    assert.equal(panel.context.stopped, false);
     assert.deepEqual(host.overlays, []);
   });
 });
@@ -1057,7 +1057,7 @@ describe("header", () => {
   it("opens the display options on Shift+V, in the same place", async () => {
     const panel = await startPanel();
     enter(panel);
-    press(panel.draw(), "v", panel.cx, { shift: true });
+    press(panel.draw(), "v", panel.context, { shift: true });
     assert.deepEqual([host.overlays[0].props.part, host.overlays[0].at], ["display", { x: 1012, y: 86 }]);
   });
 
@@ -1066,12 +1066,12 @@ describe("header", () => {
     enter(panel);
     const root = panel.draw(), reload = find(root, "reload");
     send(root, reload, "on_mouse_move", { ...at(1270, 60), bounds: { x: 1260, y: 48, width: 26, height: 26 } },
-      panel.cx);
+      panel.context);
     assert.doesNotMatch(text(panel.draw()), /Reload R$/);
-    assert.equal(panel.cx.timers.at(-1).ms, 1000);
-    panel.cx.elapse();
+    assert.equal(panel.context.timers.at(-1).ms, 1000);
+    panel.context.elapse();
     assert.match(text(panel.draw()), /Reload R$/);
-    hover(reload, false, panel.cx);
+    hover(reload, false, panel.context);
     assert.doesNotMatch(text(panel.draw()), /Reload R$/);
   });
 
@@ -1080,11 +1080,11 @@ describe("header", () => {
     enter(panel);
     const rest = (id, bounds) => {
       const root = panel.draw();
-      send(root, find(root, id), "on_mouse_move", { ...at(bounds.x, bounds.y), bounds }, panel.cx);
+      send(root, find(root, id), "on_mouse_move", { ...at(bounds.x, bounds.y), bounds }, panel.context);
       // The fake app hands one event, with the control's bounds, to every element around it: the panel is told its
       // own again
       enter(panel);
-      panel.cx.elapse();
+      panel.context.elapse();
       return find(panel.draw(), "tooltip");
     };
     // In the middle of the panel: a row as wide as the nearer edge allows on each side, the tooltip in its middle
@@ -1092,7 +1092,7 @@ describe("header", () => {
     assert.deepEqual([centered.$.style.left, centered.$.style.w, centered.$.style.justify_center, centered.$.style.top],
       [0, 400, true, 84]);
     assert.equal(text(centered), "My issues 2");
-    hover(find(panel.draw(), "view-all"), false, panel.cx);
+    hover(find(panel.draw(), "view-all"), false, panel.context);
     // By the right edge: against it
     const held = rest("reload", { x: 1260, y: 48, width: 26, height: 26 });
     assert.deepEqual([held.$.style.right, held.$.style.left, held.$.style.top, text(held)],
@@ -1105,62 +1105,63 @@ describe("header", () => {
     enter(panel);
     const root = panel.draw();
     send(root, find(root, "reload"), "on_mouse_move",
-      { ...at(1270, 60), bounds: { x: 1260, y: 48, width: 26, height: 26 } }, panel.cx);
+      { ...at(1270, 60), bounds: { x: 1260, y: 48, width: 26, height: 26 } }, panel.context);
     enter(panel);
-    panel.cx.elapse();
+    panel.context.elapse();
     // 8 window pixels under the panel's top, 26 high, 6 of a style under it: (8 + 26) / 2 + 6
     const tooltip = find(panel.draw(), "tooltip");
     assert.deepEqual([tooltip.$.style.right, tooltip.$.style.top], [4, 23]);
     // The issue menu takes 456 by 608 window pixels: pulled back to the panel's left edge, and up from its bottom
     const drawn = panel.draw();
-    send(drawn, row(drawn, "back-1"), "on_mouse_down:right", at(1250, 700), panel.cx);
+    send(drawn, row(drawn, "back-1"), "on_mouse_down:right", at(1250, 700), panel.context);
     assert.deepEqual(host.overlays[0].at, { x: 900, y: 132 });
     // The display options: 92 window pixels under the panel's top for the 42 of the header and the 4 kept
-    press(panel.draw(), "v", panel.cx, { shift: true });
+    press(panel.draw(), "v", panel.context, { shift: true });
     assert.deepEqual(host.overlays[1].at, { x: 900, y: 132 });
   });
 
-  it("waits a second for the first tooltip, then shows the next at once while hovering things in turn", async (t) => {
-    t.mock.timers.enable({ apis: ["Date"], now: Date.now() });
-    const panel = await startPanel();
-    enter(panel);
-    const rest = (id) => {
-      const root = panel.draw(), bounds = { x: 1090, y: 190, width: 18, height: 18 };
-      send(root, find(root, id), "on_mouse_move", { ...at(1100, 200), bounds }, panel.cx);
+  it("waits a second for the first tooltip, then shows the next at once while hovering things in turn",
+    async (testContext) => {
+      testContext.mock.timers.enable({ apis: ["Date"], now: Date.now() });
+      const panel = await startPanel();
       enter(panel);
-    };
-    const leave = (id) => hover(find(panel.draw(), id), false, panel.cx);
-    const shown = () => text(find(panel.draw(), "tooltip") ?? "");
-    rest("priority-back-1");
-    assert.equal(shown(), "");
-    panel.cx.elapse();
-    assert.equal(shown(), "Change priority P");
-    // To the next control: no second wait, and no timer to wait for
-    leave("priority-back-1");
-    rest("priority-back-2");
-    assert.equal(shown(), "Change priority P");
-    assert.deepEqual(panel.cx.timers.filter((timer) => timer.ms === 1000), []);
-    // Rested too long between two controls (past half a second): the second is waited again
-    leave("priority-back-2");
-    t.mock.timers.tick(600);
-    rest("priority-back-1");
-    assert.equal(shown(), "");
-    panel.cx.elapse();
-    assert.equal(shown(), "Change priority P");
-  });
+      const rest = (id) => {
+        const root = panel.draw(), bounds = { x: 1090, y: 190, width: 18, height: 18 };
+        send(root, find(root, id), "on_mouse_move", { ...at(1100, 200), bounds }, panel.context);
+        enter(panel);
+      };
+      const leave = (id) => hover(find(panel.draw(), id), false, panel.context);
+      const shown = () => text(find(panel.draw(), "tooltip") ?? "");
+      rest("priority-back-1");
+      assert.equal(shown(), "");
+      panel.context.elapse();
+      assert.equal(shown(), "Change priority P");
+      // To the next control: no second wait, and no timer to wait for
+      leave("priority-back-1");
+      rest("priority-back-2");
+      assert.equal(shown(), "Change priority P");
+      assert.deepEqual(panel.context.timers.filter((timer) => timer.ms === 1000), []);
+      // Rested too long between two controls (past half a second): the second is waited again
+      leave("priority-back-2");
+      testContext.mock.timers.tick(600);
+      rest("priority-back-1");
+      assert.equal(shown(), "");
+      panel.context.elapse();
+      assert.equal(shown(), "Change priority P");
+    });
 
   it("shows no tooltip on a control that was pressed, until the pointer has left it", async () => {
     const panel = await startPanel();
     enter(panel);
     const root = panel.draw(), bounds = { x: 1090, y: 190, width: 18, height: 18 };
     const control = find(root, "priority-back-1");
-    send(root, control, "on_mouse_down:left", at(1100, 200), panel.cx);
-    send(root, control, "on_mouse_move", { ...at(1100, 200), bounds }, panel.cx);
-    panel.cx.elapse();
+    send(root, control, "on_mouse_down:left", at(1100, 200), panel.context);
+    send(root, control, "on_mouse_move", { ...at(1100, 200), bounds }, panel.context);
+    panel.context.elapse();
     assert.equal(find(panel.draw(), "tooltip"), null);
-    hover(find(panel.draw(), "priority-back-1"), false, panel.cx);
-    send(root, control, "on_mouse_move", { ...at(1100, 200), bounds }, panel.cx);
-    panel.cx.elapse();
+    hover(find(panel.draw(), "priority-back-1"), false, panel.context);
+    send(root, control, "on_mouse_move", { ...at(1100, 200), bounds }, panel.context);
+    panel.context.elapse();
     assert.notEqual(find(panel.draw(), "tooltip"), null);
   });
 
@@ -1169,13 +1170,13 @@ describe("header", () => {
     enter(panel);
     const root = panel.draw(), bounds = { x: 1090, y: 190, width: 18, height: 18 };
     const control = find(root, "priority-back-1");
-    send(root, control, "on_mouse_down:left", at(1100, 200), panel.cx);
+    send(root, control, "on_mouse_down:left", at(1100, 200), panel.context);
     opened("menu");
     // The popup opens over the control, which is told the pointer left it
-    hover(control, false, panel.cx);
+    hover(control, false, panel.context);
     closed("menu");
-    send(root, control, "on_mouse_move", { ...at(1100, 200), bounds }, panel.cx);
-    panel.cx.elapse();
+    send(root, control, "on_mouse_move", { ...at(1100, 200), bounds }, panel.context);
+    panel.context.elapse();
     assert.equal(find(panel.draw(), "tooltip"), null);
   });
 
@@ -1184,8 +1185,8 @@ describe("header", () => {
     enter(panel);
     const root = panel.draw();
     send(root, find(root, "estimate-back-1"), "on_mouse_move",
-      { ...at(1280, 200), bounds: { x: 1262, y: 190, width: 30, height: 20 } }, panel.cx);
-    panel.cx.elapse();
+      { ...at(1280, 200), bounds: { x: 1262, y: 190, width: 30, height: 20 } }, panel.context);
+    panel.context.elapse();
     assert.equal(text(find(panel.draw(), "tooltip")), "Change estimate ⇧ E");
   });
 
@@ -1198,7 +1199,7 @@ describe("header", () => {
     assert.equal(find(root, "cycle-web-7"), null);
     // A right-click on it opens the cycle's choices, not the issue's menu
     const bounds = { x: 1225, y: 190, width: 34, height: 20 };
-    send(root, find(root, "cycle-back-1"), "on_mouse_down:right", { ...at(1250, 200), bounds }, panel.cx);
+    send(root, find(root, "cycle-back-1"), "on_mouse_down:right", { ...at(1250, 200), bounds }, panel.context);
     assert.deepEqual(host.overlays.map(({ props }) => [props.part, props.page, props.bare, props.targets[0].id]),
       [["commands", "cycle", true, "back-1"]]);
     assert.equal(host.overlays[0].at.y, bounds.y + bounds.height + 6);
@@ -1215,8 +1216,8 @@ describe("header", () => {
     enter(panel);
     const root = panel.draw();
     send(root, find(root, "cycle-back-1"), "on_mouse_move",
-      { ...at(1240, 200), bounds: { x: 1225, y: 190, width: 34, height: 20 } }, panel.cx);
-    panel.cx.elapse();
+      { ...at(1240, 200), bounds: { x: 1225, y: 190, width: 34, height: 20 } }, panel.context);
+    panel.context.elapse();
     const tooltip = find(panel.draw(), "tooltip");
     // The card alone: no label, no keys, no rule under it
     assert.match(text(tooltip), /^Cycle 12 Capacity: 20 pts 70% of 10 Current \d+ weekdays? left$/);
@@ -1230,11 +1231,11 @@ describe("header", () => {
     const panel = await startPanel({ issues, app: { stored: { view: "all" } } });
     enter(panel);
     const root = panel.draw(), mark = find(root, "cycle-back-2");
-    hover(mark, true, panel.cx);
+    hover(mark, true, panel.context);
     send(root, mark, "on_mouse_move", { ...at(1240, 200), bounds: { x: 1225, y: 190, width: 34, height: 20 } },
-      panel.cx);
-    await panel.cx.idle();
-    panel.cx.elapse();
+      panel.context);
+    await panel.context.idle();
+    panel.context.elapse();
     const tooltip = find(panel.draw(), "tooltip");
     assert.match(text(tooltip), /^Cycle 13 3 Upcoming \w{3} \d+ - \w{3} \d+$/);
     assert.deepEqual(icons(tooltip), ["cycle", "estimate"]);
@@ -1282,27 +1283,27 @@ describe("header", () => {
     const panel = await startPanel({ issues: withMerges() });
     enter(panel);
     const root = panel.draw();
-    send(root, find(root, "merges-back-1"), "on_mouse_down:right", at(1200, 200), panel.cx);
+    send(root, find(root, "merges-back-1"), "on_mouse_down:right", at(1200, 200), panel.context);
     assert.equal(host.overlays.length, 0);
   });
 
   it("asks the tracker for an issue's MR details when the pointer comes on its chip, once per load", async () => {
     const panel = await startPanel({ issues: withMerges() });
-    const point = () => hover(find(panel.draw(), "merges-back-2"), true, panel.cx);
+    const point = () => hover(find(panel.draw(), "merges-back-2"), true, panel.context);
     point();
-    await panel.cx.idle();
+    await panel.context.idle();
     point();
-    await panel.cx.idle();
+    await panel.context.idle();
     const asked = () => panel.server.asked.filter((request) => request.kind === "merges");
     // By number and repository: numbers alone match the MRs of many other repositories
     assert.deepEqual(asked()
       .map((request) => request.variables), [{ numbers: [599, 47], repos: ["iam", "phoenix"] }]);
     // A load tells its answers from older ones by the time: let a millisecond pass
     await wait(2);
-    press(panel.draw(), "r", panel.cx);
-    await panel.cx.idle();
+    press(panel.draw(), "r", panel.context);
+    await panel.context.idle();
     point();
-    await panel.cx.idle();
+    await panel.context.idle();
     assert.equal(asked().length, 2);
   });
 
@@ -1310,11 +1311,11 @@ describe("header", () => {
   async function mergeCard(panel, id, { waiting = false } = {}) {
     enter(panel);
     const root = panel.draw(), mark = find(root, `merges-${id}`);
-    hover(mark, true, panel.cx);
+    hover(mark, true, panel.context);
     send(root, mark, "on_mouse_move", { ...at(1200, 200), bounds: { x: 1180, y: 190, width: 50, height: 20 } },
-      panel.cx);
-    if (!waiting) await panel.cx.idle();
-    panel.cx.elapse();
+      panel.context);
+    if (!waiting) await panel.context.idle();
+    panel.context.elapse();
     return find(panel.draw(), "tooltip");
   }
 
@@ -1357,9 +1358,9 @@ describe("header", () => {
     issues[1].attachments.nodes.push(
       ...[1, 2, 3, 4, 5, 6].map((number) => mr("gitlab", "worklife-io/iam", number, "open")));
     await wait(2);
-    press(panel.draw(), "r", panel.cx);
-    await panel.cx.idle();
-    hover(find(panel.draw(), "merges-back-2"), false, panel.cx);
+    press(panel.draw(), "r", panel.context);
+    await panel.context.idle();
+    hover(find(panel.draw(), "merges-back-2"), false, panel.context);
     assert.match(text(await mergeCard(panel, "back-2")), / 1 more$/);
   });
 
@@ -1382,8 +1383,8 @@ describe("header", () => {
     const panel = await startPanel();
     enter(panel);
     const root = panel.draw(), bounds = { x: 930, y: 193, width: 14, height: 14 };
-    send(root, find(root, "priority-back-1"), "on_mouse_move", { ...at(937, 200), bounds }, panel.cx);
-    panel.cx.elapse();
+    send(root, find(root, "priority-back-1"), "on_mouse_move", { ...at(937, 200), bounds }, panel.context);
+    panel.context.elapse();
     assert.equal(text(find(panel.draw(), "tooltip")), "Change priority P");
   });
 
@@ -1399,15 +1400,15 @@ describe("header", () => {
     enter(panel);
     const visit = () => {
       const root = panel.draw(), mark = find(root, "status-back-1");
-      hover(mark, true, panel.cx);
+      hover(mark, true, panel.context);
       send(root, mark, "on_mouse_move", { ...at(1000, 200), bounds: { x: 1090, y: 190, width: 18, height: 18 } },
-        panel.cx);
+        panel.context);
       enter(panel);
       return mark;
     };
     const mark = visit();
-    await panel.cx.idle();
-    panel.cx.elapse();
+    await panel.context.idle();
+    panel.context.elapse();
     const tooltip = find(panel.draw(), "tooltip"), [tip] = tooltip.$.children;
     assert.equal(text(tip), "Time in status Todo 2h In Progress 3d Change status S");
     // Centered on the status, under it: the panel has room there for its title, two statuses and last line
@@ -1415,9 +1416,9 @@ describe("header", () => {
     // The status the issue is in stands out from those it left
     const [, left, current] = tip.$.children[0].$.children;
     assert.deepEqual([left.$.style.text_color, current.$.style.text_color], ["theme.muted", "theme.foreground"]);
-    hover(mark, false, panel.cx);
+    hover(mark, false, panel.context);
     visit();
-    await panel.cx.idle();
+    await panel.context.idle();
     assert.equal(panel.server.kinds()
       .filter((kind) => kind === "history").length, 1);
   });
@@ -1427,11 +1428,11 @@ describe("header", () => {
     enter(panel);
     panel.server.error = "No history";
     const root = panel.draw(), mark = find(root, "status-back-1");
-    hover(mark, true, panel.cx);
+    hover(mark, true, panel.context);
     send(root, mark, "on_mouse_move", { ...at(1000, 200), bounds: { x: 990, y: 190, width: 18, height: 18 } },
-      panel.cx);
-    await panel.cx.idle();
-    panel.cx.elapse();
+      panel.context);
+    await panel.context.idle();
+    panel.context.elapse();
     assert.equal(text(find(panel.draw(), "tooltip")), "Change status S");
   });
 
@@ -1441,19 +1442,19 @@ describe("header", () => {
     const root = panel.draw(), reload = find(root, "reload");
     const move = () =>
       send(root, reload, "on_mouse_move", { ...at(1270, 60), bounds: { x: 1260, y: 48, width: 26, height: 26 } },
-        panel.cx);
+        panel.context);
     move();
-    hover(reload, false, panel.cx);
-    panel.cx.elapse();
+    hover(reload, false, panel.context);
+    panel.context.elapse();
     assert.doesNotMatch(text(panel.draw()), /Reload R$/);
     // Back on it: the wait starts over, and the timer of the first visit shows nothing
     move();
-    const [first] = panel.cx.timers.filter((timer) => timer.ms === 1000);
-    hover(reload, false, panel.cx);
+    const [first] = panel.context.timers.filter((timer) => timer.ms === 1000);
+    hover(reload, false, panel.context);
     move();
-    first.run(panel.cx);
+    first.run(panel.context);
     assert.doesNotMatch(text(panel.draw()), /Reload R$/);
-    panel.cx.elapse();
+    panel.context.elapse();
     assert.match(text(panel.draw()), /Reload R$/);
   });
 
@@ -1477,13 +1478,13 @@ describe("a popup and the panel together", () => {
   it("changes a status from the keyboard: the key on a row, a digit in the popup, the update, the reload", async () => {
     const panel = await startPanel();
     enter(panel);
-    hover(row(panel.draw(), "back-2"), true, panel.cx);
-    press(panel.draw(), "s", panel.cx);
+    hover(row(panel.draw(), "back-2"), true, panel.context);
+    press(panel.draw(), "s", panel.context);
     const popup = mountOverlay();
-    press(popup.draw(), "3", popup.cx);
+    press(popup.draw(), "3", popup.context);
     popup.view.close();
     panel.draw();
-    await panel.cx.idle();
+    await panel.context.idle();
     assert.deepEqual(updates(panel.server), [{ ids: ["back-2"], input: { stateId: "back-doing" } }]);
     assert.deepEqual(identifiers(panel.draw()), ["BACK-1", "BACK-2", "BACK-3"]);
     assert.deepEqual(host.closed, ["overlay-1"]);
@@ -1495,8 +1496,8 @@ describe("a popup and the panel together", () => {
     const drawn = (popup, pattern) => [...walk(popup.draw())].filter((node) => pattern.test(node.$.id ?? "")).length;
     // A property's choices: the title line and the rule under it, the padding and the border, the list, and the chip
     // naming the issue
-    hover(row(panel.draw(), "back-1"), true, panel.cx);
-    press(panel.draw(), "s", panel.cx);
+    hover(row(panel.draw(), "back-1"), true, panel.context);
+    press(panel.draw(), "s", panel.context);
     const choices = mountOverlay();
     assert.equal(choices.overlay.height, 51 + find(choices.draw(), "commands-list").$.style.h + 28);
     clickOn(panel, "estimate-back-1");
@@ -1505,15 +1506,15 @@ describe("a popup and the panel together", () => {
     // The issue menu: its entries, a caption, two rules, the padding and the border. The Copy page: its entries, the
     // padding and the border
     const root = panel.draw();
-    send(root, row(root, "back-1"), "on_mouse_down:right", at(950, 200), panel.cx);
+    send(root, row(root, "back-1"), "on_mouse_down:right", at(950, 200), panel.context);
     const menu = mountOverlay();
     assert.equal(menu.overlay.height, drawn(menu, /^entry-/) * 31 + 56);
     const entries = menu.draw();
-    send(entries, find(entries, "entry-copy"), "on_click", {}, menu.cx);
+    send(entries, find(entries, "entry-copy"), "on_click", {}, menu.context);
     const copies = mountOverlay();
     assert.equal(copies.overlay.height, drawn(copies, /^entry-/) * 31 + 12);
     // The team picker: a row per team and its caption
-    press(panel.draw(), "c", panel.cx);
+    press(panel.draw(), "c", panel.context);
     const teams = mountOverlay();
     assert.equal(teams.overlay.height, drawn(teams, /^item-/) * 31 + 38);
   });
@@ -1524,9 +1525,9 @@ describe("requests from the popups", () => {
     const panel = await startPanel();
     ask({ ids: ["back-1", "back-2"], kind: "update", input: { priority: 3 } });
     panel.draw();
-    await panel.cx.idle();
+    await panel.context.idle();
     panel.draw();
-    await panel.cx.idle();
+    await panel.context.idle();
     assert.deepEqual(updates(panel.server), [{ ids: ["back-1", "back-2"], input: { priority: 3 } }]);
     assert.deepEqual(panel.server.kinds()
       .slice(-2), ["update", "issues"]);
@@ -1536,7 +1537,7 @@ describe("requests from the popups", () => {
     const panel = await startPanel({ app: { stored: { view: "all" } } });
     ask({ ids: ["back-2", "web-7", "back-1"], kind: "status", name: "In Progress" });
     panel.draw();
-    await panel.cx.idle();
+    await panel.context.idle();
     assert.deepEqual(updates(panel.server),
       [{ ids: ["back-2"], input: { stateId: "back-doing" } }, { ids: ["web-7"], input: { stateId: "web-doing" } }]);
   });
@@ -1545,8 +1546,8 @@ describe("requests from the popups", () => {
     const panel = await startPanel();
     ask({ ids: ["back-1"], kind: "copy", what: "prompt" });
     panel.draw();
-    await panel.cx.idle();
-    assert.equal(panel.cx.clipboard,
+    await panel.context.idle();
+    assert.equal(panel.context.clipboard,
       "Work on Linear issue BACK-1: Fix login\n\nSteps to reproduce\n\nhttps://tracker.test/issue/BACK-1");
     assert.deepEqual(panel.server.kinds()
       .slice(-1), ["description"]);
@@ -1554,11 +1555,11 @@ describe("requests from the popups", () => {
 
   it("keeps the clipboard and says so when the issue has no diff to copy", async () => {
     const panel = await startPanel();
-    panel.cx.clipboard = "kept";
+    panel.context.clipboard = "kept";
     ask({ ids: ["back-1"], kind: "copy", what: "diffs" });
     panel.draw();
-    await panel.cx.idle();
-    assert.equal(panel.cx.clipboard, "kept");
+    await panel.context.idle();
+    assert.equal(panel.context.clipboard, "kept");
     assert.deepEqual(host.notes, [{ title: "No diffs to copy · BACK-1", timeout: 1500 }]);
   });
 
@@ -1567,8 +1568,8 @@ describe("requests from the popups", () => {
     panel.server.comments = [{ body: "Seen it too", createdAt: "2026-11-21T10:00:00.000Z", user: { name: "Ada" } }];
     ask({ ids: ["back-1"], kind: "copy", what: "everything" });
     panel.draw();
-    await panel.cx.idle();
-    assert.match(panel.cx.clipboard, /## Comments\n\n\*\*Ada\*\* \(2026-11-21\):\n\nSeen it too$/);
+    await panel.context.idle();
+    assert.match(panel.context.clipboard, /## Comments\n\n\*\*Ada\*\* \(2026-11-21\):\n\nSeen it too$/);
     assert.match(host.notes[0].title, /^Copied everything as Markdown/);
   });
 
@@ -1576,8 +1577,8 @@ describe("requests from the popups", () => {
     const panel = await startPanel();
     ask({ ids: ["back-2", "back-1"], kind: "copy", what: "markdown" });
     panel.draw();
-    await panel.cx.idle();
-    assert.equal(panel.cx.clipboard,
+    await panel.context.idle();
+    assert.equal(panel.context.clipboard,
       "# Fix login\n\nSteps to reproduce\n\n---\n\n# Add audit log\n\nSteps to reproduce");
     assert.deepEqual(panel.server.kinds()
       .slice(-2), ["description", "description"]);
@@ -1586,10 +1587,10 @@ describe("requests from the popups", () => {
 
   it("opens an issue's page, and the composer of a team, when a popup asks", async () => {
     const panel = await startPanel();
-    panel.cx.elapse();
+    panel.context.elapse();
     ask({ ids: ["back-2"], kind: "open" });
     panel.draw();
-    await panel.cx.idle();
+    await panel.context.idle();
     ask({ ids: [], kind: "compose", team: { key: "WEB", name: "Website" } });
     panel.draw();
     await settled();
@@ -1606,16 +1607,16 @@ describe("requests from the popups", () => {
     ask({ ids: ["back-1"], kind: "update", input: { priority: 3 } });
     panel.draw();
     ask({ ids: ["back-2"], kind: "update", input: { priority: 4 } });
-    await panel.cx.idle();
+    await panel.context.idle();
     panel.draw();
-    await panel.cx.idle();
+    await panel.context.idle();
     assert.deepEqual(updates(panel.server)
       .map((update) => update.ids), [["back-1"], ["back-2"]]);
   });
 
   it("keeps the spinner of a change while a quiet reload ends", async () => {
     const panel = await startPanel();
-    panel.cx.elapse();
+    panel.context.elapse();
     let release;
     const held = new Promise((resolve) => { release = resolve; });
     const answer = host.fetch;
@@ -1624,33 +1625,33 @@ describe("requests from the popups", () => {
       options); };
     ask({ ids: ["back-1"], kind: "update", input: { priority: 3 } });
     panel.draw();
-    panel.cx.tick();
+    panel.context.tick();
     await settled();
     await settled();
-    panel.cx.elapse(SPIN_MS);
+    panel.context.elapse(SPIN_MS);
     assert.ok(icons(panel.draw())
       .includes("spinner"));
     release();
-    await panel.cx.idle();
-    panel.cx.elapse();
+    await panel.context.idle();
+    panel.context.elapse();
     assert.ok(!icons(panel.draw())
       .includes("spinner"));
   });
 
   it("gives up a change that does not answer, says so, and stops its spinner", async () => {
     const panel = await startPanel();
-    panel.cx.elapse();
+    panel.context.elapse();
     const answer = host.fetch;
     host.fetch = (url, options) => (JSON.parse(options.body).query.includes("issueBatchUpdate")
       ? new Promise(() => {}) : answer(url, options));
     ask({ ids: ["back-1"], kind: "update", input: { priority: 3 } });
     panel.draw();
-    await panel.cx.idle();
+    await panel.context.idle();
     assert.ok(icons(panel.draw())
       .includes("spinner"));
-    panel.cx.elapse();
-    await panel.cx.idle();
-    panel.cx.elapse();
+    panel.context.elapse();
+    await panel.context.idle();
+    panel.context.elapse();
     const root = panel.draw();
     assert.match(text(root), /BACK-1: Linear did not answer in time/);
     assert.ok(!icons(root)
@@ -1662,7 +1663,7 @@ describe("requests from the popups", () => {
     panel.server.error = "Rate limited";
     ask({ ids: ["back-1"], kind: "update", input: { priority: 3 } });
     panel.draw();
-    await panel.cx.idle();
+    await panel.context.idle();
     assert.equal(text(find(panel.draw(), "failed")), "BACK-1: Rate limited");
     clickOn(panel, "failed");
     assert.equal(find(panel.draw(), "failed"), null);
@@ -1672,7 +1673,7 @@ describe("requests from the popups", () => {
     const panel = await startPanel();
     ask({ ids: ["gone"], kind: "update", input: { priority: 3 } });
     panel.draw();
-    await panel.cx.idle();
+    await panel.context.idle();
     assert.deepEqual(updates(panel.server), []);
   });
 
@@ -1681,11 +1682,11 @@ describe("requests from the popups", () => {
     ask({ ids: ["back-1"], kind: "update", input: { priority: 3 } });
     ask({ ids: ["back-2"], kind: "update", input: { priority: 4 } });
     panel.draw();
-    await panel.cx.idle();
+    await panel.context.idle();
     assert.deepEqual(updates(panel.server)
       .map(({ ids }) => ids), [["back-1"], ["back-2"]]);
     panel.draw();
-    await panel.cx.idle();
+    await panel.context.idle();
     assert.equal(updates(panel.server).length, 2);
   });
 
@@ -1693,7 +1694,7 @@ describe("requests from the popups", () => {
     const left = { at: 5, ids: ["back-1"], kind: "update", input: { priority: 4 } };
     const panel = await startPanel({ app: { shared: { [REQUESTS]: [left] } } });
     panel.draw();
-    await panel.cx.idle();
+    await panel.context.idle();
     assert.deepEqual(updates(panel.server), []);
   });
 
@@ -1701,7 +1702,7 @@ describe("requests from the popups", () => {
     const panel = await startPanel({ app: { stored: { view: "all" } } });
     ask({ ids: [], kind: "display", change: { by: "title", reversed: true } });
     assert.deepEqual(identifiers(panel.draw()), ["BACK-1", "WEB-7", "BACK-2", "BACK-10", "BACK-3"]);
-    await panel.cx.idle();
+    await panel.context.idle();
     assert.deepEqual([host.stored.order, host.stored.reversed, host.stored.recency, host.stored.completed],
       ["title", "1", "1", "week"]);
     assert.deepEqual(panel.server.kinds(), ["issues", "teams"]);
@@ -1711,7 +1712,7 @@ describe("requests from the popups", () => {
     const panel = await startPanel();
     ask({ ids: [], kind: "display", change: { completed: "none" } });
     panel.draw();
-    await panel.cx.idle();
+    await panel.context.idle();
     assert.deepEqual(panel.server.asked.at(-1).variables.mine,
       { state: { type: { nin: ["completed", "canceled", "duplicate"] } } });
     assert.equal(host.stored.completed, "none");
@@ -1721,7 +1722,7 @@ describe("requests from the popups", () => {
 describe("lookups that fail", () => {
   it("says so when Herdr cannot list the agents, instead of offering none", async () => {
     const panel = await startPanel({ load: false, app: { agentsError: "No shell" } });
-    await panel.cx.idle();
+    await panel.context.idle();
     assert.match(text(panel.draw()), /Could not list the agents: No shell/);
   });
 
@@ -1747,7 +1748,7 @@ describe("what is kept between runs", () => {
     const second = await startPanel({ load: false, stored: { "cache.v1.teams": kept } });
     assert.equal(second.view.part.store.teams.size, 2);
     second.draw();
-    await second.cx.idle();
+    await second.context.idle();
     assert.deepEqual(second.server.kinds(), ["issues", "teams"]);
   });
 });
@@ -1760,8 +1761,8 @@ describe("a picker that does not fit below its control", () => {
       host.overlays.length = 0;
       const root = panel.draw(), control = find(root, "estimate-back-1");
       send(root, control, "on_mouse_down:left", { ...at(1270, y + 10), bounds: { x: 1262, y, width: 30, height: 20 } },
-        panel.cx);
-      send(root, control, "on_click", at(1270, y + 10), panel.cx);
+        panel.context);
+      send(root, control, "on_click", at(1270, y + 10), panel.context);
       return host.overlays[0];
     };
     // Plenty of room below: all the rows, under the control
@@ -1781,12 +1782,12 @@ describe("the header's round buttons", () => {
     const icon = (id) => find(panel.draw(), id).$.children[0].$.style.text_color;
     for (const id of ["new-issue", "display-options", "reload"]) {
       assert.equal(icon(id), "theme.muted");
-      hover(find(panel.draw(), id), true, panel.cx);
+      hover(find(panel.draw(), id), true, panel.context);
       assert.equal(icon(id), "theme.foreground");
       // The circle is as it was
       const { style } = find(panel.draw(), id).$;
       assert.deepEqual([style.border_color, style.bg], ["theme.border", undefined]);
-      hover(find(panel.draw(), id), false, panel.cx);
+      hover(find(panel.draw(), id), false, panel.context);
       assert.equal(icon(id), "theme.muted");
     }
   });
@@ -1818,7 +1819,7 @@ describe("the total of the view", () => {
     const panel = await startPanel();
     const figure = () => find(panel.draw(), "total-view").$.style.text_color;
     assert.equal(figure(), "theme.muted");
-    hover(find(panel.draw(), "total-view"), true, panel.cx);
+    hover(find(panel.draw(), "total-view"), true, panel.context);
     assert.equal(figure(), "theme.foreground");
     clickOn(panel, "total-view");
     assert.equal(text(find(panel.draw(), "total-view")), "3 issues");

@@ -29,24 +29,24 @@ export class SubmenuHost {
    * @param {string | null} id
    * @param {Bounds} bounds
    * @param {((bounds?: Bounds) => string) | null} opens
-   * @param {Context} cx
+   * @param {Context} context
    */
-  rest(id, bounds, opens, cx) {
+  rest(id, bounds, opens, context) {
     this.#bounds = bounds;
     this.#measuredAtZoom = zoom();
     if (this.#rested === id) return;
     this.#rested = id;
     this.#restedOpensPage = opens !== null;
-    cx.notify();
-    cx.timer.after(PAGE_DELAY_MS, (cx) => { if (this.#rested === id) this.turnTo(id, opens, cx); });
+    context.notify();
+    context.timer.after(PAGE_DELAY_MS, (context) => { if (this.#rested === id) this.turnTo(id, opens, context); });
   }
 
   // An entry that opens a page stays lit: the pointer leaving the menu is on its way to that page
-  /** @param {Context} cx */
-  leave(cx) {
+  /** @param {Context} context */
+  leave(context) {
     if (this.page || this.#rested === undefined || this.#restedOpensPage) return;
     this.#rested = undefined;
-    cx.notify();
+    context.notify();
   }
 
   get lit() {
@@ -56,9 +56,9 @@ export class SubmenuHost {
   /**
    * @param {string | null} id
    * @param {((bounds?: Bounds) => string) | null} opens
-   * @param {Context} cx
+   * @param {Context} context
    */
-  turnTo(id, opens, cx) {
+  turnTo(id, opens, context) {
     // Herdr may have closed the page by itself (Escape closes the popup on top): then it is opened again
     if (this.page?.of === id && popups()
       .includes(this.page.overlay)) return;
@@ -66,18 +66,20 @@ export class SubmenuHost {
     this.#openPage = opens;
     this.#placedAtZoom = zoom();
     this.page = id !== null && opens ? { of: id, overlay: opens(this.#entryAcrossMenu()) } : null;
-    cx.notify();
+    context.notify();
   }
 
   // On a zoom change, Herdr keeps a popup where it opened and scales it from its top left corner: the page drifts from
   // the menu, so it opens again against it. A moment later, as no popup opens while one is laid out
-  /** @param {Context} cx */
-  followZoom(cx) {
-    if (this.page && zoom() !== this.#placedAtZoom) cx.timer.after(0, (cx) => this.#reopenAgainstMenu(cx));
+  /** @param {Context} context */
+  followZoom(context) {
+    if (this.page && zoom() !== this.#placedAtZoom) {
+      context.timer.after(0, (context) => this.#reopenAgainstMenu(context));
+    }
   }
 
-  /** @param {Context} cx */
-  #reopenAgainstMenu(cx) {
+  /** @param {Context} context */
+  #reopenAgainstMenu(context) {
     const now = zoom(), ratio = now / this.#measuredAtZoom, { menuBounds: menu, page } = this;
     if (!page || now === this.#placedAtZoom) return;
     if (menu && ratio !== 1) {
@@ -89,7 +91,7 @@ export class SubmenuHost {
       this.#measuredAtZoom = now;
     }
     this.close();
-    this.turnTo(page.of, this.#openPage, cx);
+    this.turnTo(page.of, this.#openPage, context);
   }
 
   #entryAcrossMenu() {

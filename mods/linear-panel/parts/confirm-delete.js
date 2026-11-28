@@ -1,5 +1,5 @@
-// The dialog that asks before a comment is deleted, which cannot be undone. Enter deletes. Cancel closes it, and so
-// does Escape, which Herdr takes before the mod sees it
+// The dialog that asks before a comment is deleted, which cannot be undone. No handler for Escape: Herdr closes the
+// dialog on it before the mod sees the key
 import { div } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
 import { ask, dismiss } from "../channel.js";
@@ -15,12 +15,12 @@ const RING_GAP_PX = 2;
 export class ConfirmDelete {
   /**
    * @param {Opened<ConfirmDeleteProps>} props
-   * @param {Context} cx
+   * @param {Context} context
    */
-  constructor(props, cx) {
+  constructor(props, context) {
     this.props = props;
-    this.handle = cx.focus_handle();
-    takeKeyboard(this.handle, cx);
+    this.handle = context.focus_handle();
+    takeKeyboard(this.handle, context);
   }
 
   confirm() {
@@ -29,8 +29,8 @@ export class ConfirmDelete {
     dismiss(overlay);
   }
 
-  /** @param {Theme} t */
-  render(t) {
+  /** @param {Theme} theme */
+  render(theme) {
     /**
      * @param {string} id
      * @param {string} label
@@ -52,14 +52,14 @@ export class ConfirmDelete {
       .hover((style) => style.opacity(HOVER_OPACITY))
       .on_click(action)
       .child(label);
-    const remove = button("confirm-delete-yes", "Delete", { bg: t.ansi1, fg: t.background, border: t.ansi1 },
-      () => this.confirm());
-    return boxed(t, v_flex()
+    const danger = { bg: theme.ansi1, fg: theme.background, border: theme.ansi1 };
+    const remove = button("confirm-delete-yes", "Delete", danger, () => this.confirm());
+    return boxed(theme, v_flex()
       .id("confirm-delete")
       .track_focus(this.handle)
-      .on_key_down((event, cx) => {
+      .on_key_down((event, context) => {
         if (event.key !== "enter") return;
-        cx.stop_propagation();
+        context.stop_propagation();
         this.confirm();
       })
       .size_full()
@@ -68,24 +68,24 @@ export class ConfirmDelete {
       .child(div()
         .text_size(16)
         .font_semibold()
-        .text_color(t.foreground)
+        .text_color(theme.foreground)
         .child("Delete this comment?"))
       .child(div()
         .text_size(14)
-        .text_color(t.muted)
+        .text_color(theme.muted)
         .child("You cannot undo this action."))
       .child(h_flex()
         .flex_1()
         .items_end()
         .justify_end()
         .gap(8)
-        .child(button("confirm-delete-no", "Cancel", { bg: t.raised, fg: t.foreground, border: t.border },
+        .child(button("confirm-delete-no", "Cancel", { bg: theme.raised, fg: theme.foreground, border: theme.border },
           () => dismiss(this.props.overlay)))
         .child(div()
           .p(RING_GAP_PX)
           .rounded(BUTTON_HEIGHT_PX / 2 + RING_GAP_PX)
           .border_1()
-          .border_color(t.ansi1)
+          .border_color(theme.ansi1)
           .child(remove)));
   }
 }

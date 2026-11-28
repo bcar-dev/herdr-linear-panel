@@ -46,7 +46,7 @@ export class Openers {
     if (!targets.length || !teams.length) return;
     if (page !== Page.ACTIONS && !changeable(teams)
       .includes(page)) return;
-    openCommands(targets, teams, page, panel.store.me);
+    openCommands(targets, teams, page, panel.store.myId);
   }
 
   // Where a key's popup opens: at the pointer
@@ -110,7 +110,7 @@ export class Openers {
   offer(issue, page, where, { bare, anchor }) {
     const { panel } = this, teams = panel.store.teamsOf([issue]);
     if (changeable(teams)
-      .includes(page)) openChoices([issue], teams, page, panel.store.me, where, { bare, anchor });
+      .includes(page)) openChoices([issue], teams, page, panel.store.myId, where, { bare, anchor });
   }
 
   /** @param {Issue} issue */
@@ -159,14 +159,14 @@ export class Openers {
     panel.handle.focus();
     const together = selection.size > 1 && selection.has(issue.id);
     const issues = together ? panel.inListOrder(panel.ticked()) : [issue];
-    openIssueMenu(issues, panel.store.teamsOf(issues), panel.store.me, { point: at, frame: panel.frame },
+    openIssueMenu(issues, panel.store.teamsOf(issues), panel.store.myId, { point: at, frame: panel.frame },
       panel.agent()?.name ?? null, row);
   }
 
   /** @param {PageComment} comment */
   commentMenu(comment) {
     const { panel } = this, page = panel.detail;
-    if (page) openCommentMenu(page.issue, comment, comment.user?.id === panel.store.me, this.placed("below"));
+    if (page) openCommentMenu(page.issue, comment, comment.user?.id === panel.store.myId, this.placed("below"));
   }
 
   /**
@@ -183,12 +183,12 @@ export class Openers {
   /**
    * @param {Issue} issue
    * @param {IssueLabel} label
-   * @param {Context} cx
+   * @param {Context} context
    * @param {string} [anchor] the label's control, kept lit while its popup is open
    */
-  chooseLabel(issue, label, cx, anchor) {
+  chooseLabel(issue, label, context, anchor) {
     const { panel } = this, offered = panel.store.labels.get(issue.team.id);
-    if (!label.parent || !offered || !panel.pressedBounds) return this.chooseLabels(issue, cx, anchor);
+    if (!label.parent || !offered || !panel.pressedBounds) return this.chooseLabels(issue, context, anchor);
     openLabels(issue, offered, frequent([...panel.store.index()
       .values()], offered), this.placed("either side"),
     { group: label.parent.id, anchor });
@@ -196,31 +196,31 @@ export class Openers {
 
   /**
    * @param {Issue} issue
-   * @param {Context} cx
+   * @param {Context} context
    * @param {string} [anchor] the page's control pressed, kept lit while the picker is open
    */
-  chooseLabels(issue, cx, anchor) {
-    this.#labels(issue, this.placed("either side"), cx, anchor);
+  chooseLabels(issue, context, anchor) {
+    this.#labels(issue, this.placed("either side"), context, anchor);
   }
 
   /**
    * @param {Issue} issue
-   * @param {Context} cx
+   * @param {Context} context
    */
-  chooseLabelsByKey(issue, cx) {
+  chooseLabelsByKey(issue, context) {
     const anchor = addLabelsId(issue), bounds = this.panel.detail?.spot(anchor);
-    this.#labels(issue, bounds ? this.placed("either side", bounds) : this.atPointer(), cx, anchor);
+    this.#labels(issue, bounds ? this.placed("either side", bounds) : this.atPointer(), context, anchor);
   }
 
   /**
    * @param {Issue} issue
    * @param {Where} where
-   * @param {Context} cx
+   * @param {Context} context
    * @param {string} [anchor]
    */
-  #labels(issue, where, cx, anchor) {
+  #labels(issue, where, context, anchor) {
     const { panel } = this, offered = panel.store.labels.get(issue.team.id);
-    if (!offered) return panel.loadLabels(issue.team.id, cx);
+    if (!offered) return panel.loadLabels(issue.team.id, context);
     openLabels(issue, offered, frequent([...panel.store.index()
       .values()], offered), where, { anchor });
   }

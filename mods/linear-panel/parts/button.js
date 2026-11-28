@@ -11,16 +11,16 @@ export class PanelButton {
     dock.register();
   }
 
-  /** @param {Theme} t */
-  render(t) {
+  /** @param {Theme} theme */
+  render(theme) {
     const on = dock.isShown();
     return h_flex()
       .size_full()
       .pr(10)
       .items_center()
-      .bg(t.chrome)
+      .bg(theme.chrome)
       .border_b(1)
-      .border_color(t.border)
+      .border_color(theme.border)
       .child(h_flex()
         .id(`panel-${SLOT}`)
         .h(26)
@@ -30,13 +30,13 @@ export class PanelButton {
         .items_center()
         .rounded(13)
         .text_size(12)
-        .bg(on ? t.selected : t.chrome)
-        .text_color(on ? t.foreground : t.muted)
-        .hover((style) => style.bg(t.hover))
+        .bg(on ? theme.selected : theme.chrome)
+        .text_color(on ? theme.foreground : theme.muted)
+        .hover((style) => style.bg(theme.hover))
         // The bar around the button drags the window: a press on the button must not
-        .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
+        .on_mouse_down("left", (_event, context) => context.stop_propagation())
         .on_click(() => (on ? dock.hide() : dock.show()))
-        .child(image(logo(isDark(t.chrome)))
+        .child(image(logo(isDark(theme.chrome)))
           .size(14)
           .flex_none())
         .child(NAME));

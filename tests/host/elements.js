@@ -100,9 +100,9 @@ function pathTo(root, target) {
 }
 
 // Sends an event to an element as Herdr does: its handlers run, then those of each element around it, until one
-// calls cx.stop_propagation(). `event` is the method that listens, with its button if it has one: "on_click",
+// calls context.stop_propagation(). `event` is the method that listens, with its button if it has one: "on_click",
 // "on_mouse_down:left". on_hover is not sent this way: use `hover`
-export function send(root, target, event, payload, cx) {
+export function send(root, target, event, payload, context) {
   const path = pathTo(root, target);
   assert.ok(path, `the element is not in this drawing (${event})`);
   // Herdr closes a popup or a dialog on Escape before the mod sees the key, unless the mod bound it (an action)
@@ -110,10 +110,10 @@ export function send(root, target, event, payload, cx) {
     "Escape never reaches an overlay's key handler");
   // The drawing knows which copy of the mod it belongs to: that copy's props are the ones `props()` answers now
   if ("copy" in root.$) host.props = root.$.copy ?? undefined;
-  cx.stopped = false;
+  context.stopped = false;
   for (const node of path.reverse()) {
-    for (const handler of node.$.handlers[event] ?? []) handler(payload, cx);
-    if (cx.stopped) break;
+    for (const handler of node.$.handlers[event] ?? []) handler(payload, context);
+    if (context.stopped) break;
   }
 }
 
@@ -121,12 +121,14 @@ const NO_KEYS = { shift: false, control: false, alt: false, platform: false };
 
 // A click as Herdr delivers it: the press, the release, then the click, each to whoever listens.
 // `position` is where in the window, for the handlers that read it
-export function click(root, target, cx, modifiers = {}, position = { x: 0, y: 0 }) {
+export function click(root, target, context, modifiers = {}, position = { x: 0, y: 0 }) {
   const pointer = { modifiers: { ...NO_KEYS, ...modifiers }, position };
-  for (const event of ["on_mouse_down:left", "on_mouse_up:left", "on_click"]) send(root, target, event, pointer, cx);
+  for (const event of ["on_mouse_down:left", "on_mouse_up:left", "on_click"]) {
+    send(root, target, event, pointer, context);
+  }
 }
-export const press = (root, key, cx, modifiers = {}) =>
-  send(root, root, "on_key_down", { key, modifiers: { ...NO_KEYS, ...modifiers } }, cx);
-export function hover(target, on, cx) {
-  for (const handler of target.$.handlers.on_hover ?? []) handler(on, cx);
+export const press = (root, key, context, modifiers = {}) =>
+  send(root, root, "on_key_down", { key, modifiers: { ...NO_KEYS, ...modifiers } }, context);
+export function hover(target, on, context) {
+  for (const handler of target.$.handlers.on_hover ?? []) handler(on, context);
 }

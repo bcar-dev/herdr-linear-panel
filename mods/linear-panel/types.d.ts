@@ -23,10 +23,10 @@ type Theme = Record<
   Color
 >;
 
-type OnClick = (event: ClickEvent, cx: Context) => void;
+type OnClick = (event: ClickEvent, context: Context) => void;
 
 /** How an element looks in one state, as `hover` takes it */
-type Restyle = (el: NativeElement) => NativeElement;
+type Restyle = (element: NativeElement) => NativeElement;
 
 /** A node of the layout `layout()` of "herdr" answers, with the fields dock.js reads */
 type LayoutNode = { id?: string; children?: LayoutNode[]; hidden?: boolean; active?: string };
@@ -52,7 +52,7 @@ type Where = {
 };
 
 /** What a tooltip says above its label (parts/hints.js): the element, and its size, which places the tooltip */
-type TipBody = { el: NativeElement; width: number; height: number };
+type TipBody = { element: NativeElement; width: number; height: number };
 
 /** The tooltip showing (parts/hints.js). `body` draws what it says above its label, or answers null for nothing */
 type Tip = {
@@ -61,7 +61,7 @@ type Tip = {
   caps: string[];
   side: Side;
   bounds: Bounds;
-  body?: (t: Theme) => TipBody | null;
+  body?: (theme: Theme) => TipBody | null;
 };
 
 /** Where a tooltip hangs in the panel (lib/placement.js): offsets from its edges, or `center` from its left edge */
@@ -256,7 +256,7 @@ type Display = {
 };
 
 /** What every row of one drawing shares (parts/issue-list.js) */
-type Look = { t: Theme; identifierWidth: number; estimateWidth: number; lit: string | null };
+type Look = { theme: Theme; identifierWidth: number; estimateWidth: number; lit: string | null };
 
 type Property = import("./enums.js").Property;
 type Page = import("./enums.js").Page;
@@ -304,34 +304,41 @@ type Choice = {
 
 /** Work on issues, which the panel does when a popup, a key or a drop asks for it */
 type Work =
+  // The same change on every issue
   | { kind: Kinds["UPDATE"]; input: IssueUpdate }
+  // A change to a comment of the open page. "start-edit" opens its field, "confirm-delete" the dialog that asks first
   | { kind: Kinds["COMMENT"]; change: CommentChange | "start-edit" | "confirm-delete"; comment: string;
     extra?: string }
+  // Text for the clipboard, and the toast that says so
   | { kind: Kinds["CLIPBOARD"]; text: string; label: string }
+  // Each issue to its own team's status of that name
   | { kind: Kinds["STATUS"]; name: string }
+  // One entry of the Copy menu
   | { kind: Kinds["COPY"]; what: CopyWhat }
+  // A checkout and an agent on the issue
   | { kind: Kinds["START"]; instructions: string }
+  // The issue's page in the tracker
   | { kind: Kinds["OPEN"] };
 
 /** What a popup asks for: work on issues, display options that changed, or the tracker's composer for a team */
 type Ask = Work | { kind: Kinds["DISPLAY"]; change: Partial<Display> }
   | { kind: Kinds["COMPOSE"]; team: MyTeam };
 
-/** A request to the panel: the ids of its issues, and `at` once it is sent */
 /**
  * What the person wrote of the agent's first message (lib/start.js): the settings' prompts before and after the issue,
  * and the instructions typed in Start's field
  */
 type PromptParts = { preIssuePrompt?: string; instructions?: string; postIssuePrompt?: string };
 
+/** A request to the panel: the ids of its issues, and `at` once it is sent, which tells it from the one before */
 type PanelRequest = Ask & { ids: string[]; at?: number };
 
 /** The issue a popup is open on, the overlay of that popup, and the id of the page's control that opened it */
 type OpenOn = { issue: string; owner: string; anchor?: string };
 
 type IssueMenuProps = {
-  part: "issue-menu"; issues: Issue[]; teams: Team[]; me: string; agent?: string | null; frame?: Bounds; origin?: Point;
-  row?: Bounds;
+  part: "issue-menu"; issues: Issue[]; teams: Team[]; myId: string; agent?: string | null; frame?: Bounds;
+  origin?: Point; row?: Bounds;
 };
 type CopyMenuProps = { part: "copy-menu"; issues: Issue[]; parent: string };
 type StartProps = { part: "start"; issue: Issue; agent: string };
@@ -340,7 +347,7 @@ type CommandsProps = {
   targets: Issue[];
   teams: Team[];
   page: Page;
-  me: string;
+  myId: string;
   compact?: boolean;
   bare?: boolean;
   parent?: string;
@@ -362,7 +369,7 @@ type LabelsProps = {
   list: number;
 };
 
-type CommentMenuProps = { part: "comment-menu"; issue: Issue; comment: PageComment; own: boolean };
+type CommentMenuProps = { part: "comment-menu"; issue: Issue; comment: PageComment; isMine: boolean };
 type ConfirmDeleteProps = { part: "confirm-delete"; issue: Issue; comment: PageComment };
 
 type PopupProps = CommentMenuProps | ConfirmDeleteProps | IssueMenuProps | CopyMenuProps | StartProps | CommandsProps
@@ -396,9 +403,9 @@ type Panel = import("./parts/panel.js").Panel;
 
 /** One part of the mod. `replaced` is set by a popup that only made way for another one */
 type Part = {
-  render(t: Theme, cx: Context): NativeElement;
+  render(theme: Theme, context: Context): NativeElement;
   replaced?: boolean;
   release?(): void;
 };
 
-type PartClass = new (props: PartProps, cx: Context) => Part;
+type PartClass = new (props: PartProps, context: Context) => Part;

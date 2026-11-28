@@ -1,4 +1,4 @@
-// What a key press means. Pure rules with no calls to Herdr, so node can test them (tests/unit)
+// What a key press means
 import { CopyWhat, KeyAction, Property } from "../enums.js";
 
 /** @param {KeyEvent} event */
@@ -77,34 +77,33 @@ export function copyShortcut(event, mac) {
   return COPY_KEYS.find(held)?.what ?? null;
 }
 
-// What a key press in the panel asks for, as { do, ... }, or null when the key is not the panel's.
-// `views` is how many views there are, `ticked` whether issues are ticked, `pointed` whether the pointer is on an
-// issue, `aimed` whether a copy shortcut has issues to act on (the ticked ones, else the pointed one)
+// What a key press in the panel asks for, as { do, ... }, or null when the key is not the panel's. `canCopy` says
+// whether a copy shortcut has issues to act on: the ticked ones, else the lit one
 /**
  * @param {KeyEvent} event
- * @param {{ mac: boolean, views: number, ticked: boolean, pointed: boolean, aimed: boolean }} state
+ * @param {{ mac: boolean, viewCount: number, hasTicked: boolean, hasLit: boolean, canCopy: boolean }} state
  * @returns {KeyAsk | null}
  */
-export function panelKey(event, { mac, views, ticked, pointed, aimed }) {
+export function panelKey(event, { mac, viewCount, hasTicked, hasLit, canCopy }) {
   const modifiers = event.modifiers, page = PROPERTY_OF_KEY[spelled(event)], nth = Number(event.key) - 1;
   const what = copyShortcut(event, mac);
   if (commandHeld(modifiers, mac) && !modifiers.alt && !modifiers.shift && event.key === "k") {
     return { do: KeyAction.COMMANDS };
   }
-  if (what && aimed) return { do: KeyAction.COPY, what };
+  if (what && canCopy) return { do: KeyAction.COPY, what };
   if (!unmodified(modifiers)) return null;
   // Shift+c is the cycle's key, not this one
   if (spelled(event) === "c") return { do: KeyAction.COMPOSE };
   if (event.key === "r") return { do: KeyAction.RELOAD };
   if (spelled(event) === "V") return { do: KeyAction.DISPLAY };
-  if (Number.isInteger(nth) && nth >= 0 && nth < views) return { do: KeyAction.VIEW, nth };
-  if (page && ticked) return { do: KeyAction.COMMANDS, page };
-  if (page && pointed) return { do: KeyAction.CHOOSE, page };
-  if (event.key === "i" && (ticked || pointed)) return { do: KeyAction.UNASSIGN };
-  if (event.key.toLowerCase() === "x" && pointed) return { do: KeyAction.TICK, extend: Boolean(modifiers.shift) };
+  if (Number.isInteger(nth) && nth >= 0 && nth < viewCount) return { do: KeyAction.VIEW, nth };
+  if (page && hasTicked) return { do: KeyAction.COMMANDS, page };
+  if (page && hasLit) return { do: KeyAction.CHOOSE, page };
+  if (event.key === "i" && (hasTicked || hasLit)) return { do: KeyAction.UNASSIGN };
+  if (event.key.toLowerCase() === "x" && hasLit) return { do: KeyAction.TICK, extend: Boolean(modifiers.shift) };
   if (event.key === "down" || event.key === "up") return { do: KeyAction.MOVE, by: event.key === "down" ? 1 : -1 };
-  if (event.key === "enter" && pointed) return { do: KeyAction.OPEN };
-  if (event.key === "escape" && ticked) return { do: KeyAction.UNTICK };
+  if (event.key === "enter" && hasLit) return { do: KeyAction.OPEN };
+  if (event.key === "escape" && hasTicked) return { do: KeyAction.UNTICK };
   return null;
 }
 

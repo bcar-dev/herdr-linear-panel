@@ -4,7 +4,7 @@
 //   none                       the panel
 //   { part: "button" }         the panel's button, for the top bar
 //   { part: <a popup>, ... }   one of the popups, opened by popups.js with the props its part needs
-// This file only picks the part. Each part is a class with render(t, cx), built from (props, cx)
+// This file only picks the part. Each part is a class with render(theme, context), built from (props, context)
 import { View } from "gpui-kit";
 import { props, theme } from "herdr";
 import { closed, giveBack, opened, unlight } from "./channel.js";
@@ -40,14 +40,14 @@ export default class IssuesPanel extends View {
 
   /**
    * @param {unknown} _props
-   * @param {Context} cx
+   * @param {Context} context
    */
-  init(_props, cx) {
+  init(_props, context) {
     const given = /** @type {PartProps} */ (props() ?? {});
     if (given.overlay) opened(given.overlay);
     const Built = /** @type {PartClass | undefined} */ (given.part ? PARTS[given.part] : Panel);
     if (!Built) throw new Error(`Unknown part: ${given.part}`);
-    this.part = new Built(given, cx);
+    this.part = new Built(given, context);
   }
 
   // Herdr calls this when a copy goes, however a popup was closed: by a choice, or by Herdr on Escape. Two cases keep
@@ -62,9 +62,9 @@ export default class IssuesPanel extends View {
     if (!this.pressedBeside && !this.part.replaced) giveBack();
   }
 
-  /** @param {Context} cx */
-  render(cx) {
-    const drawn = this.part.render(/** @type {Theme} */ (theme()), cx);
+  /** @param {Context} context */
+  render(context) {
+    const drawn = this.part.render(/** @type {Theme} */ (theme()), context);
     if (!props()?.overlay) return drawn;
     return drawn.on_mouse_down_out(() => { this.pressedBeside = true; });
   }

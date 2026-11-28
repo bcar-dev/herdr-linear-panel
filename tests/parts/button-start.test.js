@@ -11,7 +11,7 @@ describe("panel button", () => {
   beforeEach(() => reset());
   function pressButton() {
     const button = mount({ part: "button" }), root = button.draw();
-    click(root, find(root, "panel-linear"), button.cx);
+    click(root, find(root, "panel-linear"), button.context);
     return button;
   }
 
@@ -87,7 +87,7 @@ describe("the row a popup is open on", () => {
   it("its popup leaves the keyboard where a press outside the popup put it", () => {
     const popup = mount({ part: "teams", teams: [], overlay: "overlay-1" });
     const root = popup.draw();
-    send(root, root, "on_mouse_down_out", {}, popup.cx);
+    send(root, root, "on_mouse_down_out", {}, popup.context);
     popup.view.close();
     assert.equal(host.shared["linear-panel.keyboard"], undefined);
   });
@@ -121,7 +121,7 @@ describe("start", () => {
     const panel = await startPanel({ app, git: repository(given), ...given });
     ask({ ids: [id], kind: "start", instructions: "Keep it small" });
     panel.draw();
-    await panel.cx.idle();
+    await panel.context.idle();
     return panel;
   }
 

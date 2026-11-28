@@ -1,4 +1,4 @@
-// Where popups and tooltips go. Pure geometry in window coordinates, so node can test it (tests/unit)
+// Where popups and tooltips go, in window coordinates
 import { Side } from "../enums.js";
 
 const FIT_CHARACTER_WIDTH_PX = 7, OVERFLOW_TOLERANCE_PX = 8;
@@ -19,11 +19,9 @@ export const textWidth = (text, characterPx = TEXT_CHARACTER_WIDTH_PX) => charac
 const rightLimit = (frame, width) => (frame ? frame.x + frame.width - width - EDGE_MARGIN_PX : Infinity);
 
 // Pulled back inside the panel when it would pass its right or bottom edge: Herdr cuts a popup at the window's edge and
-// does not move it. `where` is { point, frame }: the press and the panel. With `beside` (a menu entry's bounds) the
-// popup opens next to that entry instead, on the right when there is room, else on the left when the window has room
-// there, as a submenu does. `gap` is the space left between the popup and the control. `lead` is how far down the
-// popup the middle of its first row is: that row then sits level with `beside`. Without a point or a frame it opens
-// at the pointer
+// does not move it. Beside a menu entry, the popup opens on its right when there is room, else on its left when the
+// window has room there, as a submenu does, its first row level with the entry. Without a point or a frame it opens at
+// the pointer
 /**
  * @param {Where} where
  * @param {number} width
@@ -91,16 +89,15 @@ export function sideOf(control, frame, height, zoom) {
   return height <= below || (height > above && below >= above) ? Side.BELOW : Side.ABOVE;
 }
 
-// `rest` is the px of other things beside the label
 /**
  * @param {string[]} labels
- * @param {number} rest
- * @param {number} least
- * @param {number} most
+ * @param {number} besideLabelPx
+ * @param {number} minPx
+ * @param {number} maxPx
  */
-export const fitWidth = (labels, rest, least, most) =>
-  Math.max(least, Math.min(most,
-    rest + Math.max(0, ...labels.map((label) => textWidth(label, FIT_CHARACTER_WIDTH_PX)))));
+export const fitWidth = (labels, besideLabelPx, minPx, maxPx) =>
+  Math.max(minPx, Math.min(maxPx,
+    besideLabelPx + Math.max(0, ...labels.map((label) => textWidth(label, FIT_CHARACTER_WIDTH_PX)))));
 
 /**
  * @param {Bounds} bounds

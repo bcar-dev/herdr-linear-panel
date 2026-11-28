@@ -1,4 +1,4 @@
-// The ticked issues. Pure state with no calls to Herdr, so node can test it (tests/unit)
+// The ticked issues
 
 // Both included, whichever comes first. Only `to` when either is not shown
 /**

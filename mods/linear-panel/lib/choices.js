@@ -45,7 +45,7 @@ const update = (input) => /** @type {Ask} */ ({ kind: RequestKind.UPDATE, input 
  * @typedef {object} ChoiceContext
  * @property {Issue[]} targets
  * @property {Team[]} teams
- * @property {string} me
+ * @property {string} myId
  * @property {Member[]} projectMembers
  * @property {number} now
  * @property {(value: unknown, read: (issue: Issue) => unknown) => Choice["mark"]} held
@@ -64,8 +64,8 @@ const ROWS = {
   [Property.ESTIMATE]: ({ teams, held }) => [null, ...commonEstimates(teams)].map((value) => choice({
     label: estimateText(teams[0], value), mark: held(value, (issue) => issue.estimate ?? null),
     source: { property: Property.ESTIMATE, value }, ask: update({ estimate: value }) })),
-  [Property.ASSIGN]: ({ targets, teams, me, projectMembers, held }) =>
-    assigneeRows(targets, teams, projectMembers, me)
+  [Property.ASSIGN]: ({ targets, teams, myId, projectMembers, held }) =>
+    assigneeRows(targets, teams, projectMembers, myId)
       .map(({ member, group, title }) => (member
         ? choice({ label: memberName(member), group, title, words: `${member.name} ${member.displayName}`,
           mark: held(member.id, (issue) => issue.assignee?.id ?? null),
@@ -90,11 +90,11 @@ const ROWS = {
 
 /**
  * @param {Page} page
- * @param {{ targets: Issue[], teams: Team[], me: string, projectMembers: Member[], now?: number }} about
+ * @param {{ targets: Issue[], teams: Team[], myId: string, projectMembers: Member[], now?: number }} about
  * @returns {ChoiceRow[]}
  */
-export function choiceRows(page, { targets, teams, me, projectMembers, now = Date.now() }) {
+export function choiceRows(page, { targets, teams, myId, projectMembers, now = Date.now() }) {
   const held = (/** @type {unknown} */ value, /** @type {(issue: Issue) => unknown} */ read) =>
     share(targets.map(read), value);
-  return ROWS[page]?.({ targets, teams, me, projectMembers, now, held }) ?? [];
+  return ROWS[page]?.({ targets, teams, myId, projectMembers, now, held }) ?? [];
 }

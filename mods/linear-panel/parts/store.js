@@ -17,8 +17,7 @@ export class Store {
   issues = { [ViewKey.CYCLE]: [], [ViewKey.ALL]: [] };
   /** @type {Record<string, boolean>} */
   more = {};
-  // `me` is my user id
-  me = "";
+  myId = "";
   /** @type {Viewer | undefined} */
   viewer = undefined;
   /** @type {MyTeam[]} */
@@ -33,7 +32,7 @@ export class Store {
   // The description and comments last read of each issue: its page opens with them, then reads again
   /** @type {Map<string, { description: string, comments: PageComment[] }>} */
   pages = new Map();
-  // What was typed in a page's comment fields and not sent, by issue and the comment replied to (IssuePage.draftKey)
+  // Unsent comment text, by IssuePage.draftKey
   /** @type {Map<string, string>} */
   drafts = new Map();
   /** @type {Asked} the teams, projects and labels of teams asked since this run began */
@@ -64,7 +63,7 @@ export class Store {
 
   /** @param {Viewer} viewer */
   apply(viewer) {
-    this.me = viewer.id;
+    this.myId = viewer.id;
     this.viewer = viewer;
     this.myTeams = viewer.teams.nodes;
     for (const { id: view } of VIEWS) {

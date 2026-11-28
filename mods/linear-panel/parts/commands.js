@@ -58,24 +58,24 @@ export const leadFor = ({ bare }) => BORDER_PX + PADDING_PX / 2 + (bare ? 0 : CA
   + HEAD_RULE_PX + MENU_ROW_HEIGHT_PX / 2;
 
 /**
- * @param {Theme} t
+ * @param {Theme} theme
  * @param {import("../lib/choices.js").ChoiceSource} source
  * @param {WorkflowState[]} [states]
  */
-function rowIcon(t, source, states) {
+function rowIcon(theme, source, states) {
   switch (source.property) {
     case Property.STATUS: return statusMark(source.state, states);
-    case Property.PRIORITY: return priorityMark(t, source.value, true);
-    case Property.ESTIMATE: return glyph(t, source.value === null ? "estimate-none" : "estimate");
+    case Property.PRIORITY: return priorityMark(theme, source.value, true);
+    case Property.ESTIMATE: return glyph(theme, source.value === null ? "estimate-none" : "estimate");
     case Property.ASSIGN: return source.member
-      ? face(source.member.initials ?? "", source.member.avatarBackgroundColor ?? t.raised)
+      ? face(source.member.initials ?? "", source.member.avatarBackgroundColor ?? theme.raised)
       : svg(icon("no-assignee"))
         .size(FACE_SIZE_PX)
-        .text_color(t.muted);
-    default: return source.cycle ? cycleMark(source.tense, CYCLE_MARK_SIZE_PX, t.muted)
+        .text_color(theme.muted);
+    default: return source.cycle ? cycleMark(source.tense, CYCLE_MARK_SIZE_PX, theme.muted)
       : svg(icon("cycle-none"))
         .size(CYCLE_MARK_SIZE_PX)
-        .text_color(t.muted);
+        .text_color(theme.muted);
   }
 }
 
@@ -83,32 +83,31 @@ export class Commands {
   /** @type {Opened<CommandsProps>} */ props;
   /** @type {Issue[]} */ targets;
   /** @type {Team[]} */ teams;
-  /** @type {string} */ me;
+  /** @type {string} */ myId;
   /** @type {boolean | undefined} */ compact;
   /** @type {boolean | undefined} */ bare;
   /** @type {Page} */ page = Page.ACTIONS;
   /** @type {Choice[]} */ rows = [];
-  // The row lit, -1 for none
-  /** @type {number} */ at = -1;
+  /** @type {number} -1 when no row is lit */ litRow = -1;
   scroll = ScrollHandle.new();
 
   // `page` is "actions" or the page to open at. `compact` is the window as a popup on one property. `bare` leaves
   // out the chip naming the issues
   /**
    * @param {Opened<CommandsProps>} props
-   * @param {Context} cx
+   * @param {Context} context
    */
-  constructor(props, cx) {
-    const { targets, teams, page, me, compact, bare } = props;
+  constructor(props, context) {
+    const { targets, teams, page, myId, compact, bare } = props;
     this.props = props;
     this.targets = targets;
     this.teams = teams;
-    this.me = me;
+    this.myId = myId;
     this.compact = compact;
     this.bare = bare;
     // Escape on a page goes back to the actions when the window opened at them, and closes a window opened at a page
     this.fromActions = page === Page.ACTIONS;
-    this.handle = cx.focus_handle();
+    this.handle = context.focus_handle();
     // The pages filtered by typing, each with a field of its own: a field takes its placeholder only when it is made
     /** @type {Partial<Record<Page, ReturnType<typeof InputState.new>>>} */
     this.fields = { [Property.STATUS]: this.field("Change status…"),
@@ -117,12 +116,12 @@ export class Commands {
       [Property.ASSIGN]: this.field("Assign to…"), [Property.CYCLE]: this.field("Move to cycle…") };
     // The keymap is Herdr's: each window asks again for its binding
     try {
-      cx.bind_keys([{ keystroke: "escape", action: ESCAPE, context: CONTEXT }]);
+      context.bind_keys([{ keystroke: "escape", action: ESCAPE, context: CONTEXT }]);
     } catch {
       // Without the binding, Escape closes the window, which is Herdr's own behaviour
     }
     this.open(page);
-    takeKeyboard(this, cx);
+    takeKeyboard(this, context);
   }
 
   release() {
@@ -133,8 +132,8 @@ export class Commands {
   /** @param {string} placeholder */
   field(placeholder) {
     const input = InputState.new({ placeholder });
-    input.on("change", (_e, cx) => { this.at = 0; this.scroll.scroll_to_item(0); cx.notify(); });
-    input.on("submit", () => this.rows[this.at]?.run());
+    input.on("change", (_event, context) => { this.litRow = 0; this.scroll.scroll_to_item(0); context.notify(); });
+    input.on("submit", () => this.rows[this.litRow]?.run());
     return input;
   }
 
@@ -157,24 +156,24 @@ export class Commands {
     const field = this.fields[page];
     if (field?.value()) field.set_value("");
     const rows = page === Page.ACTIONS ? [] : this.rowsOf(page), held = rows.findIndex((row) => row.mark === Mark.ALL);
-    this.at = held >= 0 ? held : this.compact ? -1 : 0;
+    this.litRow = held >= 0 ? held : this.compact ? -1 : 0;
     this.reveal(rows);
     this.focus();
   }
 
   /** @param {Property} page */
   rowsOf(page) {
-    const { targets, teams, me } = this;
-    return choiceRows(page, { targets, teams, me, projectMembers: projectMembersOf(targets) });
+    const { targets, teams, myId } = this;
+    return choiceRows(page, { targets, teams, myId, projectMembers: projectMembersOf(targets) });
   }
 
   // The list's children include the rules and titles between blocks of rows
   /** @param {{ group?: number, title?: string }[]} rows */
   reveal(rows) {
-    if (this.at < 0) return;
-    const between = rows.slice(0, this.at + 1)
+    if (this.litRow < 0) return;
+    const between = rows.slice(0, this.litRow + 1)
       .filter((_row, nth) => hasBreakBefore(rows, nth)).length;
-    this.scroll.scroll_to_item(this.at + between);
+    this.scroll.scroll_to_item(this.litRow + between);
   }
 
   /** @param {Ask} request */
@@ -191,10 +190,10 @@ export class Commands {
   // spells it, and `caps` how it shows when that is not the key in capitals. `mark` says whether all ("all") or part
   // ("some") of the issues already have that value
   /**
-   * @param {Theme} t
+   * @param {Theme} theme
    * @returns {Choice[]}
    */
-  choices(t) {
+  choices(theme) {
     const { teams } = this;
     /** @param {IssueUpdate} input */
     const update = (input) => () => this.send({ kind: RequestKind.UPDATE, input });
@@ -204,66 +203,66 @@ export class Commands {
         .filter((row) => row.words.toLowerCase()
           .includes(query))
         .map((row) => ({ label: row.label, note: row.note, key: row.key, mark: row.mark, group: row.group,
-          title: row.title, icon: rowIcon(t, row.source, this.teams[0]?.states),
+          title: row.title, icon: rowIcon(theme, row.source, this.teams[0]?.states),
           run: () => (row.mark === Mark.ALL ? closeWithParent(this.props) : this.send(row.ask)) }));
     }
     return [
-      { label: "Assign to…", icon: glyph(t, "assign"), ...propertyKey(Property.ASSIGN),
+      { label: "Assign to…", icon: glyph(theme, "assign"), ...propertyKey(Property.ASSIGN),
         run: () => this.open(Property.ASSIGN) },
-      { label: "Un-assign from me", icon: glyph(t, "unassign"), key: "i", run: update({ assigneeId: null }) },
-      { label: "Change status…", icon: glyph(t, "status"), ...propertyKey(Property.STATUS),
+      { label: "Un-assign from me", icon: glyph(theme, "unassign"), key: "i", run: update({ assigneeId: null }) },
+      { label: "Change status…", icon: glyph(theme, "status"), ...propertyKey(Property.STATUS),
         run: () => this.open(Property.STATUS) },
-      { label: `${this.verb("priority")} priority…`, icon: glyph(t, "priority-2"), ...propertyKey(Property.PRIORITY),
-        run: () => this.open(Property.PRIORITY) },
+      { label: `${this.verb("priority")} priority…`, icon: glyph(theme, "priority-2"),
+        ...propertyKey(Property.PRIORITY), run: () => this.open(Property.PRIORITY) },
       // An estimate scale belongs to a team: issues of several teams are offered the estimates all their scales have
       ...(commonEstimates(teams).length ? [{
-        label: `${this.verb("estimate")} estimate…`, icon: glyph(t, "estimate"), ...propertyKey(Property.ESTIMATE),
+        label: `${this.verb("estimate")} estimate…`, icon: glyph(theme, "estimate"), ...propertyKey(Property.ESTIMATE),
         run: () => this.open(Property.ESTIMATE),
       }] : []),
       ...(commonCycles(teams).length ? [{
-        label: "Move to cycle…", icon: glyph(t, "cycle"), ...propertyKey(Property.CYCLE),
+        label: "Move to cycle…", icon: glyph(theme, "cycle"), ...propertyKey(Property.CYCLE),
         run: () => this.open(Property.CYCLE),
       }] : []),
     ];
   }
 
-  /** @param {Context} cx */
-  escape(cx) {
+  /** @param {Context} context */
+  escape(context) {
     if (!this.fromActions || this.page === Page.ACTIONS) return dismiss(this.props.overlay);
     this.open(Page.ACTIONS);
-    cx.notify();
+    context.notify();
   }
 
   /**
    * @param {KeyEvent} event
-   * @param {Context} cx
+   * @param {Context} context
    */
-  key(event, cx) {
+  key(event, context) {
     const rows = this.rows, modifiers = event.modifiers;
     const row = rows.find((candidate) => candidate.key === spelled(event));
-    if (event.key === "down") { this.at = (this.at + 1) % Math.max(1, rows.length); this.reveal(rows); }
+    if (event.key === "down") { this.litRow = (this.litRow + 1) % Math.max(1, rows.length); this.reveal(rows); }
     else if (event.key === "up") {
-      this.at = (Math.max(this.at, 0) + rows.length - 1) % Math.max(1, rows.length);
+      this.litRow = (Math.max(this.litRow, 0) + rows.length - 1) % Math.max(1, rows.length);
       this.reveal(rows);
     }
-    else if (event.key === "enter") rows[this.at]?.run();
+    else if (event.key === "enter") rows[this.litRow]?.run();
     // Typing in a page with a field filters it: its letters are not shortcuts. The digits of pages that number rows
     // still are
     else if ((this.typed() === null || (NUMBERED.includes(this.page) && /^\d$/.test(event.key)))
       && unmodified(modifiers) && row) row.run();
     else return;
-    cx.stop_propagation();
-    cx.notify();
+    context.stop_propagation();
+    context.notify();
   }
 
-  /** @param {Theme} t */
-  render(t) {
-    const rows = this.rows = this.choices(t);
-    if (this.at >= rows.length) this.at = 0;
+  /** @param {Theme} theme */
+  render(theme) {
+    const rows = this.rows = this.choices(theme);
+    if (this.litRow >= rows.length) this.litRow = 0;
     const [only] = this.targets;
     const chip = only && this.targets.length === 1 ? `${only.identifier} · ${only.title}` : issuesName(this.targets);
     const field = this.fields[this.page], besideMenu = Boolean(this.props.parent);
-    const heading = field ? searchField(t, field, 13) : div()
+    const heading = field ? searchField(theme, field, 13) : div()
       .child("Actions");
     // A dialog has a height to fill and its list takes what is left. A popup is as tall as its content, where a list
     // that only flexes collapses to nothing: there it gets its own height
@@ -280,11 +279,11 @@ export class Commands {
      * @param {Choice} row
      * @param {number} nth
      */
-    const line = (row, nth) => pillRow(t, `command-${nth}`, ROW, { lit: false })
+    const line = (row, nth) => pillRow(theme, `command-${nth}`, ROW, { lit: false })
       .rounded(MENU_ROW_RADIUS_PX)
-      .when(nth === this.at, (element) => element.bg(t.selected))
-      .on_mouse_move((_e, cx) => { if (this.at !== nth) { this.at = nth; cx.notify(); } })
-      .on_click((_e, cx) => { row.run(); cx.notify(); })
+      .when(nth === this.litRow, (element) => element.bg(theme.selected))
+      .on_mouse_move((_event, context) => { if (this.litRow !== nth) { this.litRow = nth; context.notify(); } })
+      .on_click((_event, context) => { row.run(); context.notify(); })
       .child(div()
         .w(ICON_COLUMN_WIDTH_PX)
         .flex_none()
@@ -302,7 +301,7 @@ export class Commands {
         .child(div()
           .min_w(0)
           .truncate()
-          .text_color(t.dim)
+          .text_color(theme.dim)
           .child(row.note))
       : div()
         .flex_1()
@@ -313,20 +312,20 @@ export class Commands {
         element.child(svg(shipped("check"))
           .size(13)
           .flex_none()
-          .text_color(t.muted)))
+          .text_color(theme.muted)))
       .when(row.mark === Mark.SOME, (element) => element.child(div()
         .flex_none()
-        .text_color(t.muted)
+        .text_color(theme.muted)
         .child("–")))
       .children(!row.key ? [] : /^\d$/.test(row.key) && !row.caps
         ? [div()
           .flex_none()
           .text_size(12)
-          .text_color(t.dim)
+          .text_color(theme.dim)
           .font_family(MONO)
           .child(row.key)]
-        : [keycaps(t, row.caps ?? [row.key.toUpperCase()])]);
-    return boxed(t, v_flex()
+        : [keycaps(theme, row.caps ?? [row.key.toUpperCase()])]);
+    return boxed(theme, v_flex()
       .id("commands")
       .track_focus(this.handle)
       .w_full()
@@ -334,10 +333,10 @@ export class Commands {
       .min_h(0)
       .p(5))
       .text_size(12.8)
-      .text_color(t.foreground)
+      .text_color(theme.foreground)
       .key_context(CONTEXT)
-      .on_action(ESCAPE, (_e, cx) => this.escape(cx))
-      .on_key_down((event, cx) => this.key(event, cx))
+      .on_action(ESCAPE, (_event, context) => this.escape(context))
+      .on_key_down((event, context) => this.key(event, context))
       .when(!this.bare, (element) => element.child(h_flex()
         .flex_none()
         .min_w(0)
@@ -349,9 +348,9 @@ export class Commands {
           .px(8)
           .py(2)
           .rounded(6)
-          .bg(t.raised)
+          .bg(theme.raised)
           .text_size(12)
-          .text_color(t.muted)
+          .text_color(theme.muted)
           .child(chip))))
       .child(h_flex()
         .h(PICK_HEAD_HEIGHT_PX)
@@ -359,10 +358,10 @@ export class Commands {
         .px(8)
         .gap(8)
         .items_center()
-        .text_color(t.dim)
+        .text_color(theme.dim)
         .child(heading)
         .children(field && this.page !== Page.ACTIONS && !besideMenu
-          ? [keycaps(t, propertyKey(/** @type {Property} */ (this.page)).caps)]
+          ? [keycaps(theme, propertyKey(/** @type {Property} */ (this.page)).caps)]
           : []))
       // Through the box's padding, edge to edge
       .child(div()
@@ -371,16 +370,16 @@ export class Commands {
         .mx(-PADDING_PX / 2)
         .mb(ROOM_UNDER_RULE_PX)
         .flex_none()
-        .bg(t.border))
+        .bg(theme.border))
       .child(sized
         .children(rows.flatMap((row, nth) => [
-          ...(!hasBreakBefore(rows, nth) ? [] : [row.title ? caption(t, row.title)
-            .h(GROUP_TITLE_HEIGHT_PX) : rule(t)]),
+          ...(!hasBreakBefore(rows, nth) ? [] : [row.title ? caption(theme, row.title)
+            .h(GROUP_TITLE_HEIGHT_PX) : rule(theme)]),
           line(row, nth),
         ]))
         .when(!rows.length, (element) => element.child(div()
           .p(8)
-          .text_color(t.dim)
+          .text_color(theme.dim)
           .child(NO_MATCH[this.page] ?? "No one matches"))));
   }
 }

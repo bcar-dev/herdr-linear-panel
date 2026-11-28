@@ -12,10 +12,10 @@ import { FRAME_PADDING_PX, entry, frame, rule } from "./menu.js";
 // The entries in blocks set apart by rules: Edit and Delete only on my own comments, Resolve only on a thread's first
 /**
  * @param {PageComment} comment
- * @param {boolean} own
+ * @param {boolean} isMine
  * @returns {Entry[][]}
  */
-function entriesOf(comment, own) {
+function entriesOf(comment, isMine) {
   const resolved = Boolean(comment.resolvedAt), { id, url, body } = comment;
   /** @param {CommentChange | "start-edit" | "confirm-delete"} what */
   const change = (what) => /** @type {Request} */ ({ kind: RequestKind.COMMENT, change: what, comment: id });
@@ -25,32 +25,32 @@ function entriesOf(comment, own) {
    */
   const copy = (text, label) => /** @type {Request} */ ({ kind: RequestKind.CLIPBOARD, text, label });
   return [
-    ...(own ? [[{ name: "edit", icon: "pencil", label: "Edit…", request: change("start-edit") }]] : []),
+    ...(isMine ? [[{ name: "edit", icon: "pencil", label: "Edit…", request: change("start-edit") }]] : []),
     ...(comment.parent ? [] : [[{ name: "resolve", icon: "resolve",
       label: resolved ? "Unresolve thread" : "Resolve thread",
       request: change(resolved ? CommentChange.UNRESOLVE : CommentChange.RESOLVE) }]]),
     [{ name: "link", icon: "copy-link", label: "Copy link to comment", request: copy(url, "Copied link to comment") },
       { name: "markdown", icon: "copy-markdown", label: "Copy content as Markdown",
         request: copy(body, "Copied comment as Markdown") }],
-    ...(own ? [[{ name: "delete", icon: "trash", label: "Delete", request: change("confirm-delete") }]] : []),
+    ...(isMine ? [[{ name: "delete", icon: "trash", label: "Delete", request: change("confirm-delete") }]] : []),
   ];
 }
 
-/** @param {{ comment: PageComment, own: boolean }} props */
-export function heightFor({ comment, own }) {
-  const groups = entriesOf(comment, own);
+/** @param {{ comment: PageComment, isMine: boolean }} props */
+export function heightFor({ comment, isMine }) {
+  const groups = entriesOf(comment, isMine);
   return groups.flat().length * MENU_ROW_HEIGHT_PX + (groups.length - 1) * MENU_RULE_HEIGHT_PX + FRAME_PADDING_PX;
 }
 
 export class CommentMenu {
   /**
    * @param {Opened<CommentMenuProps>} props
-   * @param {Context} cx
+   * @param {Context} context
    */
-  constructor(props, cx) {
+  constructor(props, context) {
     this.props = props;
-    this.handle = cx.focus_handle();
-    takeKeyboard(this.handle, cx);
+    this.handle = context.focus_handle();
+    takeKeyboard(this.handle, context);
   }
 
   /** @param {Request} request */
@@ -60,14 +60,14 @@ export class CommentMenu {
     dismiss(overlay);
   }
 
-  /** @param {Theme} t */
-  render(t) {
-    const { comment, own } = this.props;
-    return frame(t, "comment-menu", this.handle)
-      .children(entriesOf(comment, own)
-        .flatMap((group, nth) => [...(nth ? [rule(t)] : []),
+  /** @param {Theme} theme */
+  render(theme) {
+    const { comment, isMine } = this.props;
+    return frame(theme, "comment-menu", this.handle)
+      .children(entriesOf(comment, isMine)
+        .flatMap((group, nth) => [...(nth ? [rule(theme)] : []),
           ...group.map(({ name, icon, label, request }) =>
-            entry(t, name, glyph(t, icon), label)
+            entry(theme, name, glyph(theme, icon), label)
               .on_click(() => this.run(request)))]));
   }
 }

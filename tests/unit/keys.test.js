@@ -56,7 +56,7 @@ describe("the shortcuts as shown", () => {
     for (const { page, key } of PROPERTIES) {
       const shift = key !== key.toLowerCase();
       const asked = panelKey(press(key.toLowerCase(), { shift }),
-        { mac: true, views: 2, ticked: false, pointed: true, aimed: false });
+        { mac: true, viewCount: 2, hasTicked: false, hasLit: true, canCopy: false });
       assert.deepEqual(asked, { do: "choose", page });
     }
     assert.deepEqual(propertyKey("estimate"), { key: "E", caps: ["⇧", "E"] });
@@ -64,7 +64,7 @@ describe("the shortcuts as shown", () => {
 });
 
 describe("panelKey", () => {
-  const idle = { mac: true, views: 2, ticked: false, pointed: false, aimed: false };
+  const idle = { mac: true, viewCount: 2, hasTicked: false, hasLit: false, canCopy: false };
   const ask = (key, held, state) => panelKey(press(key, held), { ...idle, ...state });
 
   it("opens the command window on Cmd+K, Ctrl+K off macOS", () => {
@@ -75,7 +75,7 @@ describe("panelKey", () => {
   });
 
   it("copies when there is one issue to copy", () => {
-    assert.deepEqual(ask(".", { platform: true }, { aimed: true }), { do: "copy", what: "id" });
+    assert.deepEqual(ask(".", { platform: true }, { canCopy: true }), { do: "copy", what: "id" });
     assert.equal(ask(".", { platform: true }), null);
   });
 
@@ -89,7 +89,7 @@ describe("panelKey", () => {
   it("moves the lit row on the arrow keys, and opens its issue on Enter", () => {
     assert.deepEqual(ask("down"), { do: "move", by: 1 });
     assert.deepEqual(ask("up"), { do: "move", by: -1 });
-    assert.deepEqual(ask("enter", {}, { pointed: true }), { do: "open" });
+    assert.deepEqual(ask("enter", {}, { hasLit: true }), { do: "open" });
     assert.equal(ask("enter"), null);
     assert.equal(ask("down", { platform: true }), null);
   });
@@ -105,31 +105,31 @@ describe("panelKey", () => {
     assert.deepEqual(ask("2"), { do: "view", nth: 1 });
     assert.equal(ask("3"), null);
     assert.equal(ask("0"), null);
-    assert.deepEqual(ask("3", {}, { views: 3 }), { do: "view", nth: 2 });
+    assert.deepEqual(ask("3", {}, { viewCount: 3 }), { do: "view", nth: 2 });
   });
 
   it("opens a property's page for the ticked issues, else its choices for the pointed one", () => {
-    assert.deepEqual(ask("s", {}, { ticked: true, pointed: true }), { do: "commands", page: "status" });
-    assert.deepEqual(ask("p", {}, { pointed: true }), { do: "choose", page: "priority" });
-    assert.deepEqual(ask("a", {}, { pointed: true }), { do: "choose", page: "assign" });
-    assert.deepEqual(ask("e", { shift: true }, { pointed: true }), { do: "choose", page: "estimate" });
-    assert.equal(ask("e", {}, { pointed: true }), null);
+    assert.deepEqual(ask("s", {}, { hasTicked: true, hasLit: true }), { do: "commands", page: "status" });
+    assert.deepEqual(ask("p", {}, { hasLit: true }), { do: "choose", page: "priority" });
+    assert.deepEqual(ask("a", {}, { hasLit: true }), { do: "choose", page: "assign" });
+    assert.deepEqual(ask("e", { shift: true }, { hasLit: true }), { do: "choose", page: "estimate" });
+    assert.equal(ask("e", {}, { hasLit: true }), null);
     assert.equal(ask("s"), null);
   });
 
   it("unassigns on i and unticks on Escape, when there is something to act on", () => {
-    assert.deepEqual(ask("i", {}, { pointed: true }), { do: "unassign" });
-    assert.deepEqual(ask("i", {}, { ticked: true }), { do: "unassign" });
+    assert.deepEqual(ask("i", {}, { hasLit: true }), { do: "unassign" });
+    assert.deepEqual(ask("i", {}, { hasTicked: true }), { do: "unassign" });
     assert.equal(ask("i"), null);
-    assert.deepEqual(ask("escape", {}, { ticked: true }), { do: "untick" });
+    assert.deepEqual(ask("escape", {}, { hasTicked: true }), { do: "untick" });
     assert.equal(ask("escape"), null);
   });
 
   it("ticks the pointed issue on x, and the range to it with Shift", () => {
-    assert.deepEqual(ask("x", {}, { pointed: true }), { do: "tick", extend: false });
-    assert.deepEqual(ask("x", { shift: true }, { pointed: true }), { do: "tick", extend: true });
-    assert.deepEqual(ask("X", { shift: true }, { pointed: true }), { do: "tick", extend: true });
-    assert.equal(ask("x", {}, { ticked: true }), null);
+    assert.deepEqual(ask("x", {}, { hasLit: true }), { do: "tick", extend: false });
+    assert.deepEqual(ask("x", { shift: true }, { hasLit: true }), { do: "tick", extend: true });
+    assert.deepEqual(ask("X", { shift: true }, { hasLit: true }), { do: "tick", extend: true });
+    assert.equal(ask("x", {}, { hasTicked: true }), null);
   });
 
   it("leaves a key held with Ctrl, Alt or Cmd to Herdr", () => {

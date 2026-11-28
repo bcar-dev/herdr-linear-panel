@@ -2,7 +2,7 @@
 // the terminal's title or what the screen shows. Everything is cleaned once, where an answer is read. Pure, so node
 // can test it (tests/unit)
 
-/* eslint-disable no-control-regex */
+/* eslint-disable no-control-regex -- these match terminal escape sequences, which are control characters */
 const CONTROLS = /[\u0000-\u001f\u007f-\u009f]/g;
 const CONTROLS_KEEPING_BREAKS = /[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/g;
 const CSI_SEQUENCE = /(?:\u001b\[|\u009b)[0-?]*[ -/]*[@-~]/g;

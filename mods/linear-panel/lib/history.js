@@ -1,4 +1,4 @@
-// How long an issue has been in each status. Pure rules with no calls to Herdr, so node can test them (tests/unit)
+// How long an issue has been in each status
 
 const SECOND = 1000, MINUTE = 60 * SECOND, HOUR = 60 * MINUTE;
 export const DAY_MS = 24 * HOUR;

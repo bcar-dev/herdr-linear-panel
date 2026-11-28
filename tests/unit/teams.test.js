@@ -19,7 +19,7 @@ describe("workflow", () => {
 });
 
 describe("statusIcon", () => {
-  const started = (count) => Array.from({ length: count }, (_, i) => state(`Step ${i + 1}`, "started", i));
+  const started = (count) => Array.from({ length: count }, (_, nth) => state(`Step ${nth + 1}`, "started", nth));
   const pies = (states) => states.map((status) => statusIcon(status, [...states].reverse()));
 
   it("has one icon per type, and the plain circle for a type it does not know", () => {

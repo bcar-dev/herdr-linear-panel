@@ -1,5 +1,5 @@
-// One drag of an issue to another group. Pure state with no calls to Herdr, so node can test it (tests/unit).
-// A drag lives from a press on a row to the next release; the panel feeds it the pointer's events
+// One drag of an issue to another group. A drag lives from a press on a row to the next release; the panel feeds it
+// the pointer's events
 
 const DRAG_THRESHOLD_PX = 5;
 
@@ -44,28 +44,29 @@ export class Drag {
     return was;
   }
 
-  // `own` says whether the group is the pressed issue's. Answers whether the target changed
+  // Answers whether the target changed
   /**
    * @param {string} group
-   * @param {boolean} own
+   * @param {boolean} isOwnGroup whether the group is the pressed issue's
    */
-  aim(group, own) {
-    const over = own ? null : group;
+  aim(group, isOwnGroup) {
+    const over = isOwnGroup ? null : group;
     if (this.pressed === null || over === this.over) return false;
     this.over = over;
     return true;
   }
 
-  // `at` is in the window, `local` in the panel. Answers whether the carried issue moved
+  // Answers whether the carried issue moved
   /**
-   * @param {Point} at
-   * @param {Point} local
+   * @param {Point} windowPoint
+   * @param {Point} panelPoint
    */
-  follow(at, local) {
+  follow(windowPoint, panelPoint) {
     if (this.pressed === null) return false;
     const from = this.#from;
-    if (this.ghost === null && from && Math.hypot(at.x - from.x, at.y - from.y) < DRAG_THRESHOLD_PX) return false;
-    this.ghost = local;
+    if (this.ghost === null && from
+      && Math.hypot(windowPoint.x - from.x, windowPoint.y - from.y) < DRAG_THRESHOLD_PX) return false;
+    this.ghost = panelPoint;
     return true;
   }
 
