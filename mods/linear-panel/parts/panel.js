@@ -453,7 +453,7 @@ export class Panel {
   /**
    * @param {Theme} theme
    * @param {{ id: string, name: string, label: string, action: (context: Context) => void, caps?: string[],
-   *   glyph?: number, size?: number, ring?: boolean, side?: Tip["side"] }} button
+   *   glyph?: number, size?: number, ring?: boolean, side?: Tooltip["side"] }} button
    */
   iconButton(theme, { id, name, label, action, caps = [], glyph = ICON_BUTTON_GLYPH_PX,
     size = Height.ICON_BUTTON, ring = true, side }) {

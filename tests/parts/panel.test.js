@@ -1439,12 +1439,12 @@ describe("header", () => {
     const mark = visit();
     await panel.context.idle();
     panel.context.elapse();
-    const tooltip = find(panel.draw(), "tooltip"), [tip] = tooltip.$.children;
-    assert.equal(text(tip), "Time in status Todo 2h In Progress 3d Change status S");
+    const tooltip = find(panel.draw(), "tooltip"), [card] = tooltip.$.children;
+    assert.equal(text(card), "Time in status Todo 2h In Progress 3d Change status S");
     // Centered on the status, under it: the panel has room there for its title, two statuses and last line
     assert.deepEqual([tooltip.$.style.left, tooltip.$.style.w, tooltip.$.style.top], [0, 398, 174]);
     // The status the issue is in stands out from those it left
-    const [, left, current] = tip.$.children[0].$.children;
+    const [, left, current] = card.$.children[0].$.children;
     assert.deepEqual([left.$.style.text_color, current.$.style.text_color], ["theme.muted", "theme.foreground"]);
     hover(mark, false, panel.context);
     visit();

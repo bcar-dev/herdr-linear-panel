@@ -115,9 +115,9 @@ export const unzoomed = ({ x, y, width, height }, zoom) =>
  * @param {Bounds} frame
  * @param {Side} side
  * @param {{ width: number, height: number }} size
- * @returns {TipSpot}
+ * @returns {TooltipSpot}
  */
-export function tipSpot(bounds, frame, side, { width, height }) {
+export function tooltipSpot(bounds, frame, side, { width, height }) {
   if (side === Side.RIGHT) {
     const room = frame.width - width - EDGE_MARGIN_PX, middle = bounds.y - frame.y + bounds.height / 2;
     return { left: Math.max(EDGE_MARGIN_PX, Math.min(bounds.x + bounds.width + CONTROL_GAP_PX - frame.x, room)),

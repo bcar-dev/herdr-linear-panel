@@ -167,15 +167,15 @@ export class IssuePage {
    * @param {NativeElement} mark
    * @param {string} label
    * @param {(context: Context) => void} action
-   * @param {{ label: string, caps: string[], body?: Tip["body"], entered?: (context: Context) => void }} [tip]
+   * @param {{ label: string, caps: string[], body?: Tooltip["body"], entered?: (context: Context) => void }} [tooltip]
    */
-  line(theme, id, mark, label, action, tip) {
+  line(theme, id, mark, label, action, tooltip) {
     const base = this.pageLine(theme, `page-${id}`)
       .on_window_mouse_move(this.noteBounds(`page-${id}`))
       .text_color(theme.foreground);
-    const row = tip ? this.panel.hints.on(base, tip.label, { caps: tip.caps, body: tip.body, side: this.side(),
-      key: `page-${id}`,
-      hover: (hovered, context) => { if (hovered) tip.entered?.(context); } }) : base;
+    const row = tooltip ? this.panel.hints.on(base, tooltip.label, { caps: tooltip.caps, body: tooltip.body,
+      side: this.side(), key: `page-${id}`,
+      hover: (hovered, context) => { if (hovered) tooltip.entered?.(context); } }) : base;
     const column = div()
       .w(ICON_COLUMN_PX)
       .flex_none()
@@ -323,7 +323,7 @@ export class IssuePage {
   labels(theme, issue) {
     const { nodes } = issue.labels, adds = addLabelsId(issue);
     const open = (/** @type {Context} */ context) => this.panel.openers.chooseLabels(issue, context, adds);
-    const tip = { caps: ["L"], key: "page-add-labels", side: Side.RIGHT };
+    const tooltip = { caps: ["L"], key: "page-add-labels", side: Side.RIGHT };
     const plus = this.panel.iconButton(theme, { id: "page-add-label", name: "plus", label: "Add labels", caps: ["L"],
       glyph: PAGE_BUTTON_GLYPH_PX, size: ICON_BUTTON_PX, ring: false, side: Side.RIGHT, action: open })
       .on_window_mouse_move(this.noteBounds(adds))
@@ -364,7 +364,7 @@ export class IssuePage {
         .children([...chips, plus])
       : this.panel.control(this.panel.hints.on(this.pageLine(theme, "page-add")
         .on_window_mouse_move(this.noteBounds("page-add"))
-        .text_color(theme.muted), "Add labels", tip),
+        .text_color(theme.muted), "Add labels", tooltip),
       open)
         .child(svg(icon("label"))
           .size(14)

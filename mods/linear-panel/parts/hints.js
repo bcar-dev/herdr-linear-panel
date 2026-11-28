@@ -5,7 +5,7 @@ import { Side } from "../enums.js";
 import { isMac } from "../tracker.js";
 import { KEYCAP_MIN_WIDTH_PX, KEYCAP_SIDE_PADDING_PX, keycaps, zoom } from "../ui.js";
 import { capHeld } from "../lib/keys.js";
-import { textWidth, tipSpot, unzoomed } from "../lib/placement.js";
+import { textWidth, tooltipSpot, unzoomed } from "../lib/placement.js";
 import { Radius, Space, Text } from "../style.js";
 
 const KEYCAPS_LEAD_PX = 5;
@@ -24,9 +24,9 @@ const NOTHING_HELD = Object.freeze({
 });
 
 export class Hints {
-  /** @type {Tip | null} */
-  tip = null;
-  /** @type {Tip | null} */
+  /** @type {Tooltip | null} */
+  tooltip = null;
+  /** @type {Tooltip | null} */
   #waiting = null;
   // The keys of the controls given a tooltip in the drawing under way
   /** @type {Set<string>} */
@@ -72,14 +72,14 @@ export class Hints {
    */
   keys(modifiers, key, context) {
     this.held = { modifiers, key };
-    if (this.tip?.caps.length) context.notify();
+    if (this.tooltip?.caps.length) context.notify();
   }
 
   // A control that went away while the pointer was on it is never told the pointer left
   showing() {
-    if (this.tip && !this.#drawn.has(this.tip.key)) this.tip = null;
+    if (this.tooltip && !this.#drawn.has(this.tooltip.key)) this.tooltip = null;
     if (this.#waiting && !this.#drawn.has(this.#waiting.key)) this.#waiting = null;
-    return this.tip;
+    return this.tooltip;
   }
 
   // The element needs an id. `key` tells the controls apart: give one when several share a label. `body(theme)` draws
@@ -90,7 +90,7 @@ export class Hints {
    * @param {NativeElement} element
    * @param {string} label
    * @param {{
-   *   caps?: string[], side?: Tip["side"], key?: string, body?: Tip["body"],
+   *   caps?: string[], side?: Tooltip["side"], key?: string, body?: Tooltip["body"],
    *   hover?: (hovered: boolean, context: Context) => void,
    * }} options
    */
@@ -99,20 +99,20 @@ export class Hints {
     return element
       .on_mouse_down("left", (_event, context) => this.#press(key, context))
       .on_mouse_move((event, context) => {
-        if (this.#pressed === key || this.tip?.key === key || this.#waiting?.key === key) return;
-        const tip = { key, label, caps, side, body, bounds: event.bounds };
-        if (this.tip || Date.now() < this.#warmUntil) {
+        if (this.#pressed === key || this.tooltip?.key === key || this.#waiting?.key === key) return;
+        const tooltip = { key, label, caps, side, body, bounds: event.bounds };
+        if (this.tooltip || Date.now() < this.#warmUntil) {
           this.#waiting = null;
-          this.tip = tip;
+          this.tooltip = tooltip;
           context.notify();
           return;
         }
-        this.#waiting = tip;
+        this.#waiting = tooltip;
         context.timer.after(TOOLTIP_DELAY_MS, (context) => {
           // Still the same visit of the pointer: it has not left, nor left and come back
-          if (this.#waiting !== tip) return;
+          if (this.#waiting !== tooltip) return;
           this.#waiting = null;
-          this.tip = tip;
+          this.tooltip = tooltip;
           context.notify();
         });
       })
@@ -122,8 +122,8 @@ export class Hints {
         if (this.#hovered === key) this.#hovered = null;
         if (this.#pressed === key && !this.#covered()) this.#pressed = null;
         if (this.#waiting?.key === key) this.#waiting = null;
-        if (this.tip?.key !== key) return;
-        this.tip = null;
+        if (this.tooltip?.key !== key) return;
+        this.tooltip = null;
         this.#warmUntil = Date.now() + TOOLTIP_WARM_MS;
         context.notify();
       });
@@ -137,7 +137,7 @@ export class Hints {
     this.#pressed = key;
     this.#waiting = null;
     this.#warmUntil = 0;
-    if (this.tip) { this.tip = null; context.notify(); }
+    if (this.tooltip) { this.tooltip = null; context.notify(); }
   }
 
   // A control gives this to its own press handler, since that one stops the press and the tooltip's own never sees it
@@ -147,7 +147,7 @@ export class Hints {
   }
 
   clear() {
-    this.tip = this.#waiting = null;
+    this.tooltip = this.#waiting = null;
     this.#warmUntil = 0;
   }
 
@@ -158,7 +158,7 @@ export class Hints {
    */
   draw(theme, frame) {
     // There is one: the panel draws it only when `showing` answered it
-    const { label, caps, side, bounds, body } = /** @type {Tip} */ (this.tip);
+    const { label, caps, side, bounds, body } = /** @type {Tooltip} */ (this.tooltip);
     const card = body?.(theme) ?? null, lined = !card || label !== "";
     const line = h_flex()
       .h(26)
@@ -196,7 +196,7 @@ export class Hints {
       height: (card ? card.height + (lined ? 1 : 0) : 0) + (lined ? TOOLTIP_FRAME_HEIGHT_PX : 2) };
     // The control and the panel are known in window pixels; the tooltip is placed in the pixels of a style
     const scale = zoom(), within = unzoomed(frame, scale);
-    const { left, right, center, top, bottom } = tipSpot(unzoomed(bounds, scale), within, side, size);
+    const { left, right, center, top, bottom } = tooltipSpot(unzoomed(bounds, scale), within, side, size);
     // Centered, the tooltip sits in the middle of a row that reaches as far on each side of the control's middle as
     // the nearer edge of the panel: its own width, which is only reckoned, does not shift it
     const reach = Math.min(center ?? 0, within.width - (center ?? 0));
