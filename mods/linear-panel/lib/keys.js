@@ -102,6 +102,8 @@ export function panelKey(event, { mac, views, ticked, pointed, aimed }) {
   if (page && pointed) return { do: KeyAction.CHOOSE, page };
   if (event.key === "i" && (ticked || pointed)) return { do: KeyAction.UNASSIGN };
   if (event.key.toLowerCase() === "x" && pointed) return { do: KeyAction.TICK, extend: Boolean(modifiers.shift) };
+  if (event.key === "down" || event.key === "up") return { do: KeyAction.MOVE, by: event.key === "down" ? 1 : -1 };
+  if (event.key === "enter" && pointed) return { do: KeyAction.OPEN };
   if (event.key === "escape" && ticked) return { do: KeyAction.UNTICK };
   return null;
 }

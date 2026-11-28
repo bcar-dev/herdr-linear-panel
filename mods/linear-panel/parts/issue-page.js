@@ -5,7 +5,7 @@ import { div, svg } from "gpui-kit";
 import { v_flex, h_flex, Input, InputState, ScrollHandle, Textarea, TextareaState } from "gpui-base";
 import * as api from "../api.js";
 import { litAnchor } from "../channel.js";
-import { PROPERTY_COLUMNS, icon, pageCopies, priorityEntry } from "../config.js";
+import { NOTE_TEXT_PX, PROPERTY_COLUMNS, icon, pageCopies, priorityEntry } from "../config.js";
 import { CommentChange, Property, RequestKind, Side } from "../enums.js";
 import { NAME, openLink } from "../tracker.js";
 import { chordCaps, cycleMark, face, focusSoon, lit, mergeMark, pillRow, priorityMark, statusMark,
@@ -813,7 +813,7 @@ export class IssuePage {
         .flex_none()
         .px(16)
         .pt(6)
-        .text_size(11)
+        .text_size(NOTE_TEXT_PX)
         .text_color(t.ansi1)
         .cursor_pointer()
         .on_click((_e, cx) => { this.panel.failed = null; cx.notify(); })

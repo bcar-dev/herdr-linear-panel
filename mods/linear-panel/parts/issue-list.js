@@ -33,7 +33,8 @@ const GHOST_OFFSET_X_PX = 14;
 const GHOST_OFFSET_Y_PX = 10;
 const PERCENT = 100;
 const ROW_MARK_PX = 13;
-const STATUS_BUTTON_PX = 18;
+// The status mark takes clicks over 24 px, the least target WCAG 2.2 asks, yet fills only the 18 px of its slot
+const STATUS_BUTTON_PX = 24, STATUS_SLOT_PX = 18;
 const STATUS_HOVER_BRIGHTNESS = 0.32;
 const STATUS_TIP_HEIGHT_PX = 36;
 const STATUS_TIP_LABEL_REST_PX = 64;
@@ -331,6 +332,7 @@ function row(panel, issue, group, { t, identifierWidth, estimateWidth, lit }, jo
   const stateColor = drawnColor(issue.state.color);
   const status = warming(panel, div()
     .size(STATUS_BUTTON_PX)
+    .mx((STATUS_SLOT_PX - STATUS_BUTTON_PX) / 2)
     .flex_none()
     .flex()
     .items_center()
@@ -386,12 +388,16 @@ function row(panel, issue, group, { t, identifierWidth, estimateWidth, lit }, jo
     .rounded_b(joined.below ? 0 : 7)
     .when(ticked, (element) => element.bg(withAlpha(t.accent, TICKED_ALPHA)))
     .when(lit === issue.id && !ticked, (element) => element.bg(t.hover))
-    .when(!still, (element) =>
-      element.hover((style) => style.bg(ticked ? withAlpha(t.accent, TICKED_HOVER_ALPHA) : t.hover)))
+    // One row is lit, the one the keys act on: the pointer and the arrow keys both move it (`hovered`)
+    .when(!still && panel.hovered === issue.id,
+      (element) => element.bg(ticked ? withAlpha(t.accent, TICKED_HOVER_ALPHA) : t.hover))
     .when(carried, (element) => element.opacity(CARRIED_OPACITY))
     .on_hover((hovered, cx) => panel.hover(issue, hovered, cx))
     .on_mouse_down("left", (event) => drag.press(issue.id, event.position))
-    .on_mouse_move((_e, cx) => panel.aim(group, cx))
+    .on_mouse_move((_e, cx) => {
+      panel.hover(issue, true, cx);
+      panel.aim(group, cx);
+    })
     .on_mouse_up("left", (event, cx) => panel.release(issue, group, cx, event))
     .on_mouse_down("right", (event, cx) => {
       cx.stop_propagation();
