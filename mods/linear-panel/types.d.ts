@@ -14,12 +14,12 @@ type MouseButtonEvent = import("gpui-kit").MouseButtonEvent;
 type Color = import("gpui-kit").Color;
 
 /**
- * The theme's colors the mod draws with, as `theme()` of "herdr" answers them. Herdr types that answer as any name, so
- * the names are listed here: a misspelled one fails the type check instead of drawing nothing
+ * The theme's colors the mod draws with: Herdr's, by name, and two by purpose (style.js). Herdr types its answer as
+ * any name, so the names are listed here: a misspelled one fails the type check instead of drawing nothing
  */
 type Theme = Record<
-  | "accent" | "accent_foreground" | "ansi1" | "background" | "border" | "chrome" | "dim" | "done" | "foreground"
-  | "hover" | "input" | "muted" | "popover" | "raised" | "selected" | "solid" | "solid_foreground",
+  | "accent" | "accent_foreground" | "background" | "border" | "chrome" | "danger" | "dim" | "foreground" | "hover"
+  | "input" | "muted" | "popover" | "raised" | "selected" | "solid" | "solid_foreground" | "success",
   Color
 >;
 

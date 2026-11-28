@@ -8,6 +8,7 @@ import { mix } from "./lib/color.js";
 import { CycleTense, cycleIcon } from "./lib/cycles.js";
 import { MergeStanding, MergeTint } from "./lib/merges.js";
 import { statusIcon } from "./lib/teams.js";
+import { Height, Radius, Space, Text } from "./style.js";
 
 export const CYCLE_BLUE = "#5e6ad2";
 const EMOJI = /^(?:\p{Extended_Pictographic}|\p{Emoji_Modifier}|\u200d|\ufe0f)+$/u;
@@ -19,13 +20,11 @@ const FOCUS_RETRY_MS = [30, 120, 250, 500];
 export const GLYPH_SIZE_PX = 15;
 const INITIALS_TEXT_RATIO = 0.45;
 const KEYBOARD_RETAKE_DELAY_MS = 100;
-export const KEYCAP_GAP_PX = 3;
 const KEYCAP_HEIGHT_PX = 20;
 const KEYCAP_LIT_WHITE_MIX = 0.22;
 export const KEYCAP_MIN_WIDTH_PX = 20;
-const KEYCAP_RADIUS_PX = 5;
 export const KEYCAP_SIDE_PADDING_PX = 5;
-const KEYCAP_TEXT_SIZE_PX = 11;
+const BUTTON_HOVER_OPACITY = 0.88;
 const URGENT_ORANGE = "#f2793a";
 const WHITE = "#ffffff";
 
@@ -41,7 +40,7 @@ export const zoom = () => Number(settings().zoom) || 1;
  */
 export const keycaps = (theme, keys, lit = () => false) => h_flex()
   .flex_none()
-  .gap(KEYCAP_GAP_PX)
+  .gap(Space.XS)
   .items_center()
   .children(keys.map((key) => div()
     .min_w(KEYCAP_MIN_WIDTH_PX)
@@ -51,11 +50,11 @@ export const keycaps = (theme, keys, lit = () => false) => h_flex()
     .flex()
     .items_center()
     .justify_center()
-    .rounded(KEYCAP_RADIUS_PX)
+    .rounded(Radius.CHIP)
     .border_1()
     .border_color(theme.border)
     .bg(lit(key) ? mix(theme.raised, WHITE, KEYCAP_LIT_WHITE_MIX) : theme.raised)
-    .text_size(KEYCAP_TEXT_SIZE_PX)
+    .text_size(Text.CAPTION)
     .text_color(lit(key) ? theme.foreground : theme.muted)
     .child(key)));
 
@@ -154,7 +153,7 @@ export const face = (initials, color, size = FACE_SIZE_PX) => div()
   .flex()
   .items_center()
   .justify_center()
-  .rounded(size / 2)
+  .rounded_full()
   .bg(color)
   .text_size(size * INITIALS_TEXT_RATIO)
   .text_color(WHITE)
@@ -166,16 +165,46 @@ export const face = (initials, color, size = FACE_SIZE_PX) => div()
  * @param {number} height
  * @param {{ px?: number, gap?: number, lit?: boolean }} [options] `lit` false leaves it as it is under the pointer
  */
-export const pillRow = (theme, id, height, { px = 10, gap = 9, lit = true } = {}) => h_flex()
+export const pillRow = (theme, id, height, { px = 10, gap = Space.M, lit = true } = {}) => h_flex()
   .id(id)
   .h(height)
   .flex_none()
   .px(px)
   .gap(gap)
   .items_center()
-  .rounded(height / 2)
+  .rounded_full()
   .cursor_pointer()
   .when(lit, (row) => row.hover((style) => style.bg(theme.hover)));
+
+// A button with a word on it. `quiet` has no fill and lights under the pointer; `plain` has a raised fill and a border;
+// `danger` is filled with the theme's danger color
+/**
+ * @param {Theme} theme
+ * @param {{ id: string, label: string, tone?: "quiet" | "plain" | "danger", action: OnClick }} options
+ */
+export function button(theme, { id, label, tone = "plain", action }) {
+  const base = h_flex()
+    .id(id)
+    .h(Height.BUTTON)
+    .px(Space.XL)
+    .flex_none()
+    .items_center()
+    .rounded_full()
+    .cursor_pointer()
+    .text_size(Text.LARGE)
+    .on_click(action)
+    .child(label);
+  if (tone === "quiet") {
+    return base.text_color(theme.foreground)
+      .hover((style) => style.bg(theme.hover));
+  }
+  const danger = tone === "danger";
+  return base.bg(danger ? theme.danger : theme.raised)
+    .text_color(danger ? theme.background : theme.foreground)
+    .border_1()
+    .border_color(danger ? theme.danger : theme.border)
+    .hover((style) => style.opacity(BUTTON_HOVER_OPACITY));
+}
 
 /**
  * @param {string} id
@@ -188,7 +217,7 @@ export const roundButton = (id, size) => div()
   .flex()
   .items_center()
   .justify_center()
-  .rounded(size / 2)
+  .rounded_full()
   .cursor_pointer();
 
 /** @param {{ color: Color, isGroup?: boolean }} label */
@@ -200,7 +229,7 @@ export const labelMark = (label) => (label.isGroup
   : div()
     .size(9)
     .flex_none()
-    .rounded(5)
+    .rounded(Radius.CHIP)
     .bg(label.color));
 
 /** @param {Theme} theme */

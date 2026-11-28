@@ -3,9 +3,10 @@ import { div } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
 import { Side } from "../enums.js";
 import { isMac } from "../tracker.js";
-import { KEYCAP_GAP_PX, KEYCAP_MIN_WIDTH_PX, KEYCAP_SIDE_PADDING_PX, keycaps, zoom } from "../ui.js";
+import { KEYCAP_MIN_WIDTH_PX, KEYCAP_SIDE_PADDING_PX, keycaps, zoom } from "../ui.js";
 import { capHeld } from "../lib/keys.js";
 import { textWidth, tipSpot, unzoomed } from "../lib/placement.js";
+import { Radius, Space, Text } from "../style.js";
 
 const KEYCAPS_LEAD_PX = 5;
 const KEYCAP_CHAR_WIDTH_PX = 7;
@@ -140,7 +141,7 @@ export class Hints {
     const line = h_flex()
       .h(26)
       .flex_none()
-      .gap(8)
+      .gap(Space.M)
       .items_center()
       .child(div()
         .flex_none()
@@ -152,12 +153,12 @@ export class Hints {
     const box = v_flex()
       .px(9)
       .flex_none()
-      .rounded(8)
+      .rounded(Radius.CARD)
       .bg(theme.popover)
       .border_1()
       .border_color(theme.border)
       .shadow_md()
-      .text_size(12)
+      .text_size(Text.SMALL)
       .text_color(theme.foreground)
       .children(card ? [card.element] : [])
       .children(lined ? [...(card ? [div()
@@ -165,7 +166,7 @@ export class Hints {
         .flex_none()
         .bg(theme.border)] : []), line] : []);
     const lineWidth = textWidth(label, LABEL_CHAR_WIDTH_PX) + caps.reduce(
-      (sum, cap) => sum + KEYCAP_GAP_PX +
+      (sum, cap) => sum + Space.XS +
         Math.max(KEYCAP_MIN_WIDTH_PX, KEYCAP_PADDING_PX + textWidth(cap, KEYCAP_CHAR_WIDTH_PX)),
       caps.length ? KEYCAPS_LEAD_PX : 0);
     // With the padding and the border; under a body, with its rule too

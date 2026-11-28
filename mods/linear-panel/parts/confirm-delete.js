@@ -4,11 +4,10 @@ import { div } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
 import { ask, dismiss } from "../channel.js";
 import { CommentChange, RequestKind } from "../enums.js";
-import { takeKeyboard } from "../ui.js";
+import { button, takeKeyboard } from "../ui.js";
 import { boxed } from "./menu.js";
+import { Space, Text } from "../style.js";
 
-const BUTTON_HEIGHT_PX = 36;
-const HOVER_OPACITY = 0.88;
 // The ring around Delete shows that Enter presses it
 const RING_GAP_PX = 2;
 
@@ -31,29 +30,8 @@ export class ConfirmDelete {
 
   /** @param {Theme} theme */
   render(theme) {
-    /**
-     * @param {string} id
-     * @param {string} label
-     * @param {{ bg: Color, fg: Color, border: Color }} colors
-     * @param {() => void} action
-     */
-    const button = (id, label, { bg, fg, border }, action) => h_flex()
-      .id(id)
-      .h(BUTTON_HEIGHT_PX)
-      .px(16)
-      .items_center()
-      .rounded(BUTTON_HEIGHT_PX / 2)
-      .cursor_pointer()
-      .text_size(14)
-      .bg(bg)
-      .text_color(fg)
-      .border_1()
-      .border_color(border)
-      .hover((style) => style.opacity(HOVER_OPACITY))
-      .on_click(action)
-      .child(label);
-    const danger = { bg: theme.ansi1, fg: theme.background, border: theme.ansi1 };
-    const remove = button("confirm-delete-yes", "Delete", danger, () => this.confirm());
+    const remove = button(theme, { id: "confirm-delete-yes", label: "Delete", tone: "danger",
+      action: () => this.confirm() });
     return boxed(theme, v_flex()
       .id("confirm-delete")
       .track_focus(this.handle)
@@ -63,29 +41,28 @@ export class ConfirmDelete {
         this.confirm();
       })
       .size_full()
-      .p(24)
-      .gap(10))
+      .p(Space.XXL)
+      .gap(Space.L))
       .child(div()
-        .text_size(16)
+        .text_size(Text.TITLE)
         .font_semibold()
         .text_color(theme.foreground)
         .child("Delete this comment?"))
       .child(div()
-        .text_size(14)
+        .text_size(Text.LARGE)
         .text_color(theme.muted)
         .child("You cannot undo this action."))
       .child(h_flex()
         .flex_1()
         .items_end()
         .justify_end()
-        .gap(8)
-        .child(button("confirm-delete-no", "Cancel", { bg: theme.raised, fg: theme.foreground, border: theme.border },
-          () => dismiss(this.props.overlay)))
+        .gap(Space.M)
+        .child(button(theme, { id: "confirm-delete-no", label: "Cancel", action: () => dismiss(this.props.overlay) }))
         .child(div()
           .p(RING_GAP_PX)
-          .rounded(BUTTON_HEIGHT_PX / 2 + RING_GAP_PX)
+          .rounded_full()
           .border_1()
-          .border_color(theme.ansi1)
+          .border_color(theme.danger)
           .child(remove)));
   }
 }

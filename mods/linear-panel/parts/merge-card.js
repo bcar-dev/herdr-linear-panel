@@ -7,6 +7,7 @@ import { MERGE_COLORS, face } from "../ui.js";
 import { MergeStanding, initials, merges, reference, reviewedBy, standing, when } from "../lib/merges.js";
 import { PENDING } from "../lib/lookups.js";
 import { textWidth } from "../lib/placement.js";
+import { Space } from "../style.js";
 
 const AUTHOR_FACE_BLUE = "#1d8cf0";
 const BLOCK_GAP_PX = 6;
@@ -49,7 +50,7 @@ const mark = (merge) => div()
  */
 const heading = (merge, lines, below, theme) => [
   h_flex()
-    .gap(8)
+    .gap(Space.M)
     .items_start()
     .child(mark(merge))
     .child(div()
@@ -125,7 +126,7 @@ function single(merge, details, pending, theme) {
       .h(FACTS_ROW_HEIGHT_PX)
       .mt(8)
       .pl(TITLE_INDENT_PX)
-      .gap(8)
+      .gap(Space.M)
       .flex_none()
       .items_center()
       .child(div()
@@ -144,7 +145,7 @@ function single(merge, details, pending, theme) {
         .flex_1())
       .children(reviewers.map((reviewer) => h_flex()
         .flex_none()
-        .gap(4)
+        .gap(Space.XS)
         .items_center()
         .child(face(initials(reviewer.name), AUTHOR_FACE_BLUE))
         .children(reviewer.approved

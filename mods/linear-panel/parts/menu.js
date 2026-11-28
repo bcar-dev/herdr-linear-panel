@@ -1,21 +1,20 @@
 // What the mod's menus are drawn from: the frame, its rows, captions and rules
 import { div, svg } from "gpui-kit";
 import { v_flex, h_flex, Input } from "gpui-base";
-import { MENU_ROW_HEIGHT_PX, shipped } from "../config.js";
+import { shipped } from "../config.js";
 import { chevron, keycaps, pillRow } from "../ui.js";
+import { Height, Radius, Space, Text } from "../style.js";
 
 // The frame's padding and border, above and below
 export const FRAME_PADDING_PX = 12;
-export const MENU_ROW_RADIUS_PX = 6;
 const SEARCH_ROW_HEIGHT_PX = 34;
-const SEARCH_TEXT_SIZE_PX = 12.8;
 
 // The box around a popup. The mod draws it: Herdr's own has corners that cannot be made rounder
 /**
  * @param {Theme} theme
  * @param {NativeElement} element
  */
-export const boxed = (theme, element) => element.rounded(10)
+export const boxed = (theme, element) => element.rounded(Radius.BOX)
   .border_1()
   .border_color(theme.border)
   .bg(theme.popover)
@@ -33,7 +32,7 @@ export const frame = (theme, id, handle) =>
     .w_full()
     .min_h(0)
     .p(5)
-    .text_size(12.8));
+    .text_size(Text.BODY));
 
 /**
  * @param {Theme} theme
@@ -43,14 +42,14 @@ export const frame = (theme, id, handle) =>
  * @param {boolean} [ticked]
  */
 export const item = (theme, id, label, action, ticked) =>
-  pillRow(theme, `item-${id}`, MENU_ROW_HEIGHT_PX)
-    .rounded(MENU_ROW_RADIUS_PX)
+  pillRow(theme, `item-${id}`, Height.MENU_ROW)
+    .rounded(Radius.ROW)
     .text_color(theme.foreground)
     .on_click(action)
     .child(h_flex()
       .flex_1()
       .min_w(0)
-      .gap(8)
+      .gap(Space.M)
       .items_center()
       .children(label))
     .when(Boolean(ticked), (element) => element.child(svg(shipped("check"))
@@ -67,8 +66,8 @@ export const item = (theme, id, label, action, ticked) =>
  * @param {{ caps?: string[] | null, arrow?: boolean, lit?: boolean }} options
  */
 export const entry = (theme, id, icon, label, { caps, arrow, lit } = {}) =>
-  pillRow(theme, `entry-${id}`, MENU_ROW_HEIGHT_PX, { lit: lit === undefined })
-    .rounded(MENU_ROW_RADIUS_PX)
+  pillRow(theme, `entry-${id}`, Height.MENU_ROW, { lit: lit === undefined })
+    .rounded(Radius.ROW)
     .text_color(theme.foreground)
     .when(Boolean(lit), (element) => element.bg(theme.selected))
     .child(div()
@@ -96,7 +95,7 @@ export const caption = (theme, text) => div()
   .pb(6)
   .flex_none()
   .truncate()
-  .text_size(11)
+  .text_size(Text.CAPTION)
   .text_color(theme.dim)
   .child(text);
 
@@ -114,7 +113,7 @@ export const rule = (theme) => div()
  * @param {import("gpui-base").InputState} input
  * @param {number} [size] the text's
  */
-export const searchField = (theme, input, size = SEARCH_TEXT_SIZE_PX) =>
+export const searchField = (theme, input, size = Text.BODY) =>
   Input.new(input)
     .flex_1()
     .h_full()

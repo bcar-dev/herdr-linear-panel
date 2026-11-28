@@ -1,10 +1,11 @@
 // The menu of a comment, a popup: edit it, resolve its thread, copy it, delete it. Edit and Delete are offered on my
 // own comments only; a thread is resolved from its first comment. Delete asks the panel for the dialog that confirms it
-import { MENU_ROW_HEIGHT_PX, MENU_RULE_HEIGHT_PX } from "../config.js";
+import { MENU_RULE_HEIGHT_PX } from "../config.js";
 import { ask, dismiss } from "../channel.js";
 import { CommentChange, RequestKind } from "../enums.js";
 import { glyph, takeKeyboard } from "../ui.js";
 import { FRAME_PADDING_PX, entry, frame, rule } from "./menu.js";
+import { Height } from "../style.js";
 
 /** @typedef {Extract<Work, { kind: "comment" | "clipboard" }>} Request */
 /** @typedef {{ name: string, icon: string, label: string, request: Request }} Entry */
@@ -39,7 +40,7 @@ function entriesOf(comment, isMine) {
 /** @param {{ comment: PageComment, isMine: boolean }} props */
 export function heightFor({ comment, isMine }) {
   const groups = entriesOf(comment, isMine);
-  return groups.flat().length * MENU_ROW_HEIGHT_PX + (groups.length - 1) * MENU_RULE_HEIGHT_PX + FRAME_PADDING_PX;
+  return groups.flat().length * Height.MENU_ROW + (groups.length - 1) * MENU_RULE_HEIGHT_PX + FRAME_PADDING_PX;
 }
 
 export class CommentMenu {

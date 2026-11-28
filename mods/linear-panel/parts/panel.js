@@ -27,12 +27,12 @@ import { detailKey, listKey } from "./panel-keys.js";
 import { Requests } from "./requests.js";
 import { Setup } from "./setup.js";
 import { Store } from "./store.js";
+import { Height } from "../style.js";
 
 const DETAIL_APPEAR_DELAY_MS = 30;
 const DETAIL_RELEASE_DELAY_MS = SLIDE_MS + 60;
 const DETAIL_SETTLE_DELAY_MS = SLIDE_MS + 40;
 const ICON_BUTTON_GLYPH_PX = 14;
-const ICON_BUTTON_SIZE_PX = 26;
 const KEYBOARD_RETAKE_DELAYS_MS = [1, 8, 30];
 const KEYBOARD_RETAKE_FINAL_DELAY_MS = 150;
 
@@ -454,7 +454,7 @@ export class Panel {
    *   glyph?: number, size?: number, ring?: boolean, side?: Tip["side"] }} button
    */
   iconButton(theme, { id, name, label, action, caps = [], glyph = ICON_BUTTON_GLYPH_PX,
-    size = ICON_BUTTON_SIZE_PX, ring = true, side }) {
+    size = Height.ICON_BUTTON, ring = true, side }) {
     const circle = roundButton(id, size)
       .when(ring, (element) => element.border_1()
         .border_color(theme.border));

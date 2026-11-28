@@ -2,11 +2,12 @@
 // issue to the team: a search field, my teams, a tick on the issue's own
 import { div } from "gpui-kit";
 import { InputState } from "gpui-base";
-import { MENU_ROW_HEIGHT_PX } from "../config.js";
+import { } from "../config.js";
 import { ask, dismiss, submit } from "../channel.js";
 import { RequestKind } from "../enums.js";
 import { chordCaps, takeKeyboard, teamMark } from "../ui.js";
 import { caption, frame, item, rule, searchRow } from "./menu.js";
+import { Height, Text } from "../style.js";
 
 const CHROME_PX = 38;
 const ISSUE_CHROME_PX = 52;
@@ -16,7 +17,7 @@ const TEAM_MARK_SIZE_PX = 18;
 // A row a team, and the caption or search line above them
 /** @param {{ teams: MyTeam[], issue?: Issue }} props */
 export const heightFor = ({ teams, issue }) =>
-  teams.length * MENU_ROW_HEIGHT_PX + (issue ? ISSUE_CHROME_PX : CHROME_PX);
+  teams.length * Height.MENU_ROW + (issue ? ISSUE_CHROME_PX : CHROME_PX);
 
 export class TeamPicker {
   /**
@@ -53,13 +54,13 @@ export class TeamPicker {
         .truncate()
         .child(team.name), div()
         .flex_none()
-        .text_size(11)
+        .text_size(Text.CAPTION)
         .text_color(theme.dim)
         .child(team.key)]
       : [div()
         .w(TEAM_KEY_COLUMN_WIDTH_PX)
         .flex_none()
-        .text_size(11)
+        .text_size(Text.CAPTION)
         .text_color(theme.dim)
         .child(team.key),
       div()

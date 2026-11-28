@@ -12,7 +12,7 @@ describe("a team's mark", () => {
   it("is the team's first letter on a round of its color when its icon is a name of the tracker's own set", () => {
     const mark = teamMark({ name: "backend", icon: "Flower", color: "#b45f45" }, 16);
     assert.equal(text(mark), "B");
-    assert.deepEqual([mark.$.style.bg, mark.$.style.size, mark.$.style.rounded], ["#b45f45", 16, 8]);
+    assert.deepEqual([mark.$.style.bg, mark.$.style.size, mark.$.style.rounded_full], ["#b45f45", 16, true]);
   });
 
   it("is the same for a custom emoji of the workspace, which is a picture the panel cannot draw", () => {

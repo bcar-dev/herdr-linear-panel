@@ -111,7 +111,6 @@ export class Comments {
     context.notify();
   }
 
-  // What the fields hold is kept as their drafts, then the fields are freed
   release() {
     const { drafts } = this.panel.store;
     /** @type {[string, Field][]} */
@@ -125,7 +124,7 @@ export class Comments {
     this.edited?.field.release();
   }
 
-  // A field that replies (`replyTo` "" for a new comment) starts from its draft; an edit's field starts empty
+  // A field that replies starts from its draft; an edit's field starts empty
   /**
    * @param {string} placeholder
    * @param {(context: Context) => void} submit

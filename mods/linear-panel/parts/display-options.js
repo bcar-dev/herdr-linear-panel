@@ -5,6 +5,7 @@ import { ask } from "../channel.js";
 import { RequestKind } from "../enums.js";
 import { takeKeyboard } from "../ui.js";
 import { frame, item } from "./menu.js";
+import { Radius, Space, Text } from "../style.js";
 
 const DROPDOWN_WIDTH_PX = 124;
 
@@ -58,13 +59,13 @@ export class DisplayOptions {
       .h(34)
       .flex_none()
       .px(9)
-      .gap(8)
+      .gap(Space.M)
       .items_center()
       .child(div()
         .flex_1()
         .min_w(0)
         .truncate()
-        .text_size(13)
+        .text_size(Text.BODY)
         .text_color(theme.muted)
         .child(label))
       .children(controls);
@@ -75,9 +76,9 @@ export class DisplayOptions {
       .w(DROPDOWN_WIDTH_PX)
       .flex_none()
       .px(10)
-      .gap(6)
+      .gap(Space.S)
       .items_center()
-      .rounded(8)
+      .rounded(Radius.CARD)
       .cursor_pointer()
       .border_1()
       .border_color(theme.border)
@@ -101,7 +102,7 @@ export class DisplayOptions {
       .flex()
       .items_center()
       .justify_center()
-      .rounded(14)
+      .rounded_full()
       .cursor_pointer()
       .text_color(theme.foreground)
       .hover((style) => style.bg(theme.hover))
@@ -111,7 +112,7 @@ export class DisplayOptions {
     const knob = div()
       .size(14)
       .flex_none()
-      .rounded(7)
+      .rounded(Radius.CONTROL)
       .bg(display.recency ? theme.accent_foreground : theme.muted);
     const recency = h_flex()
       .id("recency")
@@ -120,7 +121,7 @@ export class DisplayOptions {
       .flex_none()
       .px(2)
       .items_center()
-      .rounded(9)
+      .rounded_full()
       .cursor_pointer()
       .bg(display.recency ? theme.accent : theme.input)
       .on_click(set({ recency: !display.recency }))

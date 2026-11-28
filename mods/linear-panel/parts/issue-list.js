@@ -15,6 +15,7 @@ import { propertyKey } from "../lib/keys.js";
 import { fitWidth, textWidth } from "../lib/placement.js";
 import { mergeCard } from "./merge-card.js";
 import { estimateLabel, statusIcon } from "../lib/teams.js";
+import { Height, Radius, Space, Text } from "../style.js";
 
 const ABOUT_HEIGHT_PX = 20;
 const CARRIED_OPACITY = 0.5;
@@ -81,13 +82,13 @@ const chip = (panel, theme, id, options) => warming(panel,
   h_flex()
     .h(20)
     .px(6)
-    .gap(4)
+    .gap(Space.XS)
     .flex_none()
     .items_center()
-    .rounded(10)
+    .rounded(Radius.BOX)
     .border_1()
     .border_color(theme.border)
-    .text_size(11),
+    .text_size(Text.CAPTION),
   id, theme.muted, theme.foreground, options);
 
 // Answers the element with its size, which places the tooltip, or null until the tracker has answered
@@ -117,7 +118,7 @@ export function timeInStatus(panel, issue, theme) {
     .children(times.map(({ state, ms, current }) => h_flex()
       .h(STATUS_TIP_ROW_HEIGHT_PX)
       .flex_none()
-      .gap(8)
+      .gap(Space.M)
       .items_center()
       .text_color(current ? theme.foreground : theme.muted)
       .child(statusMark(state, states))
@@ -163,7 +164,7 @@ export function cycleCard(panel, issue, cycle, theme) {
     .child(h_flex()
       .h(CYCLE_CARD_ROW_HEIGHT_PX)
       .flex_none()
-      .gap(8)
+      .gap(Space.M)
       .items_center()
       .child(cycleMark(when, CYCLE_ICON_PX, theme.muted))
       .child(div()
@@ -185,11 +186,11 @@ export function cycleCard(panel, issue, cycle, theme) {
     .child(h_flex()
       .h(CYCLE_CARD_ROW_HEIGHT_PX)
       .flex_none()
-      .gap(16)
+      .gap(Space.XL)
       .items_center()
       .child(h_flex()
         .flex_none()
-        .gap(4)
+        .gap(Space.XS)
         .items_center()
         .child(ahead ? svg(icon("estimate"))
           .size(14)
@@ -226,7 +227,7 @@ export function section(panel, group, look) {
   return v_flex()
     .flex_none()
     .mt(6)
-    .rounded(8)
+    .rounded(Radius.CARD)
     .border_1()
     .border_color(panel.drag.over === group.state.name ? theme.accent : theme.background)
     .child(heading(panel, group, theme))
@@ -247,9 +248,9 @@ function heading(panel, group, theme) {
     .h(22)
     .px(5)
     .flex_none()
-    .gap(3)
+    .gap(Space.XS)
     .items_center()
-    .rounded(5)
+    .rounded(Radius.CHIP)
     .cursor_pointer(),
   `total-${group.state.id}`, theme.muted, theme.foreground);
   const arrow = warming(panel, div()
@@ -259,17 +260,17 @@ function heading(panel, group, theme) {
     .flex()
     .items_center()
     .justify_center()
-    .rounded(4)
+    .rounded(Radius.MARK)
     .cursor_pointer(),
   `fold-${group.state.id}`, theme.dim, theme.foreground);
   return h_flex()
     .h(30)
     .flex_none()
     .px(8)
-    .gap(7)
+    .gap(Space.M)
     .items_center()
-    .rounded(7)
-    .text_size(13)
+    .rounded(Radius.CONTROL)
+    .text_size(Text.BODY)
     .font_semibold()
     .text_color(theme.foreground)
     .on_mouse_move((_event, context) => panel.aim(group, context))
@@ -288,7 +289,7 @@ function heading(panel, group, theme) {
       .flex_1()
       .min_w(0)
       .truncate()
-      .text_size(11)
+      .text_size(Text.CAPTION)
       .font_normal()
       .text_color(theme.dim)
       .child(note));
@@ -323,7 +324,7 @@ function row(panel, issue, group, { theme, identifierWidth, estimateWidth, lit }
       .flex()
       .items_center()
       .justify_center()
-      .rounded(3)
+      .rounded(Radius.MARK)
       .border_1()
       .border_color(ticked ? theme.accent : theme.input)
       .bg(ticked ? theme.accent : theme.background),
@@ -358,11 +359,11 @@ function row(panel, issue, group, { theme, identifierWidth, estimateWidth, lit }
   const size = warming(panel, h_flex()
     .h(20)
     .pr(4)
-    .gap(3)
+    .gap(Space.XS)
     .flex_none()
     .items_center()
-    .rounded(5)
-    .text_size(11),
+    .rounded(Radius.CHIP)
+    .text_size(Text.CAPTION),
   `estimate-${issue.id}`, theme.muted, theme.foreground,
   { still, tip: { label: "Change estimate", caps: propertyKey(Property.ESTIMATE).caps } });
   const { cycle } = issue;
@@ -379,10 +380,10 @@ function row(panel, issue, group, { theme, identifierWidth, estimateWidth, lit }
   });
   return h_flex()
     .id(`issue-${issue.id}`)
-    .h(28)
+    .h(Height.ROW)
     .flex_none()
     .px(8)
-    .gap(8)
+    .gap(Space.M)
     .items_center()
     .cursor_pointer()
     .rounded_t(joined.above ? 0 : 7)
@@ -413,12 +414,12 @@ function row(panel, issue, group, { theme, identifierWidth, estimateWidth, lit }
         .size(14)))
     .child(h_flex()
       .flex_none()
-      .gap(2)
+      .gap(Space.XXS)
       .items_center()
       .child(div()
         .w(identifierWidth)
         .flex_none()
-        .text_size(11)
+        .text_size(Text.CAPTION)
         .text_color(theme.dim)
         .child(issue.identifier))
       .child(panel.control(status, () => panel.openers.pick(issue, Property.STATUS))
@@ -431,7 +432,7 @@ function row(panel, issue, group, { theme, identifierWidth, estimateWidth, lit }
       .child(issue.title))
     .child(h_flex()
       .flex_none()
-      .gap(3)
+      .gap(Space.XS)
       .items_center()
       .children(requests ? [panel.control(requests, () => { for (const merge of linked) openLink(merge.url); })
         .on_mouse_down("right", (_event, context) => context.stop_propagation())
@@ -482,18 +483,18 @@ export function carried(panel, theme) {
     .h(30)
     .max_w(GHOST_MAX_WIDTH_PX)
     .px(9)
-    .gap(8)
+    .gap(Space.M)
     .items_center()
-    .rounded(8)
+    .rounded(Radius.CARD)
     .bg(theme.popover)
     .border_1()
     .border_color(theme.accent)
     .shadow_md()
-    .text_size(13)
+    .text_size(Text.BODY)
     .child(priorityMark(theme, issue.priority, isFinished(issue)))
     .child(div()
       .flex_none()
-      .text_size(11)
+      .text_size(Text.CAPTION)
       .text_color(theme.dim)
       .child(issue.identifier))
     .child(div()
@@ -503,9 +504,9 @@ export function carried(panel, theme) {
     .when(others > 0, (element) => element.child(div()
       .flex_none()
       .px(5)
-      .rounded(8)
+      .rounded(Radius.CARD)
       .bg(theme.accent)
-      .text_size(11)
+      .text_size(Text.CAPTION)
       .text_color(theme.accent_foreground)
       .child(`+${others}`)));
 }

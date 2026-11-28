@@ -5,6 +5,7 @@ import { logo } from "../config.js";
 import * as dock from "../dock.js";
 import { isDark } from "../lib/color.js";
 import { NAME, SLOT } from "../tracker.js";
+import { Space, Text } from "../style.js";
 
 export class PanelButton {
   constructor() {
@@ -25,11 +26,11 @@ export class PanelButton {
         .id(`panel-${SLOT}`)
         .h(26)
         .px(8)
-        .gap(5)
+        .gap(Space.S)
         .flex_none()
         .items_center()
-        .rounded(13)
-        .text_size(12)
+        .rounded_full()
+        .text_size(Text.SMALL)
         .bg(on ? theme.selected : theme.chrome)
         .text_color(on ? theme.foreground : theme.muted)
         .hover((style) => style.bg(theme.hover))

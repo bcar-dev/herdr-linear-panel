@@ -4,7 +4,7 @@ import { div, image, svg } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
 import * as api from "../api.js";
 import * as channel from "../channel.js";
-import { ERROR_TEXT_PX, HEADER_HEIGHT_PX, VIEWS, icon, logo, shipped } from "../config.js";
+import { HEADER_HEIGHT_PX, VIEWS, icon, logo, shipped } from "../config.js";
 import { ViewKey } from "../enums.js";
 import { NAME, openApp } from "../tracker.js";
 import { chordCaps, zoom } from "../ui.js";
@@ -13,6 +13,7 @@ import { points } from "../lib/listing.js";
 import { textWidth } from "../lib/placement.js";
 import { estimateLabel } from "../lib/teams.js";
 import { carried, section, warming } from "./issue-list.js";
+import { Height, Radius, Space, Text } from "../style.js";
 
 const CLEAR_BUTTON_GLYPH_PX = 13;
 const CLEAR_BUTTON_SIZE_PX = 28;
@@ -44,13 +45,13 @@ function reloadButton(panel, theme) {
 function header(panel, theme) {
   const home = div()
     .id("home")
-    .h(28)
+    .h(Height.ROW)
     .px(8)
-    .gap(6)
+    .gap(Space.S)
     .flex_none()
     .flex()
     .items_center()
-    .rounded(14)
+    .rounded_full()
     .cursor_pointer()
     .font_semibold()
     .hover((style) => style.bg(theme.hover))
@@ -60,7 +61,7 @@ function header(panel, theme) {
     .flex_none()
     .pl(8)
     .pr(14)
-    .gap(8)
+    .gap(Space.M)
     .items_center()
     .border_b(1)
     .border_color(theme.border)
@@ -94,12 +95,12 @@ function island(panel, theme) {
   const targets = panel.ticked(), total = points(targets, panel.store.teams);
   const actions = h_flex()
     .id("actions")
-    .h(28)
+    .h(Height.ROW)
     .px(11)
-    .gap(6)
+    .gap(Space.S)
     .flex_none()
     .items_center()
-    .rounded(14)
+    .rounded_full()
     .cursor_pointer()
     .bg(theme.raised)
     .border_1()
@@ -116,14 +117,14 @@ function island(panel, theme) {
       .mt(8)
       .pl(16)
       .pr(7)
-      .gap(10)
+      .gap(Space.L)
       .items_center()
-      .rounded(21)
+      .rounded_full()
       .bg(theme.popover)
       .border_1()
       .border_color(theme.border)
       .shadow_md()
-      .text_size(12.5)
+      .text_size(Text.BODY)
       .child(div()
         .flex_none()
         .text_color(theme.foreground)
@@ -134,7 +135,7 @@ function island(panel, theme) {
           .child("·"))
         .child(h_flex()
           .flex_none()
-          .gap(3)
+          .gap(Space.XS)
           .items_center()
           .text_color(theme.muted)
           .child(svg(icon("estimate"))
@@ -172,11 +173,11 @@ function totalButton(panel, theme, issues) {
     .h(22)
     .px(5)
     .flex_none()
-    .gap(3)
+    .gap(Space.XS)
     .items_center()
-    .rounded(5)
+    .rounded(Radius.CHIP)
     .cursor_pointer()
-    .text_size(12), "total-view", theme.muted, theme.foreground), (context) => panel.switchTotals(context))
+    .text_size(Text.SMALL), "total-view", theme.muted, theme.foreground), (context) => panel.switchTotals(context))
     .when(!counting, (element) => element.child(svg(icon("estimate"))
       .size(14)))
     .child(counting ? `${issues.length}${cut ? "+" : ""} ${issues.length === 1 && !cut ? "issue" : "issues"}`
@@ -207,7 +208,7 @@ export function drawPanel(panel, theme, sections) {
   const note = (text, color) => div()
     .flex_none()
     .px(16)
-    .text_size(ERROR_TEXT_PX)
+    .text_size(Text.SMALL)
     .text_color(color)
     .child(text);
   /**
@@ -217,14 +218,14 @@ export function drawPanel(panel, theme, sections) {
   const pill = ({ id: view, label, icon: name }, nth) => panel.hints.on(
     h_flex()
       .id(`view-${view}`)
-      .h(28)
+      .h(Height.ROW)
       .px(11)
-      .gap(6)
+      .gap(Space.S)
       .flex_none()
       .items_center()
-      .rounded(7)
+      .rounded(Radius.CONTROL)
       .cursor_pointer()
-      .text_size(13)
+      .text_size(Text.BODY)
       .bg(panel.view === view ? theme.selected : theme.background)
       .text_color(panel.view === view ? theme.foreground : theme.muted)
       .when(panel.view !== view, (element) => element.hover((style) => style.bg(theme.hover)))
@@ -252,13 +253,13 @@ export function drawPanel(panel, theme, sections) {
     .on_modifiers_changed((event, context) => panel.hints.keys(event.modifiers, null, context))
     .size_full()
     .min_h(0)
-    .rounded(10)
+    .rounded(Radius.BOX)
     .overflow_hidden()
     .bg(theme.background)
     .border_1()
     .border_color(theme.border)
     .text_color(theme.foreground)
-    .text_size(13)
+    .text_size(Text.BODY)
     // A popup opened from the panel has the keyboard for a moment: the panel keeps its focused look meanwhile, and
     // while it takes the keyboard back
     .when(channel.popups().length > 0 || panel.retaking || panel.pageHasKeyboard(),
@@ -285,7 +286,7 @@ export function drawPanel(panel, theme, sections) {
         .px(8)
         .pt(8)
         .pb(6)
-        .gap(4)
+        .gap(Space.XS)
         .items_center()
         .children(VIEWS.map(pill))
         .child(div()
@@ -300,8 +301,8 @@ export function drawPanel(panel, theme, sections) {
         .px(11)
         .items_center()
         .child(totalButton(panel, theme, issues)))
-      .children(panel.loader.loadError ? [note(panel.loader.loadError, theme.ansi1)] : [])
-      .children(panel.requests.failed ? [note(panel.requests.failed, theme.ansi1)
+      .children(panel.loader.loadError ? [note(panel.loader.loadError, theme.danger)] : [])
+      .children(panel.requests.failed ? [note(panel.requests.failed, theme.danger)
         .id("failed")
         .cursor_pointer()
         .on_click((_event, context) => { panel.requests.failed = null; context.notify(); })] : [])
@@ -317,12 +318,12 @@ export function drawPanel(panel, theme, sections) {
         .when(!issues.length && !panel.loader.loadError, (element) =>
           element.child(div()
             .p(8)
-            .text_size(12)
+            .text_size(Text.SMALL)
             .text_color(theme.dim)
             .child(empty)))
         .when(Boolean(store.more[panel.view]), (element) => element.child(div()
           .p(8)
-          .text_size(11)
+          .text_size(Text.CAPTION)
           .text_color(theme.dim)
           .child(`Showing the first ${api.ISSUES_PER_VIEW} issues`))))
       .child(island(panel, theme)))
@@ -339,7 +340,7 @@ export function drawPanel(panel, theme, sections) {
           .flex()
           .items_center()
           .justify_center()
-          .rounded(20)
+          .rounded_full()
           .bg(theme.popover)
           .border_1()
           .border_color(theme.border)

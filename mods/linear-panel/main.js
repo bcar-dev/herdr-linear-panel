@@ -8,6 +8,7 @@
 import { View } from "gpui-kit";
 import { props, theme } from "herdr";
 import { closed, giveBack, opened, unlight } from "./channel.js";
+import { withPurposes } from "./style.js";
 import { PanelButton } from "./parts/button.js";
 import { Commands } from "./parts/commands.js";
 import { DisplayOptions } from "./parts/display-options.js";
@@ -64,7 +65,7 @@ export default class IssuesPanel extends View {
 
   /** @param {Context} context */
   render(context) {
-    const drawn = this.part.render(/** @type {Theme} */ (theme()), context);
+    const drawn = this.part.render(withPurposes(theme()), context);
     if (!props()?.overlay) return drawn;
     return drawn.on_mouse_down_out(() => { this.pressedBeside = true; });
   }

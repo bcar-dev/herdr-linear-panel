@@ -2,7 +2,7 @@
 // in "…". It shows as a dialog with every page, or as a popup opened straight at one page
 import { div, svg } from "gpui-kit";
 import { v_flex, h_flex, InputState, ScrollHandle } from "gpui-base";
-import { MENU_ROW_HEIGHT_PX, MENU_RULE_HEIGHT_PX, MOD, PICK_HEAD_HEIGHT_PX, PICK_MAX_ROWS, icon,
+import { MENU_RULE_HEIGHT_PX, MOD, PICK_MAX_ROWS, icon,
   shipped } from "../config.js";
 import { closeWithParent, dismiss, projectMembersOf, submit } from "../channel.js";
 import { Mark, Page, Property, RequestKind } from "../enums.js";
@@ -12,7 +12,8 @@ import { choiceRows } from "../lib/choices.js";
 import { propertyKey, spelled, unmodified } from "../lib/keys.js";
 import { commonCycles, commonEstimates } from "../lib/teams.js";
 import { issuesName } from "../lib/text.js";
-import { MENU_ROW_RADIUS_PX, boxed, caption, rule, searchField } from "./menu.js";
+import { boxed, caption, rule, searchField } from "./menu.js";
+import { Height, Radius, Space, Text } from "../style.js";
 
 // Herdr closes a popup or a dialog on Escape before the mod sees the key. A binding of the mod's own, in a context
 // only this window declares, comes first: Escape can then go back one page instead of closing everything
@@ -35,7 +36,7 @@ const NO_MATCH = {
 /** @type {Page[]} */
 const NUMBERED = [Property.STATUS, Property.PRIORITY, Property.ASSIGN, Property.CYCLE];
 const PADDING_PX = 10;
-const ROW = MENU_ROW_HEIGHT_PX;
+const ROW = Height.MENU_ROW;
 
 /**
  * @param {{ group?: number, title?: string }[]} rows
@@ -49,13 +50,13 @@ export const breaksHeight = (rows) => rows.reduce((sum, row, nth) =>
 
 // With its border: shorter, the popup would squeeze its list
 /** @param {{ breaksPx: number, bare: boolean, visible: number }} props */
-export const heightFor = ({ breaksPx, bare, visible }) => 2 * BORDER_PX + PADDING_PX + PICK_HEAD_HEIGHT_PX
-  + HEAD_RULE_PX + breaksPx + (bare ? 0 : CAPTION_HEIGHT_PX) + visible * MENU_ROW_HEIGHT_PX;
+export const heightFor = ({ breaksPx, bare, visible }) => 2 * BORDER_PX + PADDING_PX + Height.FIELD
+  + HEAD_RULE_PX + breaksPx + (bare ? 0 : CAPTION_HEIGHT_PX) + visible * Height.MENU_ROW;
 
 // How far down the popup the middle of its first choice is
 /** @param {{ bare: boolean }} props */
-export const leadFor = ({ bare }) => BORDER_PX + PADDING_PX / 2 + (bare ? 0 : CAPTION_HEIGHT_PX) + PICK_HEAD_HEIGHT_PX
-  + HEAD_RULE_PX + MENU_ROW_HEIGHT_PX / 2;
+export const leadFor = ({ bare }) => BORDER_PX + PADDING_PX / 2 + (bare ? 0 : CAPTION_HEIGHT_PX) + Height.FIELD
+  + HEAD_RULE_PX + Height.MENU_ROW / 2;
 
 /**
  * @param {Theme} theme
@@ -280,7 +281,7 @@ export class Commands {
      * @param {number} nth
      */
     const line = (row, nth) => pillRow(theme, `command-${nth}`, ROW, { lit: false })
-      .rounded(MENU_ROW_RADIUS_PX)
+      .rounded(Radius.ROW)
       .when(nth === this.litRow, (element) => element.bg(theme.selected))
       .on_mouse_move((_event, context) => { if (this.litRow !== nth) { this.litRow = nth; context.notify(); } })
       .on_click((_event, context) => { row.run(); context.notify(); })
@@ -294,7 +295,7 @@ export class Commands {
       .child(row.note ? h_flex()
         .flex_1()
         .min_w(0)
-        .gap(8)
+        .gap(Space.M)
         .child(div()
           .flex_none()
           .child(row.label))
@@ -320,7 +321,7 @@ export class Commands {
       .children(!row.key ? [] : /^\d$/.test(row.key) && !row.caps
         ? [div()
           .flex_none()
-          .text_size(12)
+          .text_size(Text.SMALL)
           .text_color(theme.dim)
           .font_family(MONO)
           .child(row.key)]
@@ -332,7 +333,7 @@ export class Commands {
       .when(!this.compact, (element) => element.h_full())
       .min_h(0)
       .p(5))
-      .text_size(12.8)
+      .text_size(Text.BODY)
       .text_color(theme.foreground)
       .key_context(CONTEXT)
       .on_action(ESCAPE, (_event, context) => this.escape(context))
@@ -347,16 +348,16 @@ export class Commands {
           .truncate()
           .px(8)
           .py(2)
-          .rounded(6)
+          .rounded(Radius.ROW)
           .bg(theme.raised)
-          .text_size(12)
+          .text_size(Text.SMALL)
           .text_color(theme.muted)
           .child(chip))))
       .child(h_flex()
-        .h(PICK_HEAD_HEIGHT_PX)
+        .h(Height.FIELD)
         .flex_none()
         .px(8)
-        .gap(8)
+        .gap(Space.M)
         .items_center()
         .text_color(theme.dim)
         .child(heading)

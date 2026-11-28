@@ -33,6 +33,13 @@
 - The panel's loads and its spinner live in `parts/loader.js` and have their own tests; the popups' sizes live in
   `parts/sizes.js`. No file imports itself back through others any more: a test enforces this and keeps `lib/` free
   of Herdr.
+- Text sizes, gaps and corners come from one scale (`style.js`): 11, 12, 13, 14, 16 and 18 px text, gaps of 2 to 24
+  px, and corners by what they round. Odd sizes moved to the nearest step, so a few gaps and texts change by 1 to
+  2 px; a corner as round as its control is drawn fully round. A test keeps bare numbers out of these, and allows
+  only the negative margins known to be safe.
+- One button for the comment editor and the delete dialog, in three tones; the danger and success colors are named
+  by purpose.
+- `pnpm run shot` saves a picture of Herdr's window in `.scratch/`.
 - The panel's work, its drawing and an issue page's comments each live in a file of their own: `parts/requests.js`,
   `parts/panel-view.js` and `parts/comments.js`. `panel.js` drops from 911 to 484 lines, `issue-page.js` from 859 to
   710.
