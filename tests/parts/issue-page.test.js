@@ -621,6 +621,19 @@ describe("the top of the page", () => {
     assert.equal(panel.context.clipboard, null);
   });
 
+  it("names what a click on the team or the assignee does, and its shortcut", async () => {
+    const panel = await opened();
+    const root = slideIn(panel);
+    const bounds = { x: 920, y: 160, width: 120, height: 28 };
+    send(root, find(root, "page-team"), "on_mouse_move", { ...at(950, 170), bounds }, panel.context);
+    panel.context.elapse();
+    assert.deepEqual(texts(find(panel.draw(), "tooltip")), ["Move to a different team", "⌘", "⇧", "M"]);
+    const drawn = panel.draw();
+    send(drawn, find(drawn, "page-assign"), "on_mouse_move", { ...at(950, 230), bounds }, panel.context);
+    panel.context.elapse();
+    assert.deepEqual(texts(find(panel.draw(), "tooltip")), ["Change assignee", "A"]);
+  });
+
   it("has four copy buttons at the top right, each with its shortcut in its tooltip", async () => {
     const panel = await opened();
     const root = slideIn(panel);
